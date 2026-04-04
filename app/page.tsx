@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
-// 🌟 [업데이트됨] 1, 2, 3학년 전체 명렬표
 const STUDENT_LIST: Record<string, string> = {
   "1101": "김세준", "1102": "김시우", "1103": "김연우", "1104": "김윤재", "1105": "박시현", "1106": "배하준", "1107": "손민재", "1108": "이동건", "1109": "이주원", "1110": "이주형", "1111": "이지훈", "1112": "이하은", "1113": "전시윤", "1114": "정윤재", "1115": "차승민", "1116": "최은성",
   "1201": "김민우", "1202": "김민찬", "1203": "김시현", "1204": "김현서", "1205": "김현성", "1206": "류도헌", "1207": "배성호", "1208": "손시흔", "1209": "옥지훈", "1210": "이건우", "1211": "임해준", "1212": "장민하", "1213": "주지환", "1214": "최우진", "1215": "최윤서", "1216": "최정원", "1217": "최지요",
@@ -25,12 +24,10 @@ const STUDENT_LIST: Record<string, string> = {
   "3601": "권윤재", "3602": "김시준", "3603": "김율", "3604": "김태우", "3605": "박성준", "3606": "박시원", "3607": "안혜우", "3608": "양다희", "3609": "유지원", "3610": "이상민", "3611": "이수연", "3612": "이지헌", "3613": "장유승", "3614": "전재형", "3615": "조준서", "3616": "채재현"
 };
 
-// 🌟 [추가됨] 교직원 명단 배열
 const STAFF_LIST =[
   "강윤석", "권순정", "김가은", "김동우", "김미정", "김민정", "김상용", "김선옥", "김성진", "김수정", "김승철", "김윤주", "김정석", "김제훈", "김종수", "김종하", "김현심", "도동현", "류상욱", "마예리", "문우현", "박나연", "박소영", "박순덕", "박영희", "박정수", "박준홍", "박진환", "박현숙", "박홍", "배태윤", "백은희", "서미경", "서승은", "손영호", "손중록", "송미희", "송석준", "전리해", "엄경애", "옥창규", "우태성", "우희정", "윤소영", "윤수진", "윤정호", "이계화", "이민아", "이상규", "이승재", "이용호", "이윤아", "이재용", "이재욱", "이재웅", "이주열", "이준구", "이준열", "이지영", "이태현", "이형준", "전경희", "정재환", "정진실", "정휘정", "조우주", "조유경", "주혜령", "채대철", "최유리", "최재선", "추재석", "추철우", "허완규", "홍현주", "황영순"
 ];
 
-// 상태와 이름을 같이 저장하기 위한 타입
 interface SeatData {
   status: string;
   name: string;
@@ -42,12 +39,17 @@ export default function Home() {
 
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const[isPaymentModalOpen, setIsPaymentModalOpen] = useState(false); // 🌟 QR코드 모달
+  const[isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const[seatStatuses, setSeatStatuses] = useState<Record<string, SeatData>>({});
   
-  // 🌟 [변경됨] 단순 상태가 아니라 이름(name)도 같이 저장
-  const [seatStatuses, setSeatStatuses] = useState<Record<string, SeatData>>({});
-  
-  const movieDate = "2026-04-18";
+  // 🌟 [추가됨] DB에서 불러올 영화 설정 데이터
+  const [movieInfo, setMovieInfo] = useState({
+    title: "로딩 중...",
+    date_string: "로딩 중...",
+    db_date: "",
+    venue: "로딩 중...",
+    poster_url: "/poster.jpg"
+  });
 
   const [formData, setFormData] = useState({
     studentId: '',
@@ -57,22 +59,38 @@ export default function Home() {
   });
 
   useEffect(() => {
-    fetchReservedSeats();
+    fetchInitialData();
   },[]);
 
-  const fetchReservedSeats = async () => {
+  // 🌟 [업데이트됨] 영화 정보와 좌석 정보를 동시에 불러옵니다.
+  const fetchInitialData = async () => {
     try {
-      // 🌟 [변경됨] student_name 도 같이 불러옴
-      const { data, error } = await supabase
+      // 1. 영화 정보 불러오기
+      const { data: settingsData, error: settingsError } = await supabase
+        .from('movie_settings')
+        .select('*')
+        .eq('id', 1)
+        .single();
+
+      if (settingsError) throw settingsError;
+      
+      let currentDbDate = "2026-04-18";
+      if (settingsData) {
+        setMovieInfo(settingsData);
+        currentDbDate = settingsData.db_date;
+      }
+
+      // 2. 영화 정보(날짜)에 맞는 좌석 예약 내역 불러오기
+      const { data: resData, error: resError } = await supabase
         .from('reservations')
         .select('seat_number, payment_status, student_name')
-        .eq('movie_date', movieDate);
+        .eq('movie_date', currentDbDate);
 
-      if (error) throw error;
+      if (resError) throw resError;
 
-      if (data) {
+      if (resData) {
         const newStatuses: Record<string, SeatData> = {};
-        data.forEach((res) => {
+        resData.forEach((res) => {
           if (res.payment_status === 'pending' || res.payment_status === 'confirmed') {
             newStatuses[res.seat_number] = { 
               status: res.payment_status, 
@@ -83,7 +101,7 @@ export default function Home() {
         setSeatStatuses(newStatuses);
       }
     } catch (err) {
-      console.error("네트워크 오류:", err);
+      console.error("데이터 불러오기 오류:", err);
     }
   };
 
@@ -103,19 +121,29 @@ export default function Home() {
       return;
     }
 
-    // 🌟[변경됨] 교직원 예외 처리 및 학번 검사
-    if (formData.studentId === "교직원") {
+    // 🌟[추가됨] 비밀번호 숫자 4자리 엄격 검증 로직
+    const passwordRegex = /^[0-9]{4}$/;
+    if (!passwordRegex.test(formData.password)) {
+      alert("❌ 비밀번호는 반드시 4자리 '숫자'로만 입력해주세요!");
+      return;
+    }
+
+    // 🌟[업데이트됨] 학번 입력칸에 실수로 따옴표를 넣어도 자동으로 지워줌
+    const cleanStudentId = formData.studentId.replace(/['"]/g, '').trim();
+
+    // 🌟 [업데이트됨] 교직원 검사 로직 (따옴표 없이 '교직원'으로 검사)
+    if (cleanStudentId === "교직원") {
       if (!STAFF_LIST.includes(formData.name)) {
         alert("❌ 등록된 교직원 이름이 아닙니다. 다시 확인해주세요.");
         return;
       }
     } else {
-      if (formData.studentId.length !== 4) {
-        alert("학번은 4자리 숫자로 입력하거나, '교직원'이라고 입력해주세요.");
+      if (cleanStudentId.length !== 4) {
+        alert("학번은 4자리 숫자로 입력하거나, 교직원이라고 입력해주세요.");
         return;
       }
-      if (STUDENT_LIST[formData.studentId] !== formData.name) {
-        alert(`❌ 학번(${formData.studentId})과 이름(${formData.name})이 일치하지 않거나 없는 학번입니다.`);
+      if (STUDENT_LIST[cleanStudentId] !== formData.name) {
+        alert(`❌ 학번(${cleanStudentId})과 이름(${formData.name})이 일치하지 않거나 없는 학번입니다.`);
         return;
       }
     }
@@ -124,8 +152,8 @@ export default function Home() {
       const { data: existingTickets, error: fetchError } = await supabase
         .from('reservations')
         .select('id')
-        .eq('movie_date', movieDate)
-        .eq('student_id', formData.studentId);
+        .eq('movie_date', movieInfo.db_date) // 🌟 DB에 설정된 날짜 사용
+        .eq('student_id', cleanStudentId);
 
       if (fetchError) throw fetchError;
       if (existingTickets && existingTickets.length > 0) {
@@ -138,8 +166,8 @@ export default function Home() {
       const { error: insertError } = await supabase
         .from('reservations')
         .insert([{
-          movie_date: movieDate,
-          student_id: formData.studentId,
+          movie_date: movieInfo.db_date, // 🌟 DB에 설정된 날짜 사용
+          student_id: cleanStudentId,
           student_name: formData.name,
           password: formData.password,
           seat_number: selectedSeat,
@@ -150,7 +178,7 @@ export default function Home() {
       if (insertError) {
         if (insertError.code === '23505') { 
           alert("앗! 0.1초 차이로 다른 분이 먼저 예매했습니다.");
-          fetchReservedSeats(); 
+          fetchInitialData(); 
         }
         return;
       }
@@ -161,13 +189,11 @@ export default function Home() {
 
       setIsModalOpen(false); 
       
-      // 🌟 [변경됨] 팝콘 구매 시 QR코드 결제 모달 띄우기
       if (finalStatus === 'confirmed') {
         alert(`${formData.name}님, ${selectedSeat} 좌석 예매가 확정되었습니다! (무료 관람)`);
         setSelectedSeat(null);
         setFormData({ studentId: '', name: '', password: '', popcorn: 'none' });
       } else {
-        // 팝콘을 구매했다면 결제창을 띄웁니다.
         setIsPaymentModalOpen(true);
       }
       
@@ -186,17 +212,17 @@ export default function Home() {
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8 flex flex-col items-center select-none overflow-x-hidden">
       <h1 className="text-2xl md:text-3xl font-bold mb-6 text-blue-400">영화대교 예매 시스템</h1>
 
-      {/* 🌟[추가됨] 상단 영화 정보 섹션 */}
+      {/* 🌟[업데이트됨] DB에서 불러온 영화 정보 반영 */}
       <div className="flex flex-col md:flex-row items-center gap-6 mb-12 bg-gray-800 p-6 rounded-2xl w-full max-w-4xl shadow-xl border border-gray-700">
-        <img src="/poster.jpg" alt="영화 포스터" className="w-32 h-48 object-cover rounded-lg shadow-[0_0_15px_rgba(0,0,0,0.5)] bg-gray-700" />
+        {/* DB에서 가져온 포스터 URL 사용 */}
+        <img src={movieInfo.poster_url} alt="영화 포스터" className="w-32 h-48 object-cover rounded-lg shadow-[0_0_15px_rgba(0,0,0,0.5)] bg-gray-700" />
         <div className="flex flex-col text-center md:text-left">
           <span className="text-blue-400 font-bold mb-1 text-sm tracking-wider">이달의 명작 상영작</span>
           <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-3">
-            상영작 제목 입력 {/* 여기에 영화 제목을 적으세요 */}
-            <span className="text-xs font-normal text-gray-300 border border-gray-500 px-2 py-1 rounded-md">관람등급</span>
+            {movieInfo.title}
           </h2>
-          <p className="text-gray-300 mt-2 text-sm md:text-base">📍 장소: 대구과학고등학교 중강당</p>
-          <p className="text-gray-300 text-sm md:text-base">⏰ 일시: 2026년 4월 18일 (토) 09:00 ~ 12:00</p>
+          <p className="text-gray-300 mt-2 text-sm md:text-base">📍 장소: {movieInfo.venue}</p>
+          <p className="text-gray-300 text-sm md:text-base">⏰ 일시: {movieInfo.date_string}</p>
         </div>
       </div>
 
@@ -221,7 +247,6 @@ export default function Home() {
                   const isPending = seatData?.status === 'pending';
                   const isReserved = isConfirmed || isPending;
 
-                  // 🌟 [변경됨] 예매된 자리면 이름, 아니면 A1 형태 표시
                   const displayText = isReserved ? seatData.name : seatId;
 
                   return (
@@ -278,18 +303,17 @@ export default function Home() {
         )}
       </div>
 
-      {/* 예매 정보 입력 모달 */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-800 p-6 md:p-8 rounded-2xl w-full max-w-md border border-gray-600 shadow-2xl">
             <h2 className="text-2xl font-bold text-white mb-6">예매 정보 입력</h2>
             <div className="space-y-4 text-left">
               <div>
-                <label className="block text-gray-300 mb-1 text-sm">학번 (또는 '교직원')</label>
+                <label className="block text-gray-300 mb-1 text-sm">학번</label>
                 <input 
                   type="text" name="studentId" value={formData.studentId} onChange={handleInputChange}
                   className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
-                  placeholder="예: 2208 (교직원은 '교직원')"
+                  placeholder="예: 2208 (교직원은 '교직원' 입력)"
                 />
               </div>
               <div>
@@ -305,7 +329,7 @@ export default function Home() {
                 <input 
                   type="password" name="password" maxLength={4} value={formData.password} onChange={handleInputChange}
                   className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
-                  placeholder="****"
+                  placeholder="반드시 숫자 4자리 입력"
                 />
               </div>
               <div>
@@ -330,7 +354,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🌟 [추가됨] QR코드 결제 안내 모달 */}
       {isPaymentModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60]">
           <div className="bg-gray-800 p-6 md:p-8 rounded-2xl w-full max-w-sm border border-yellow-600 shadow-2xl text-center">
@@ -338,8 +361,8 @@ export default function Home() {
             <p className="text-gray-300 mb-6 text-sm">가예약이 완료되었습니다.<br/>아래 QR코드로 30분 내에 입금해주세요.</p>
             
             <div className="bg-white p-4 rounded-xl mb-6 flex justify-center">
-              {/* public 폴더에 qr.png 를 넣으면 여기서 보여집니다! */}
-              <img src="/qr.png" alt="송금 QR 코드" className="w-48 h-48 object-contain" />
+              {/* 🌟 [업데이트됨] 확장자를 qr.jpeg 로 수정했습니다! */}
+              <img src="/qr.jpeg" alt="송금 QR 코드" className="w-48 h-48 object-contain" />
             </div>
 
             <div className="bg-gray-700 rounded-lg p-4 text-left mb-6">
