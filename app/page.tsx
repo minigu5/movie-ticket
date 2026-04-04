@@ -264,11 +264,17 @@ export default function Home() {
                       col >= movieInfo.mid_vip_start_col &&
                       col <= movieInfo.mid_vip_end_col;
 
-                  // 이름이 길면 모바일에서 깨지므로 2글자로 자름
-                  const displayText = isReserved ? seatData.name.substring(0, 2) : seatId;
+                  // 🌟 [수정됨] 3글자 모두 표시되도록 substring 제거!
+                  const displayText = isReserved ? seatData.name : seatId;
+
+                  // 🌟[수정됨] 대강당의 작은 버튼 안에도 3글자가 쏙 들어가도록 폰트/자간/줄바꿈 방지 적용
                   const textSize = isReserved 
-                    ? (isGrandHall ? 'text-[8px] tracking-tighter' : 'text-[10px] md:text-xs tracking-tighter') 
-                    : (isGrandHall ? 'text-[9px] md:text-[10px]' : 'text-xs md:text-sm');
+                    ? (isGrandHall 
+                        ? 'text-[6.5px] md:text-[8px] tracking-tighter whitespace-nowrap' 
+                        : 'text-[10px] md:text-xs tracking-tighter') 
+                    : (isGrandHall 
+                        ? 'text-[8px] md:text-[10px]' 
+                        : 'text-xs md:text-sm');
 
                   return (
                     <div key={seatId} className={`flex ${isAisle ? aisleMargin : ''}`}>
