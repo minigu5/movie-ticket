@@ -51,9 +51,12 @@ export default function Home() {
   const [movieInfo, setMovieInfo] = useState({
     title: "로딩 중...", date_string: "로딩 중...", db_date: "", venue: "대구과학고등학교 중강당",
     poster_url: "/poster.jpg", deadline_date: "2099-12-31T23:59:00+09:00",
-    vip_start_row: "A", vip_end_row: "C", vip_start_col: 5, vip_end_col: 10
+    
+    // 👇 예전 vip 변수들을 지우고 아래 변수들로 바꿉니다!
+    mid_vip_start_row: "A", mid_vip_end_row: "C", mid_vip_start_col: 5, mid_vip_end_col: 10,
+    grand_vip_start_row: "A", grand_vip_end_row: "C", grand_vip_start_col: 10, grand_vip_end_col: 18
   });
-
+  
   const [formData, setFormData] = useState({
     studentId: '', name: '', password: '', popcorn: 'none'
   });
@@ -130,9 +133,19 @@ export default function Home() {
       return;
     }
 
+    // 🌟 [수정됨] 대강당/중강당 여부에 따라 VIP 검사 범위를 다르게 적용
     const rowChar = selectedSeat!.charAt(0);
     const colNum = parseInt(selectedSeat!.slice(1));
-    const isVipSeat = rowChar.charCodeAt(0) >= movieInfo.vip_start_row.charCodeAt(0) && rowChar.charCodeAt(0) <= movieInfo.vip_end_row.charCodeAt(0) && colNum >= movieInfo.vip_start_col && colNum <= movieInfo.vip_end_col;
+    
+    const isVipSeat = isGrandHall
+      ? rowChar.charCodeAt(0) >= movieInfo.grand_vip_start_row.charCodeAt(0) &&
+        rowChar.charCodeAt(0) <= movieInfo.grand_vip_end_row.charCodeAt(0) &&
+        colNum >= movieInfo.grand_vip_start_col &&
+        colNum <= movieInfo.grand_vip_end_col
+      : rowChar.charCodeAt(0) >= movieInfo.mid_vip_start_row.charCodeAt(0) &&
+        rowChar.charCodeAt(0) <= movieInfo.mid_vip_end_row.charCodeAt(0) &&
+        colNum >= movieInfo.mid_vip_start_col &&
+        colNum <= movieInfo.mid_vip_end_col;
 
     if (isVipSeat && !CLUB_MEMBERS.includes(cleanStudentId)) {
       alert("👑 선택하신 좌석은 '영화대교' 동아리 전용 좌석입니다. 다른 좌석을 선택해주세요!");
@@ -239,8 +252,17 @@ export default function Home() {
                   const isConfirmed = seatData?.status === 'confirmed';
                   const isPending = seatData?.status === 'pending';
                   const isReserved = isConfirmed || isPending;
-
-                  const isVipSeat = row.charCodeAt(0) >= movieInfo.vip_start_row.charCodeAt(0) && row.charCodeAt(0) <= movieInfo.vip_end_row.charCodeAt(0) && col >= movieInfo.vip_start_col && col <= movieInfo.vip_end_col;
+                  
+                  // 🌟 장소에 따라 화면에 보라색을 칠하는 기준도 바뀝니다!
+                  const isVipSeat = isGrandHall
+                    ? row.charCodeAt(0) >= movieInfo.grand_vip_start_row.charCodeAt(0) &&
+                      row.charCodeAt(0) <= movieInfo.grand_vip_end_row.charCodeAt(0) &&
+                      col >= movieInfo.grand_vip_start_col &&
+                      col <= movieInfo.grand_vip_end_col
+                    : row.charCodeAt(0) >= movieInfo.mid_vip_start_row.charCodeAt(0) &&
+                      row.charCodeAt(0) <= movieInfo.mid_vip_end_row.charCodeAt(0) &&
+                      col >= movieInfo.mid_vip_start_col &&
+                      col <= movieInfo.mid_vip_end_col;
 
                   // 이름이 길면 모바일에서 깨지므로 2글자로 자름
                   const displayText = isReserved ? seatData.name.substring(0, 2) : seatId;
