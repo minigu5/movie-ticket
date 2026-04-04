@@ -32,6 +32,7 @@ export default function AdminPage() {
   const [isSendingPromo, setIsSendingPromo] = useState(false);
   const [promoProgress, setPromoProgress] = useState({ current: 0, total: 0 });
 
+  const[singleTarget, setSingleTarget] = useState("");
   const POPCORN_NAMES: Record<string, string> = { original: '오리지널 버터', consomme: '콘소메맛', caramel: '카라멜맛', none: 'X' };
   
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -194,7 +195,13 @@ export default function AdminPage() {
       recipientMap.set("2208", { email: USER_EMAILS["2208"], name: "신민규" });
     }
     
-    // 2. 체크된 학년/교직원 스캔 및 수집
+    // 🌟 2. 드롭다운에서 선택한 특정 개인 추가
+    if (singleTarget && USER_EMAILS[singleTarget]) {
+      const name = isNaN(Number(singleTarget)) ? singleTarget : STUDENT_LIST[singleTarget] || "학생";
+      recipientMap.set(singleTarget, { email: USER_EMAILS[singleTarget], name });
+    }
+    
+    // 3. 체크된 학년/교직원 스캔 및 수집
     Object.keys(USER_EMAILS).forEach(key => {
       let shouldAdd = false;
       if (promoTargets.grade1 && key.startsWith('1') && key.length === 4) shouldAdd = true;
@@ -397,6 +404,41 @@ export default function AdminPage() {
           <label className="flex items-center gap-2 cursor-pointer border-l-2 border-gray-600 pl-6 ml-2">
             <input type="checkbox" checked={promoTargets.test} onChange={e => setPromoTargets({...promoTargets, test: e.target.checked})} className="w-5 h-5 accent-purple-600" /> <span className="text-purple-400 font-bold">테스트용 (2208 신민규)</span>
           </label>
+        </div>
+        
+        <div className="mb-6 p-4 bg-gray-700/50 rounded-xl border border-gray-600">
+          <label className="block text-gray-300 mb-2 text-sm font-bold">🎯 특정 1인에게만 보내기 (선택)</label>
+          <select 
+            value={singleTarget} 
+            onChange={e => setSingleTarget(e.target.value)} 
+            className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 outline-none focus:border-blue-500"
+          >
+            <option value="">-- 개인 발송 안 함 (위에 체크된 그룹에게만 발송) --</option>
+            
+            <optgroup label="👩‍🏫 교직원">
+              {Object.keys(USER_EMAILS).filter(k => isNaN(Number(k))).sort().map(staff => (
+                <option key={staff} value={staff}>{staff}</option>
+              ))}
+            </optgroup>
+            <optgroup label="🎓 1학년">
+              {Object.keys(USER_EMAILS).filter(k => k.startsWith('1') && k.length === 4).sort().map(id => (
+                <option key={id} value={id}>{id} {STUDENT_LIST[id]}</option>
+              ))}
+            </optgroup>
+            <optgroup label="🎓 2학년">
+              {Object.keys(USER_EMAILS).filter(k => k.startsWith('2') && k.length === 4).sort().map(id => (
+                <option key={id} value={id}>{id} {STUDENT_LIST[id]}</option>
+              ))}
+            </optgroup>
+            <optgroup label="🎓 3학년">
+              {Object.keys(USER_EMAILS).filter(k => k.startsWith('3') && k.length === 4).sort().map(id => (
+                <option key={id} value={id}>{id} {STUDENT_LIST[id]}</option>
+              ))}
+            </optgroup>
+          </select>
+          <p className="text-xs text-blue-300 mt-2">
+            ※ 위쪽 체크박스를 모두 해제하고 여기서 한 명만 선택하면, 해당 사람에게만 1통이 발송됩니다.
+          </p>
         </div>
         
         {isSendingPromo ? (
