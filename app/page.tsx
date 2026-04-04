@@ -313,7 +313,21 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8 flex flex-col items-center select-none overflow-x-hidden">
-      <h1 className="text-2xl md:text-3xl font-bold mb-6 text-blue-400">영화대교 예매 시스템</h1>
+      <div className="relative flex flex-col items-center justify-center mb-10 mt-4 select-none">
+        {/* 뒤에 깔리는 은은한 노란색 동심원 빛 (영사기 조명 느낌) */}
+        <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');` }} />
+        <div className="absolute w-32 h-32 md:w-40 md:h-40 bg-yellow-500/20 rounded-full blur-[40px] pointer-events-none"></div>
+        
+        <div style={{ fontFamily: "'Song Myung', serif" }} className="text-center flex flex-col leading-tight z-10">
+          <span className="text-[40px] md:text-[50px] text-gray-100 tracking-[0.1em] drop-shadow-md">영화</span>
+          <span className="text-[40px] md:text-[50px] text-gray-100 tracking-[0.1em] drop-shadow-md">대교</span>
+        </div>
+        
+        {/* 아래에 작게 들어가는 시스템명 */}
+        <p className="mt-4 text-gray-400 text-[10px] md:text-xs tracking-[0.3em] font-light z-10 uppercase font-sans">
+          영화대교 티켓 시스템
+        </p>
+      </div>
 
       <div className="flex flex-col md:flex-row items-center gap-6 mb-12 bg-gray-800 p-6 rounded-2xl w-full max-w-4xl shadow-xl border border-gray-700">
         <img src={movieInfo.poster_url} alt="영화 포스터" className="w-32 h-48 object-cover rounded-lg shadow-lg bg-gray-700" />
