@@ -20,13 +20,13 @@ export async function POST(req: Request) {
       const htmlContent = `
         <div style="background-color: #111827; padding: 40px 10px; font-family: 'Helvetica Neue', Helvetica, sans-serif; text-align: center;">
           
-          <!-- 🌟 이메일 전용 영화대교 로고 구역 -->
-          <div style="margin-bottom: 25px;">
-            <!-- 웹 폰트 로드 시도 (지원되는 메일 클라이언트용) -->
+          <!-- 🌟 이메일 전용 영화대교 로고 구역 (안전한 그림자 + 스포트라이트 배경 적용) -->
+          <div style="margin-bottom: 25px; padding: 20px 0; background: radial-gradient(circle, #422006 0%, #111827 60%);">
+            <!-- 웹 폰트 로드 시도 -->
             <style>@import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');</style>
             
-            <!-- 송명 폰트 및 은은한 노란색 텍스트 그림자(Glow) 적용 -->
-            <div style="font-family: 'Song Myung', 'Batang', 'Myungjo', serif; color: #f9fafb; font-size: 38px; line-height: 1.1; letter-spacing: 4px; text-shadow: 0px 0px 20px rgba(234, 179, 8, 0.6); font-weight: normal;">
+            <!-- 투명도(rgba) 대신 안전한 HEX 컬러(#)를 여러 겹 사용하여 강제 글로우 효과 생성 -->
+            <div style="font-family: 'Song Myung', 'Batang', 'Myungjo', serif; color: #f9fafb; font-size: 38px; line-height: 1.1; letter-spacing: 4px; text-shadow: 0 0 8px #eab308, 0 0 15px #ca8a04; font-weight: normal;">
               <div style="margin-bottom: 5px;">영화</div>
               <div>대교</div>
             </div>
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
           </div>
           
           <div style="max-width: 400px; margin: 0 auto; background-color: #1f2937; border-radius: 16px; overflow: hidden; box-shadow: 0 15px 30px rgba(0,0,0,0.5); text-align: left; border: 1px solid #374151;">
-            
+          
             <img src="${movieInfo.poster_url}" alt="영화 포스터" style="width: 100%; height: auto; display: block; border-bottom: 3px solid #3b82f6;" />
             
             <div style="padding: 30px;">
