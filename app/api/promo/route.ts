@@ -23,7 +23,7 @@ export async function POST(req: Request) {
           
           <div style="max-width: 400px; margin: 0 auto; background-color: #1f2937; border-radius: 16px; overflow: hidden; box-shadow: 0 15px 30px rgba(0,0,0,0.5); text-align: left; border: 1px solid #374151;">
             
-            <img src="${movieInfo.poster_url}" alt="영화 포스터" style="width: 100%; max-height: 500px; object-fit: cover; border-bottom: 3px solid #3b82f6;" />
+            <img src="${movieInfo.poster_url}" alt="영화 포스터" style="width: 100%; height: auto; display: block; border-bottom: 3px solid #3b82f6;" />
             
             <div style="padding: 30px;">
               <h1 style="color: white; font-size: 24px; margin: 0 0 10px 0; line-height: 1.3;">${movieInfo.title}</h1>
