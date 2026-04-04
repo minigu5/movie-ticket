@@ -68,6 +68,7 @@ export default function Home() {
     password: '',
     popcorn: 'none'
   });
+  const[blacklistedUsers, setBlacklistedUsers] = useState<string[]>([]);
 
   useEffect(() => {
     fetchInitialData();
@@ -115,6 +116,10 @@ export default function Home() {
         });
         setSeatStatuses(newStatuses);
       }
+      const { data: bgData } = await supabase.from('blacklist').select('student_id');
+      if (bgData) {
+        setBlacklistedUsers(bgData.map(b => b.student_id));
+      }
     } catch (err) {
       console.error("데이터 불러오기 오류:", err);
     }
@@ -159,6 +164,10 @@ export default function Home() {
         alert(`❌ 학번(${cleanStudentId})과 이름(${formData.name})이 일치하지 않거나 없는 학번입니다.`);
         return;
       }
+      if (blacklistedUsers.includes(cleanStudentId)) {
+      alert("🚫 귀하는 블랙리스트에 등록되어 예매가 제한되었습니다.\n(사유: 이전 관람 시 좌석 미정리 등)\n관리자에게 문의해주세요.");
+      return;
+    }
     }
 
     // 🌟 [추가됨] 내가 선택한 자리가 동아리 전용(VIP) 자리인지 수학적으로 계산
