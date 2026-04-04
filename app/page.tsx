@@ -65,6 +65,7 @@ export default function Home() {
   // 👇 [여기에 추가!] 비밀번호 재설정 관련 상태
   const [showResetButton, setShowResetButton] = useState(false);
   const[isResetting, setIsResetting] = useState(false);
+  const [clickedSeatInfo, setClickedSeatInfo] = useState<{seatId: string, status: string, ticketId: string} | null>(null);
 
   // 🌟 [추가됨] 장소에 따라 좌석 배열(Grid) 동적 계산
   const isGrandHall = movieInfo.venue.includes('대강당');
@@ -138,25 +139,13 @@ export default function Home() {
   const handleSeatClick = (seatId: string) => {
     if (isClosed) return;
     
-    // 이미 예매된 좌석을 클릭한 경우
+    // 이미 예매된 좌석을 클릭한 경우 모달을 띄우기 위해 상태 저장
     if (seatStatuses[seatId]) {
-      const wantsToCancel = confirm(
-        `[${seatId}] 좌석은 이미 예매가 완료된 자리입니다.\n\n` +
-        `🚨[확인]을 누르시면 '예매 취소 페이지'로 이동합니다.\n` +
-        `💡 [취소]를 누르시면 '자리 변경 방법'을 안내해 드립니다.`
-      );
-
-      if (wantsToCancel) {
-        // 취소 페이지로 이동 (ticketId 전달)
-        window.location.href = `/cancel?ticketId=${seatStatuses[seatId].ticketId}`;
-      } else {
-        alert(
-          `🔄 [자리 변경 안내]\n\n` +
-          `자리를 변경하시려면, 원하시는 [새로운 빈 좌석]을 먼저 클릭하신 후\n` +
-          `기존과 동일한 학번, 이름, 비밀번호를 입력하여 예매하시면\n` +
-          `기존 자리가 자동으로 취소되고 새 자리로 이동됩니다!`
-        );
-      }
+      setClickedSeatInfo({
+        seatId,
+        status: seatStatuses[seatId].status,
+        ticketId: seatStatuses[seatId].ticketId
+      });
       return;
     }
 
@@ -452,18 +441,68 @@ export default function Home() {
 
       {isPaymentModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60]">
-          <div className="bg-gray-800 p-8 rounded-2xl max-w-sm border border-yellow-600 text-center">
-            <h2 className="text-2xl font-bold text-yellow-500 mb-2">결제 대기 중</h2>
-            <p className="text-gray-300 mb-6 text-sm">QR코드로 30분 내에 입금해주세요.</p>
-            <div className="bg-white p-4 rounded-xl mb-6"><img src="/qr.jpeg" alt="QR" className="w-48 h-48 object-contain" /></div>
-            <div className="bg-gray-700 rounded-lg p-4 text-left mb-6">
-              <p className="text-sm text-gray-300">결제 금액: <span className="text-white font-bold text-lg">2,500원</span></p>
-              <p className="text-sm text-gray-300">입금자명: <span className="text-blue-400 font-bold">{formData.studentId} {formData.name}</span></p>
+          {/* ... */}
+        </div>
+      )}
+
+      {/* 👇 [여기에 추가!] 이미 예매된 좌석을 눌렀을 때 뜨는 정보/취소 모달 */}
+      {clickedSeatInfo && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[70]">
+          <div className="bg-gray-800 p-8 rounded-2xl max-w-sm w-full border border-gray-600 shadow-2xl text-center">
+            <h2 className="text-2xl font-bold text-white mb-4">
+              좌석 정보 <span className="text-blue-400">[{clickedSeatInfo.seatId}]</span>
+            </h2>
+            
+            {/* 결제 대기 중일 때: QR 코드 및 안내 문구 표시 */}
+            {clickedSeatInfo.status === 'pending' ? (
+              <div className="mb-6 border border-yellow-600 bg-yellow-900/20 p-4 rounded-xl">
+                <p className="text-yellow-500 font-bold mb-4">⏳ 결제 대기 중인 좌석입니다</p>
+                <div className="bg-white p-3 rounded-xl inline-block mb-3 shadow-lg">
+                  <img src="/qr.jpeg" alt="송금 QR" className="w-32 h-32 object-contain" />
+                </div>
+                <p className="text-sm text-yellow-300 font-bold">입금 후 관리자가 확인 시<br/>예매가 최종 완료됩니다.</p>
+              </div>
+            ) : (
+              /* 예매 완료되었을 때 */
+              <div className="mb-6 border border-green-600 bg-green-900/20 p-4 rounded-xl">
+                <p className="text-green-400 font-bold">✅ 예매가 확정된 좌석입니다.</p>
+              </div>
+            )}
+
+            {/* 하단 제어 버튼들 */}
+            <div className="space-y-3">
+              <button 
+                onClick={() => window.location.href = `/cancel?ticketId=${clickedSeatInfo.ticketId}`} 
+                className="w-full py-3 bg-red-600 hover:bg-red-500 rounded-lg text-white font-bold transition-colors shadow-lg"
+              >
+                🚨 예매 취소하기
+              </button>
+              
+              <button 
+                onClick={() => {
+                  alert(
+                    `🔄 [자리 변경 안내]\n\n` +
+                    `자리를 변경하시려면 현재 창을 닫고, 원하시는 [새로운 빈 좌석]을 클릭하세요.\n` +
+                    `기존과 동일한 학번, 이름, 비밀번호를 입력하여 예매하시면\n` +
+                    `기존 자리가 자동으로 취소되고 새 자리로 이동됩니다!`
+                  );
+                }} 
+                className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold transition-colors shadow-lg"
+              >
+                🔄 자리 변경 방법 보기
+              </button>
+              
+              <button 
+                onClick={() => setClickedSeatInfo(null)} 
+                className="w-full py-3 bg-gray-600 hover:bg-gray-500 rounded-lg text-white font-bold transition-colors"
+              >
+                닫기
+              </button>
             </div>
-            <button onClick={() => { setIsPaymentModalOpen(false); setSelectedSeat(null); setFormData({ studentId: '', name: '', password: '', popcorn: 'none' }); }} className="w-full py-3 bg-blue-600 rounded-lg text-white font-bold">닫기</button>
           </div>
         </div>
       )}
+      {/* 👆[추가 끝] */}
     </div>
   );
 }
