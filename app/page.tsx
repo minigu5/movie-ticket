@@ -325,7 +325,7 @@ export default function Home() {
           </div>
         )}
 
-        <div className="flex flex-col gap-1 md:gap-2 min-w-max px-4 pt-6 w-fit mx-auto">
+        <div className="flex flex-col gap-1 md:gap-2 min-w-max px-4 pt-3 w-fit mx-auto">
           {rows.map((row) => (
             <div key={row} className={`flex items-center gap-1 md:gap-2 ${isGrandHall && row === 'H' ? 'mb-8 md:mb-12' : ''}`}>
               <span className="w-4 md:w-6 text-center font-bold text-gray-500 text-[10px] md:text-xs">{row}</span>
