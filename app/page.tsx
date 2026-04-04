@@ -304,7 +304,7 @@ export default function Home() {
       alert("네트워크 오류가 발생했습니다.");
     }
   };
-
+ 
   // 🌟 현재 폼에 입력된 유저의 기존 팝콘 구매 여부 확인
   const cleanId = formData.studentId.replace(/['"]/g, '').trim();
   const userKey = `${cleanId}_${formData.name}`;
