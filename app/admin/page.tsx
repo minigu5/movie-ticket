@@ -164,11 +164,17 @@ export default function AdminPage() {
 
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <h1 className="text-2xl md:text-3xl font-bold text-blue-400">👑 영화대교 관리자 대시보드</h1>
-        <button onClick={() => setIsEditingSettings(!isEditingSettings)} className="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg font-bold transition-colors w-full md:w-auto">
-          {isEditingSettings ? '설정 닫기' : '⚙️ 영화 설정 변경'}
-        </button>
+        
+        {/* 새로고침 버튼과 설정 닫기 버튼을 나란히 배치 */}
+        <div className="flex gap-2 w-full md:w-auto">
+          <button onClick={() => { fetchAdminData(); alert("데이터가 새로고침 되었습니다."); }} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold transition-colors flex-1 md:flex-none">
+            🔄 새로고침
+          </button>
+          <button onClick={() => setIsEditingSettings(!isEditingSettings)} className="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg font-bold transition-colors flex-1 md:flex-none">
+            {isEditingSettings ? '설정 닫기' : '⚙️ 영화 설정 변경'}
+          </button>
+        </div>
       </div>
-
       {isEditingSettings && movieInfo && (
         <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-purple-600 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div><label className="block text-sm text-gray-400 mb-1">영화 제목</label><input type="text" value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600 outline-none"/></div>

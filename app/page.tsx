@@ -35,6 +35,7 @@ const CLUB_MEMBERS =["2101", "2109", "2115", "2208", "2305", "2412", "2507", "25
 interface SeatData {
   status: string;
   name: string;
+  ticketId: string; // 👈 이 줄을 추가하세요!
 }
 
 // 🌟 [주의] 파일 맨 위의 STUDENT_LIST, STAFF_LIST, CLUB_MEMBERS 는 지우지 마세요!
@@ -91,12 +92,13 @@ export default function Home() {
         if (new Date() > new Date(settingsData.deadline_date)) setIsClosed(true);
       }
 
-      const { data: resData } = await supabase.from('reservations').select('seat_number, payment_status, student_name').eq('movie_date', currentDbDate);
+      const { data: resData } = await supabase.from('reservations').select('id, seat_number, payment_status, student_name').eq('movie_date', currentDbDate);
       if (resData) {
         const newStatuses: Record<string, SeatData> = {};
         resData.forEach((res) => {
           if (res.payment_status === 'pending' || res.payment_status === 'confirmed') {
-            newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name };
+            // ticketId: res.id 를 추가로 저장합니다.
+            newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id }; 
           }
         });
         setSeatStatuses(newStatuses);
@@ -134,7 +136,30 @@ export default function Home() {
   };
 
   const handleSeatClick = (seatId: string) => {
-    if (isClosed || seatStatuses[seatId]) return;
+    if (isClosed) return;
+    
+    // 이미 예매된 좌석을 클릭한 경우
+    if (seatStatuses[seatId]) {
+      const wantsToCancel = confirm(
+        `[${seatId}] 좌석은 이미 예매가 완료된 자리입니다.\n\n` +
+        `🚨[확인]을 누르시면 '예매 취소 페이지'로 이동합니다.\n` +
+        `💡 [취소]를 누르시면 '자리 변경 방법'을 안내해 드립니다.`
+      );
+
+      if (wantsToCancel) {
+        // 취소 페이지로 이동 (ticketId 전달)
+        window.location.href = `/cancel?ticketId=${seatStatuses[seatId].ticketId}`;
+      } else {
+        alert(
+          `🔄 [자리 변경 안내]\n\n` +
+          `자리를 변경하시려면, 원하시는 [새로운 빈 좌석]을 먼저 클릭하신 후\n` +
+          `기존과 동일한 학번, 이름, 비밀번호를 입력하여 예매하시면\n` +
+          `기존 자리가 자동으로 취소되고 새 자리로 이동됩니다!`
+        );
+      }
+      return;
+    }
+
     setSelectedSeat(seatId);
   };
 
@@ -237,7 +262,7 @@ export default function Home() {
         fetchInitialData(); return;
       }
 
-      setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: finalStatus, name: formData.name } }));
+      setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: finalStatus, name: formData.name, ticketId: newTicket?.id || '' } }));
       setIsModalOpen(false); 
 
       if (userEmail && newTicket) {
@@ -333,10 +358,10 @@ export default function Home() {
                     <div key={seatId} className={`flex ${isAisle ? aisleMargin : ''}`}>
                       <button
                         onClick={() => handleSeatClick(seatId)}
-                        disabled={isReserved || isClosed} 
+                        disabled={isClosed} 
                         className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold transition-all
-                          ${isConfirmed ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700' 
-                            : isPending ? 'bg-yellow-600/20 border border-yellow-600 text-yellow-500 cursor-not-allowed animate-pulse'
+                          ${isConfirmed ? 'bg-gray-800 text-gray-500 border border-gray-700 hover:bg-gray-700 cursor-pointer' 
+                            : isPending ? 'bg-yellow-600/20 border border-yellow-600 text-yellow-500 hover:bg-yellow-600/40 cursor-pointer animate-pulse'
                             : isSelected ? 'bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.6)] transform -translate-y-1' 
                             : isVipSeat ? 'bg-indigo-900/40 border border-indigo-700 text-indigo-300 hover:bg-indigo-800/60'
                             : 'bg-gray-700 hover:bg-gray-500 text-gray-300'}
