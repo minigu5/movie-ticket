@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { USER_EMAILS } from '../lib/emails';
 
 const STUDENT_LIST: Record<string, string> = {
   "1101": "김세준", "1102": "김시우", "1103": "김연우", "1104": "김윤재", "1105": "박시현", "1106": "배하준", "1107": "손민재", "1108": "이동건", "1109": "이주원", "1110": "이주형", "1111": "이지훈", "1112": "이하은", "1113": "전시윤", "1114": "정윤재", "1115": "차승민", "1116": "최은성",
@@ -253,11 +254,34 @@ export default function Home() {
 
       setIsModalOpen(false); 
       
+      const userEmail = cleanStudentId === "교직원" 
+        ? USER_EMAILS[formData.name] 
+        : USER_EMAILS[cleanStudentId];
+
+      if (userEmail) {
+        // 비동기로 메일 전송 (사용자가 기다리지 않게 백그라운드 처리)
+        fetch('/api/ticket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: userEmail,
+            name: formData.name,
+            seat: selectedSeat,
+            movieTitle: movieInfo.title,
+            movieDate: movieInfo.date_string,
+            isPending: finalStatus === 'pending',
+            popcorn: formData.popcorn
+          })
+        }).catch(err => console.error("메일 발송 에러:", err));
+      }
+
+      // 화면 알림창
       if (finalStatus === 'confirmed') {
-        alert(`${formData.name}님, ${selectedSeat} 좌석 예매가 확정되었습니다! (무료 관람)`);
+        alert(`${formData.name}님, ${selectedSeat} 좌석 예매가 확정되었습니다!\n\n📧 [${userEmail || '알 수 없음'}] 로 영화 티켓이 발송되었습니다!`);
         setSelectedSeat(null);
         setFormData({ studentId: '', name: '', password: '', popcorn: 'none' });
       } else {
+        alert(`📧[${userEmail || '알 수 없음'}] 로 예매 안내 메일이 발송되었습니다! (결제 후 확정)`);
         setIsPaymentModalOpen(true);
       }
       
@@ -285,7 +309,11 @@ export default function Home() {
           </h2>
           <p className="text-gray-300 mt-2 text-sm md:text-base">📍 장소: {movieInfo.venue}</p>
           <p className="text-gray-300 text-sm md:text-base">⏰ 일시: {movieInfo.date_string}</p>
-        </div>
+            {/* 🌟 마감 시간 표시 추가 */}
+            <p className="text-red-400 font-bold mt-2 text-sm md:text-base bg-red-900/30 w-fit px-3 py-1 rounded-md border border-red-800">
+              ⏳ 예매 마감: {new Date(movieInfo.deadline_date).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </p>
+</div>
       </div>
 
       <div className="w-full max-w-4xl h-10 bg-gray-300 rounded-t-3xl shadow-[0_0_25px_rgba(255,255,255,0.2)] flex items-center justify-center mb-8 md:mb-16">
@@ -400,7 +428,7 @@ export default function Home() {
                 <input 
                   type="text" name="studentId" value={formData.studentId} onChange={handleInputChange}
                   className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
-                  placeholder="예: 2208 (교직원은 '교직원' 입력)"
+                  placeholder="예: 2708 (교직원은 '교직원' 입력)"
                 />
               </div>
               <div>
@@ -418,6 +446,10 @@ export default function Home() {
                   className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
                   placeholder="반드시 숫자 4자리 입력"
                 />
+                {/* 🌟 비밀번호 절대 잊지 말라는 경고 추가 */}
+                <p className="text-xs text-red-400 font-bold mt-2">
+                  ⚠️ 주의: 비밀번호는 자리 변경 및 당일 영화관 입장에 반드시 필요하므로 절대 잊어버리지 마세요!
+                </p>
               </div>
               <div>
                 <label className="block text-gray-300 mb-1 text-sm">팝콘 선택 (모두 2,500원)</label>
