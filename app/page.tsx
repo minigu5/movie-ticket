@@ -510,13 +510,12 @@ export default function Home() {
             )}
 
             <div className="space-y-3">
-              {/* 🌟 팝콘 구매자는 취소 불가 처리 */}
-              {clickedSeatInfo.popcorn !== 'none' ? (
+              {clickedSeatInfo.popcorn !== 'none' && clickedSeatInfo.status === 'confirmed' ? (
                 <button 
                   disabled
                   className="w-full py-3 bg-gray-600 rounded-lg text-red-300 font-bold shadow-lg cursor-not-allowed"
                 >
-                  🚫 팝콘 예매자 취소 불가 (자리 변경만 가능)
+                  🚫 결제 완료된 팝콘 예매 취소 불가 (자리 변경만 가능)
                 </button>
               ) : (
                 <button 
@@ -551,11 +550,11 @@ export default function Home() {
           </div>
         </div>
       )}
-      <footer className="mt-20 mb-8 text-center w-full opacity-50 hover:opacity-100 transition-opacity duration-300">
-        <p className="text-xs md:text-sm text-gray-400 font-light tracking-wide">
-          Crafted by <span className="font-semibold text-gray-200">Shin Mingyu</span> with <span className="font-semibold text-blue-400">Google AI Studio</span>
+      <footer className="mt-32 md:mt-40 mb-8 text-center w-full opacity-30 hover:opacity-100 transition-opacity duration-500">
+        <p className="text-[11px] md:text-xs text-gray-400 font-light tracking-wide">
+          Crafted by <span className="font-semibold text-gray-300">Shin Mingyu</span> with <span className="font-semibold text-blue-400/80">Google AI Studio</span>
         </p>
-        <p className="text-[10px] md:text-xs text-gray-500 mt-1.5 tracking-widest uppercase">
+        <p className="text-[9px] md:text-[10px] text-gray-600 mt-1.5 tracking-widest uppercase">
           Powered by Supabase & Vercel
         </p>
       </footer>
