@@ -20,6 +20,14 @@ export default function AdminPage() {
   // 🌟 블랙리스트 상태
   const [blacklist, setBlacklist] = useState<any[]>([]);
   const [newBlackId, setNewBlackId] = useState('');
+
+  // 👇 이 사전을 새로 추가하세요!
+  const POPCORN_NAMES: Record<string, string> = {
+    original: '오리지널 버터',
+    consomme: '콘소메맛',
+    caramel: '카라멜맛',
+    none: 'X'
+  };
   
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const ADMIN_PASSWORD = "영화대교최고"; 
@@ -183,7 +191,9 @@ export default function AdminPage() {
                 </td>
                 <td className="p-4 font-bold text-lg">{ticket.seat_number}</td>
                 <td className="p-4">{ticket.student_id} <span className="text-blue-300">{ticket.student_name}</span></td>
-                <td className="p-4 text-xs">{ticket.popcorn_order !== 'none' ? `🍿 ${ticket.popcorn_order}` : 'X'}</td>
+                <td className="p-4 text-xs">
+                {ticket.popcorn_order !== 'none' ? `🍿 ${POPCORN_NAMES[ticket.popcorn_order]}` : 'X'}
+                </td>
                 <td className="p-4 text-right flex justify-end gap-2">
                   {ticket.payment_status === 'pending' && <button onClick={() => handleApprove(ticket)} className="bg-green-600 px-3 py-1 rounded font-bold">✅ 승인</button>}
                   <button onClick={() => handleCancel(ticket)} className="bg-red-600 px-3 py-1 rounded font-bold">❌ 취소</button>
