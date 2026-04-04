@@ -177,6 +177,10 @@ export default function Home() {
       return;
     }
 
+    const isAgree = confirm("예매를 확정하시겠습니까?\n확정 시 입력하신 정보로 안내 메일(티켓)이 발송됩니다.");
+    if (!isAgree) return; // '취소'를 누르면 여기서 멈춤
+    // 👆👆 추가 끝 👆👆
+
     try {
       const { data: existingTickets, error: fetchError } = await supabase
         .from('reservations')
