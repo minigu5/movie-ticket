@@ -19,7 +19,23 @@ export async function POST(req: Request) {
 
       const htmlContent = `
         <div style="background-color: #111827; padding: 40px 10px; font-family: 'Helvetica Neue', Helvetica, sans-serif; text-align: center;">
-          <h3 style="color: #60a5fa; margin-bottom: 10px; font-weight: normal; letter-spacing: 2px;">영화대교 이달의 상영작 오픈</h3>
+          
+          <!-- 🌟 이메일 전용 영화대교 로고 구역 -->
+          <div style="margin-bottom: 25px;">
+            <!-- 웹 폰트 로드 시도 (지원되는 메일 클라이언트용) -->
+            <style>@import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');</style>
+            
+            <!-- 송명 폰트 및 은은한 노란색 텍스트 그림자(Glow) 적용 -->
+            <div style="font-family: 'Song Myung', 'Batang', 'Myungjo', serif; color: #f9fafb; font-size: 38px; line-height: 1.1; letter-spacing: 4px; text-shadow: 0px 0px 20px rgba(234, 179, 8, 0.6); font-weight: normal;">
+              <div style="margin-bottom: 5px;">영화</div>
+              <div>대교</div>
+            </div>
+            
+            <!-- 작게 들어가는 안내 문구 -->
+            <p style="color: #60a5fa; font-size: 13px; font-weight: bold; letter-spacing: 2px; margin: 15px 0 0 0;">
+              이달의 상영작 오픈
+            </p>
+          </div>
           
           <div style="max-width: 400px; margin: 0 auto; background-color: #1f2937; border-radius: 16px; overflow: hidden; box-shadow: 0 15px 30px rgba(0,0,0,0.5); text-align: left; border: 1px solid #374151;">
             
