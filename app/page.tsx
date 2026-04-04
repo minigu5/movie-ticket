@@ -29,58 +29,67 @@ const STAFF_LIST =[
   "강윤석", "권순정", "김가은", "김동우", "김미정", "김민정", "김상용", "김선옥", "김성진", "김수정", "김승철", "김윤주", "김정석", "김제훈", "김종수", "김종하", "김현심", "도동현", "류상욱", "마예리", "문우현", "박나연", "박소영", "박순덕", "박영희", "박정수", "박준홍", "박진환", "박현숙", "박홍", "배태윤", "백은희", "서미경", "서승은", "손영호", "손중록", "송미희", "송석준", "전리해", "엄경애", "옥창규", "우태성", "우희정", "윤소영", "윤수진", "윤정호", "이계화", "이민아", "이상규", "이승재", "이용호", "이윤아", "이재용", "이재욱", "이재웅", "이주열", "이준구", "이준열", "이지영", "이태현", "이형준", "전경희", "정재환", "정진실", "정휘정", "조우주", "조유경", "주혜령", "채대철", "최유리", "최재선", "추재석", "추철우", "허완규", "홍현주", "황영순"
 ];
 
-// 🌟 [추가됨] 영화대교 동아리 회원 명단
+// 영화대교 동아리 회원 명단
 const CLUB_MEMBERS =["2101", "2109", "2115", "2208", "2305", "2412", "2507", "2509", "2605", "2606"];
 
 interface SeatData {
   status: string;
   name: string;
-  ticketId: string; // 👈 이 줄을 추가하세요!
+  ticketId: string;
+  popcorn: string;
 }
-
-// 🌟 [주의] 파일 맨 위의 STUDENT_LIST, STAFF_LIST, CLUB_MEMBERS 는 지우지 마세요!
-// 그 아래쪽 export default function Home() 부터 파일 맨 끝까지를 이 코드로 덮어쓰세요!
 
 export default function Home() {
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  
   const[seatStatuses, setSeatStatuses] = useState<Record<string, SeatData>>({});
   const[blacklistedUsers, setBlacklistedUsers] = useState<string[]>([]);
-  const [isClosed, setIsClosed] = useState(false);
+  const [userTickets, setUserTickets] = useState<Record<string, { popcorn: string }>>({}); // 🌟 유저별 기존 팝콘 기록
+  
+  const[isClosed, setIsClosed] = useState(false);
 
   const [movieInfo, setMovieInfo] = useState({
     title: "로딩 중...", date_string: "로딩 중...", db_date: "", venue: "대구과학고등학교 중강당",
     poster_url: "/poster.jpg", deadline_date: "2099-12-31T23:59:00+09:00",
-    
-    // 👇 예전 vip 변수들을 지우고 아래 변수들로 바꿉니다!
     mid_vip_start_row: "A", mid_vip_end_row: "C", mid_vip_start_col: 5, mid_vip_end_col: 10,
     grand_vip_start_row: "A", grand_vip_end_row: "C", grand_vip_start_col: 10, grand_vip_end_col: 18
   });
   
-  const [formData, setFormData] = useState({
-    studentId: '', name: '', password: '', popcorn: 'none'
-  });
+  const [formData, setFormData] = useState({ studentId: '', name: '', password: '', popcorn: 'none' });
+  
+  // 비밀번호 재설정 관련 상태
+  const[showResetButton, setShowResetButton] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
-  // 👇 [여기에 추가!] 비밀번호 재설정 관련 상태
-  const [showResetButton, setShowResetButton] = useState(false);
-  const[isResetting, setIsResetting] = useState(false);
-  const [clickedSeatInfo, setClickedSeatInfo] = useState<{seatId: string, status: string, ticketId: string} | null>(null);
+  // 이미 예매된 좌석 클릭 시 팝업을 띄우기 위한 상태
+  const [clickedSeatInfo, setClickedSeatInfo] = useState<{seatId: string, status: string, ticketId: string, popcorn: string} | null>(null);
 
-  // 🌟 [추가됨] 장소에 따라 좌석 배열(Grid) 동적 계산
   const isGrandHall = movieInfo.venue.includes('대강당');
   
   const rows = isGrandHall 
-    ?['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R'] // 대강당 18줄
-    :['A','B','C','D','E','F','G','H','I']; // 중강당 9줄
+    ?['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R'] 
+    :['A','B','C','D','E','F','G','H','I']; 
 
   const cols = isGrandHall 
-    ? Array.from({ length: 27 }, (_, i) => i + 1) // 대강당 27칸
-    : Array.from({ length: 14 }, (_, i) => i + 1); // 중강당 14칸
+    ? Array.from({ length: 27 }, (_, i) => i + 1) 
+    : Array.from({ length: 14 }, (_, i) => i + 1); 
 
   useEffect(() => {
     fetchInitialData();
   },[]);
+
+  // 🌟 입력한 학번과 이름에 매칭되는 기존 예매가 있고 팝콘을 시켰다면, 팝콘 선택 안함을 기존 팝콘으로 강제 변경
+  useEffect(() => {
+    const cleanId = formData.studentId.replace(/['"]/g, '').trim();
+    const userKey = `${cleanId}_${formData.name}`;
+    const existingTicket = userTickets[userKey];
+    
+    if (existingTicket && existingTicket.popcorn !== 'none' && formData.popcorn === 'none') {
+      setFormData(prev => ({ ...prev, popcorn: existingTicket.popcorn }));
+    }
+  }, [formData.studentId, formData.name, userTickets]);
 
   const fetchInitialData = async () => {
     try {
@@ -93,16 +102,23 @@ export default function Home() {
         if (new Date() > new Date(settingsData.deadline_date)) setIsClosed(true);
       }
 
-      const { data: resData } = await supabase.from('reservations').select('id, seat_number, payment_status, student_name').eq('movie_date', currentDbDate);
+      // 🌟 popcorn_order와 student_id도 같이 불러오기
+      const { data: resData } = await supabase.from('reservations')
+        .select('id, seat_number, payment_status, student_name, student_id, popcorn_order')
+        .eq('movie_date', currentDbDate);
+        
       if (resData) {
         const newStatuses: Record<string, SeatData> = {};
+        const ticketsByUser: Record<string, { popcorn: string }> = {};
+        
         resData.forEach((res) => {
           if (res.payment_status === 'pending' || res.payment_status === 'confirmed') {
-            // ticketId: res.id 를 추가로 저장합니다.
-            newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id }; 
+            newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id, popcorn: res.popcorn_order };
+            ticketsByUser[`${res.student_id}_${res.student_name}`] = { popcorn: res.popcorn_order };
           }
         });
         setSeatStatuses(newStatuses);
+        setUserTickets(ticketsByUser);
       }
 
       const { data: bgData } = await supabase.from('blacklist').select('student_id');
@@ -112,7 +128,28 @@ export default function Home() {
     }
   };
 
-  // 👇 [여기에 추가!] 비밀번호 재설정 버튼 클릭 시 실행되는 함수
+  const handleSeatClick = (seatId: string) => {
+    if (isClosed) return;
+    
+    // 이미 예매된 좌석을 클릭한 경우 모달을 띄우기 위해 상태 저장
+    if (seatStatuses[seatId]) {
+      setClickedSeatInfo({
+        seatId,
+        status: seatStatuses[seatId].status,
+        ticketId: seatStatuses[seatId].ticketId,
+        popcorn: seatStatuses[seatId].popcorn
+      });
+      return;
+    }
+
+    setSelectedSeat(seatId);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleRequestReset = async () => {
     const cleanStudentId = formData.studentId.replace(/['"]/g, '').trim();
     setIsResetting(true);
@@ -136,27 +173,6 @@ export default function Home() {
     }
   };
 
-  const handleSeatClick = (seatId: string) => {
-    if (isClosed) return;
-    
-    // 이미 예매된 좌석을 클릭한 경우 모달을 띄우기 위해 상태 저장
-    if (seatStatuses[seatId]) {
-      setClickedSeatInfo({
-        seatId,
-        status: seatStatuses[seatId].status,
-        ticketId: seatStatuses[seatId].ticketId
-      });
-      return;
-    }
-
-    setSelectedSeat(seatId);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
   const handleSubmit = async () => {
     if (!formData.studentId || !formData.name || !formData.password) return alert("정보를 모두 입력해주세요!");
     if (!/^[0-9]{4}$/.test(formData.password)) return alert("❌ 비밀번호는 4자리 '숫자'만 입력해주세요!");
@@ -175,7 +191,6 @@ export default function Home() {
       return;
     }
 
-    // 🌟 [수정됨] 대강당/중강당 여부에 따라 VIP 검사 범위를 다르게 적용
     const rowChar = selectedSeat!.charAt(0);
     const colNum = parseInt(selectedSeat!.slice(1));
     
@@ -194,7 +209,7 @@ export default function Home() {
       return;
     }
 
-    // 👇[여기에 추가!] 영구 보관된 비밀번호 검증 로직
+    // 영구 보관된 비밀번호 검증 로직
     const { data: authData } = await supabase
       .from('student_auth')
       .select('password')
@@ -202,34 +217,38 @@ export default function Home() {
       .single();
 
     if (!authData) {
-      // 최초 예매인 경우 DB에 비밀번호 영구 저장
-      await supabase.from('student_auth').insert({
-        student_id: cleanStudentId,
-        password: formData.password
-      });
+      await supabase.from('student_auth').insert({ student_id: cleanStudentId, password: formData.password });
       setShowResetButton(false);
     } else {
-      // 이미 비밀번호를 설정한 적이 있는 경우 일치 여부 확인
       if (authData.password !== formData.password) {
-        setShowResetButton(true); // 틀렸으므로 재설정 버튼 띄우기
+        setShowResetButton(true);
         return alert("❌ 비밀번호가 일치하지 않습니다. 본인이라면 하단의 '비밀번호 재설정'을 이용하세요.");
       } else {
-        setShowResetButton(false); // 맞았으면 버튼 숨기기
+        setShowResetButton(false); 
       }
     }
-    // 👆[추가 끝]
 
     const isAgree = confirm("예매를 확정하시겠습니까?\n확정 시 입력하신 정보로 티켓이 발송됩니다.");
     if (!isAgree) return;
 
     try {
-      const { data: existingTickets } = await supabase.from('reservations').select('id, password, payment_status, seat_number').eq('movie_date', movieInfo.db_date).eq('student_id', cleanStudentId);
+      const { data: existingTickets } = await supabase.from('reservations')
+        .select('id, password, payment_status, seat_number, popcorn_order')
+        .eq('movie_date', movieInfo.db_date)
+        .eq('student_id', cleanStudentId);
+        
       const baseUrl = window.location.origin;
       const userEmail = cleanStudentId === "교직원" ? USER_EMAILS[formData.name] : USER_EMAILS[cleanStudentId];
 
       if (existingTickets && existingTickets.length > 0) {
         const myOldTicket = existingTickets[0];
         if (myOldTicket.password !== formData.password) return alert("❌ 비밀번호가 일치하지 않습니다.");
+        
+        // 🌟 이미 팝콘을 구매했던 사람이 선택안함으로 바꾸려고 하면 차단
+        if (myOldTicket.popcorn_order !== 'none' && formData.popcorn === 'none') {
+          return alert("❌ 팝콘을 이미 구매하신 경우, 자리 변경 시 무료 관람으로 변경하실 수 없습니다.");
+        }
+
         if (!confirm(`이미 예약된 좌석(${myOldTicket.seat_number})을 새로운 좌석(${selectedSeat})으로 변경하시겠습니까?`)) return;
 
         const { data: updatedTicket, error: updateError } = await supabase.from('reservations').update({ seat_number: selectedSeat, popcorn_order: formData.popcorn }).eq('id', myOldTicket.id).select('id').single();
@@ -244,14 +263,16 @@ export default function Home() {
       }
 
       const finalStatus = formData.popcorn === 'none' ? 'confirmed' : 'pending';
-      const { data: newTicket, error: insertError } = await supabase.from('reservations').insert([{ movie_date: movieInfo.db_date, student_id: cleanStudentId, student_name: formData.name, password: formData.password, seat_number: selectedSeat, popcorn_order: formData.popcorn, payment_status: finalStatus }]).select('id').single();
+      const { data: newTicket, error: insertError } = await supabase.from('reservations')
+        .insert([{ movie_date: movieInfo.db_date, student_id: cleanStudentId, student_name: formData.name, password: formData.password, seat_number: selectedSeat, popcorn_order: formData.popcorn, payment_status: finalStatus }])
+        .select('id').single();
 
       if (insertError) {
         alert("앗! 다른 분이 먼저 예매했습니다.");
         fetchInitialData(); return;
       }
 
-      setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: finalStatus, name: formData.name, ticketId: newTicket?.id || '' } }));
+      setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: finalStatus, name: formData.name, ticketId: newTicket?.id || '', popcorn: formData.popcorn } }));
       setIsModalOpen(false); 
 
       if (userEmail && newTicket) {
@@ -269,6 +290,12 @@ export default function Home() {
       alert("네트워크 오류가 발생했습니다.");
     }
   };
+
+  // 🌟 현재 폼에 입력된 유저의 기존 팝콘 구매 여부 확인
+  const cleanId = formData.studentId.replace(/['"]/g, '').trim();
+  const userKey = `${cleanId}_${formData.name}`;
+  const existingTicket = userTickets[userKey];
+  const hasPopcornAlready = existingTicket && existingTicket.popcorn !== 'none';
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8 flex flex-col items-center select-none overflow-x-hidden">
@@ -308,11 +335,8 @@ export default function Home() {
                   const seatId = `${row}${col}`;
                   const isSelected = selectedSeat === seatId;
                   
-                  // 🌟 [추가됨] 장소에 따른 복도 위치 동적 계산
                   const isAisle = isGrandHall ? (col === 9 || col === 18) : (col === 7);
                   const aisleMargin = isGrandHall ? 'mr-4 md:mr-8' : 'mr-8 md:mr-12';
-                  
-                  // 🌟 [추가됨] 대강당일 때 버튼 사이즈 줄이기
                   const btnSize = isGrandHall ? 'w-7 h-7 md:w-8 md:h-8' : 'w-9 h-9 md:w-11 md:h-11';
 
                   const seatData = seatStatuses[seatId];
@@ -320,7 +344,6 @@ export default function Home() {
                   const isPending = seatData?.status === 'pending';
                   const isReserved = isConfirmed || isPending;
                   
-                  // 🌟 장소에 따라 화면에 보라색을 칠하는 기준도 바뀝니다!
                   const isVipSeat = isGrandHall
                     ? row.charCodeAt(0) >= movieInfo.grand_vip_start_row.charCodeAt(0) &&
                       row.charCodeAt(0) <= movieInfo.grand_vip_end_row.charCodeAt(0) &&
@@ -331,17 +354,11 @@ export default function Home() {
                       col >= movieInfo.mid_vip_start_col &&
                       col <= movieInfo.mid_vip_end_col;
 
-                  // 🌟 [수정됨] 3글자 모두 표시되도록 substring 제거!
                   const displayText = isReserved ? seatData.name : seatId;
 
-                  // 🌟[수정됨] 대강당의 작은 버튼 안에도 3글자가 쏙 들어가도록 폰트/자간/줄바꿈 방지 적용
                   const textSize = isReserved 
-                    ? (isGrandHall 
-                        ? 'text-[6.5px] md:text-[8px] tracking-tighter whitespace-nowrap' 
-                        : 'text-[10px] md:text-xs tracking-tighter') 
-                    : (isGrandHall 
-                        ? 'text-[8px] md:text-[10px]' 
-                        : 'text-xs md:text-sm');
+                    ? (isGrandHall ? 'text-[6.5px] md:text-[8px] tracking-tighter whitespace-nowrap' : 'text-[10px] md:text-xs tracking-tighter') 
+                    : (isGrandHall ? 'text-[8px] md:text-[10px]' : 'text-xs md:text-sm');
 
                   return (
                     <div key={seatId} className={`flex ${isAisle ? aisleMargin : ''}`}>
@@ -388,64 +405,76 @@ export default function Home() {
         ) : <p className="text-gray-400 py-4">관람하실 좌석을 선택해주세요.</p>}
       </div>
 
+      {/* 예매 모달창 */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-800 p-6 rounded-2xl w-full max-w-md border border-gray-600 shadow-2xl">
             <h2 className="text-2xl font-bold text-white mb-6">예매 정보 입력</h2>
             <div className="space-y-4 text-left">
-              {/* 👇 1. 학번 예시 2703으로 변경됨 */}
               <div>
                 <label className="block text-gray-300 mb-1 text-sm">학번</label>
                 <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none" placeholder="예: 2703 (교직원은 '교직원')"/>
               </div>
-              
               <div>
                 <label className="block text-gray-300 mb-1 text-sm">이름 (본명)</label>
                 <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none" placeholder="이름을 정확히 입력하세요"/>
               </div>
-              
-              {/* 👇 2. 영화관 입장 확인 문구 추가됨 */}
               <div>
                 <label className="block text-gray-300 mb-1 text-sm">예매 확인용 비밀번호 (숫자 4자리)</label>
                 <input type="password" name="password" maxLength={4} value={formData.password} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none" placeholder="반드시 숫자 4자리 입력"/>
                 <p className="text-red-400 text-xs mt-1 font-bold">* 좌석 변경 및 영화관 입장 확인 시 필요하므로 절대 잊어버리지 마세요!</p>
                 
-                {/* 비밀번호가 틀렸을 때만 나타나는 재설정 버튼 (이전 단계 적용 완료) */}
                 {showResetButton && (
                   <button 
                     onClick={handleRequestReset}
                     disabled={isResetting}
-                    className="mt-3 text-sm text-yellow-400 hover:text-yellow-300 underline underline-offset-4 transition-colors font-bold text-left"
+                    className="mt-3 text-sm text-yellow-400 hover:text-yellow-300 underline underline-offset-4 transition-colors font-bold text-left block"
                   >
                     {isResetting ? "메일 발송 중..." : "🚨 본인인데 비밀번호를 모르겠나요? (이메일로 재설정)"}
                   </button>
                 )}
               </div>
-
-              {/* (이 아래부터는 기존의 팝콘 선택 코드가 이어집니다) */}
+              
+              {/* 🌟 팝콘 선택 옵션 */}
               <div>
                 <label className="block text-gray-300 mb-1 text-sm">팝콘 선택 (모두 2,500원)</label>
                 <select name="popcorn" value={formData.popcorn} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none">
-                  <option value="none">선택 안함 (무료 관람)</option><option value="original">오리지널 버터 팝콘 (2,500원)</option><option value="consomme">콘소메맛 팝콘 (2,500원)</option><option value="caramel">카라멜맛 팝콘 (2,500원)</option>
+                  {/* 기존에 팝콘을 시킨 유저가 아니면 '선택 안함' 렌더링 */}
+                  {!hasPopcornAlready && <option value="none">선택 안함 (무료 관람)</option>}
+                  <option value="original">오리지널 버터 팝콘 (2,500원)</option>
+                  <option value="consomme">콘소메맛 팝콘 (2,500원)</option>
+                  <option value="caramel">카라멜맛 팝콘 (2,500원)</option>
                 </select>
                 <p className="text-xs text-gray-400 mt-2">* 음료는 개별 지참 부탁드립니다!</p>
+                <p className="text-xs text-red-400 mt-1 font-bold">🚨 팝콘 선택 시 예매 취소 및 무료 관람으로의 변경이 불가능합니다!</p>
               </div>
             </div>
+            
             <div className="flex gap-4 mt-8">
-              <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-gray-600 rounded-lg text-white font-bold">취소</button>
-              <button onClick={handleSubmit} className="flex-1 py-3 bg-blue-600 rounded-lg text-white font-bold">확인</button>
+              <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg text-white font-bold transition-colors">취소</button>
+              <button onClick={handleSubmit} className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold transition-colors">확인</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* 결제 대기 모달 */}
       {isPaymentModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60]">
-          {/* ... */}
+          <div className="bg-gray-800 p-8 rounded-2xl max-w-sm border border-yellow-600 text-center shadow-2xl">
+            <h2 className="text-2xl font-bold text-yellow-500 mb-2">결제 대기 중</h2>
+            <p className="text-gray-300 mb-6 text-sm">QR코드로 30분 내에 입금해주세요.</p>
+            <div className="bg-white p-4 rounded-xl mb-6 inline-block"><img src="/qr.jpeg" alt="QR" className="w-48 h-48 object-contain" /></div>
+            <div className="bg-gray-700 rounded-lg p-4 text-left mb-6">
+              <p className="text-sm text-gray-300">결제 금액: <span className="text-white font-bold text-lg">2,500원</span></p>
+              <p className="text-sm text-gray-300">입금자명: <span className="text-blue-400 font-bold">{formData.studentId} {formData.name}</span></p>
+            </div>
+            <button onClick={() => { setIsPaymentModalOpen(false); setSelectedSeat(null); setFormData({ studentId: '', name: '', password: '', popcorn: 'none' }); }} className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold transition-colors">닫기</button>
+          </div>
         </div>
       )}
 
-      {/* 👇 [여기에 추가!] 이미 예매된 좌석을 눌렀을 때 뜨는 정보/취소 모달 */}
+      {/* 이미 예매된 좌석 클릭 시 정보/제어 모달 */}
       {clickedSeatInfo && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[70]">
           <div className="bg-gray-800 p-8 rounded-2xl max-w-sm w-full border border-gray-600 shadow-2xl text-center">
@@ -453,7 +482,6 @@ export default function Home() {
               좌석 정보 <span className="text-blue-400">[{clickedSeatInfo.seatId}]</span>
             </h2>
             
-            {/* 결제 대기 중일 때: QR 코드 및 안내 문구 표시 */}
             {clickedSeatInfo.status === 'pending' ? (
               <div className="mb-6 border border-yellow-600 bg-yellow-900/20 p-4 rounded-xl">
                 <p className="text-yellow-500 font-bold mb-4">⏳ 결제 대기 중인 좌석입니다</p>
@@ -463,20 +491,28 @@ export default function Home() {
                 <p className="text-sm text-yellow-300 font-bold">입금 후 관리자가 확인 시<br/>예매가 최종 완료됩니다.</p>
               </div>
             ) : (
-              /* 예매 완료되었을 때 */
               <div className="mb-6 border border-green-600 bg-green-900/20 p-4 rounded-xl">
                 <p className="text-green-400 font-bold">✅ 예매가 확정된 좌석입니다.</p>
               </div>
             )}
 
-            {/* 하단 제어 버튼들 */}
             <div className="space-y-3">
-              <button 
-                onClick={() => window.location.href = `/cancel?ticketId=${clickedSeatInfo.ticketId}`} 
-                className="w-full py-3 bg-red-600 hover:bg-red-500 rounded-lg text-white font-bold transition-colors shadow-lg"
-              >
-                🚨 예매 취소하기
-              </button>
+              {/* 🌟 팝콘 구매자는 취소 불가 처리 */}
+              {clickedSeatInfo.popcorn !== 'none' ? (
+                <button 
+                  disabled
+                  className="w-full py-3 bg-gray-600 rounded-lg text-red-300 font-bold shadow-lg cursor-not-allowed"
+                >
+                  🚫 팝콘 예매자 취소 불가 (자리 변경만 가능)
+                </button>
+              ) : (
+                <button 
+                  onClick={() => window.location.href = `/cancel?ticketId=${clickedSeatInfo.ticketId}`} 
+                  className="w-full py-3 bg-red-600 hover:bg-red-500 rounded-lg text-white font-bold transition-colors shadow-lg"
+                >
+                  🚨 예매 취소하기
+                </button>
+              )}
               
               <button 
                 onClick={() => {
@@ -502,7 +538,6 @@ export default function Home() {
           </div>
         </div>
       )}
-      {/* 👆[추가 끝] */}
     </div>
   );
 }
