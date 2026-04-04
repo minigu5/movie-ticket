@@ -28,6 +28,10 @@ export default function AdminPage() {
   const[blacklist, setBlacklist] = useState<any[]>([]);
   const [newBlackId, setNewBlackId] = useState('');
 
+  const [promoTargets, setPromoTargets] = useState({ grade1: false, grade2: false, grade3: false, staff: false, test: true });
+  const [isSendingPromo, setIsSendingPromo] = useState(false);
+  const [promoProgress, setPromoProgress] = useState({ current: 0, total: 0 });
+
   const POPCORN_NAMES: Record<string, string> = { original: '오리지널 버터', consomme: '콘소메맛', caramel: '카라멜맛', none: 'X' };
   
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -182,6 +186,64 @@ export default function AdminPage() {
     alert("블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!"); setNewBlackId(''); fetchAdminData();
   };
 
+  const handleSendPromo = async () => {
+    const recipientMap = new Map();
+    
+    // 1. 테스트 계정 추가 (가장 최우선)
+    if (promoTargets.test && USER_EMAILS["2208"]) {
+      recipientMap.set("2208", { email: USER_EMAILS["2208"], name: "신민규" });
+    }
+    
+    // 2. 체크된 학년/교직원 스캔 및 수집
+    Object.keys(USER_EMAILS).forEach(key => {
+      let shouldAdd = false;
+      if (promoTargets.grade1 && key.startsWith('1') && key.length === 4) shouldAdd = true;
+      if (promoTargets.grade2 && key.startsWith('2') && key.length === 4) shouldAdd = true;
+      if (promoTargets.grade3 && key.startsWith('3') && key.length === 4) shouldAdd = true;
+      if (promoTargets.staff && isNaN(Number(key))) shouldAdd = true;
+
+      if (shouldAdd) {
+        // 이미 테스트로 추가된 2208은 중복 방지를 위해 알아서 덮어써집니다.
+        const name = isNaN(Number(key)) ? key : STUDENT_LIST[key] || "학생";
+        recipientMap.set(key, { email: USER_EMAILS[key], name });
+      }
+    });
+
+    const recipients = Array.from(recipientMap.values());
+    
+    if (recipients.length === 0) return alert("선택된 발송 대상이 없습니다.");
+    if (!confirm(`총 ${recipients.length}명에게 홍보 메일을 발송하시겠습니까?\n(인원이 많을 경우 수십 초 정도 소요될 수 있습니다.)`)) return;
+
+    setIsSendingPromo(true);
+    setPromoProgress({ current: 0, total: recipients.length });
+
+    // 🌟 안전 장치: 한 번에 15명씩만 보내고 1초 쉬기 (Gmail 블락 및 Vercel 타임아웃 완벽 방어)
+    const CHUNK_SIZE = 15; 
+    for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
+      const chunk = recipients.slice(i, i + CHUNK_SIZE);
+      try {
+        await fetch('/api/promo', {
+          method: 'POST',
+          body: JSON.stringify({ chunk, movieInfo, baseUrl })
+        });
+      } catch (err) {
+        console.error("메일 발송 에러:", err);
+      }
+      // 진행도 업데이트
+      setPromoProgress({ current: Math.min(i + CHUNK_SIZE, recipients.length), total: recipients.length });
+      
+      // 다음 묶음을 보내기 전 1초 대기
+      await new Promise(res => setTimeout(res, 1000)); 
+    }
+
+    // 로그 기록
+    await supabase.from('activity_logs').insert([{ student_id: "관리자", student_name: "-", description: `홍보 이메일 발송 완료 (${recipients.length}명)` }]);
+
+    setIsSendingPromo(false);
+    alert("✅ 홍보 메일 발송이 안전하게 완료되었습니다!");
+    fetchAdminData();
+  };
+
   const handleRemoveBlacklist = async (studentId: string, studentName: string) => {
     if(!confirm(`${studentName}(${studentId}) 학생의 블랙리스트를 해제하시겠습니까?`)) return;
     await supabase.from('blacklist').delete().eq('student_id', studentId);
@@ -315,6 +377,40 @@ export default function AdminPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-blue-600 mb-8">
+        <h2 className="text-xl font-bold text-blue-400 mb-4">📧 상영작 홍보 메일 발송</h2>
+        <div className="flex flex-wrap gap-6 mb-6">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={promoTargets.grade1} onChange={e => setPromoTargets({...promoTargets, grade1: e.target.checked})} className="w-5 h-5 accent-blue-600" /> <span className="text-gray-300 font-bold">1학년</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={promoTargets.grade2} onChange={e => setPromoTargets({...promoTargets, grade2: e.target.checked})} className="w-5 h-5 accent-blue-600" /> <span className="text-gray-300 font-bold">2학년</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={promoTargets.grade3} onChange={e => setPromoTargets({...promoTargets, grade3: e.target.checked})} className="w-5 h-5 accent-blue-600" /> <span className="text-gray-300 font-bold">3학년</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={promoTargets.staff} onChange={e => setPromoTargets({...promoTargets, staff: e.target.checked})} className="w-5 h-5 accent-blue-600" /> <span className="text-gray-300 font-bold">교직원</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer border-l-2 border-gray-600 pl-6 ml-2">
+            <input type="checkbox" checked={promoTargets.test} onChange={e => setPromoTargets({...promoTargets, test: e.target.checked})} className="w-5 h-5 accent-purple-600" /> <span className="text-purple-400 font-bold">테스트용 (2208 신민규)</span>
+          </label>
+        </div>
+        
+        {isSendingPromo ? (
+          <div className="w-full bg-gray-700 rounded-full h-8 relative overflow-hidden border border-gray-600">
+            <div className="bg-blue-600 h-8 transition-all duration-300 flex items-center justify-center" style={{ width: `${(promoProgress.current / promoProgress.total) * 100}%` }}></div>
+            <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow-md">
+              안전 발송 중... ({promoProgress.current} / {promoProgress.total})
+            </span>
+          </div>
+        ) : (
+          <button onClick={handleSendPromo} className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg rounded-xl shadow-lg transition-colors">
+            🚀 체크한 대상에게 홍보 메일 발송하기
+          </button>
+        )}
       </div>
       
       {/* 예매 내역 테이블 */}
