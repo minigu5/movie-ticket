@@ -15,11 +15,15 @@ export default function AdminPage() {
   const [reservations, setReservations] = useState<any[]>([]);
   const [movieInfo, setMovieInfo] = useState<any>(null);
   
+  
   const [isEditingSettings, setIsEditingSettings] = useState(false);
   const[editForm, setEditForm] = useState<any>({});
   
   // 🌟 [추가됨] 상영관 변경 경고 모달 제어 상태
   const [showVenueWarning, setShowVenueWarning] = useState(false);
+
+  const [logs, setLogs] = useState<any[]>([]);
+  const[showLogs, setShowLogs] = useState(false);
 
   const[blacklist, setBlacklist] = useState<any[]>([]);
   const [newBlackId, setNewBlackId] = useState('');
@@ -28,6 +32,8 @@ export default function AdminPage() {
   
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const ADMIN_PASSWORD = "영화대교최고"; 
+
+
 
   useEffect(() => {
     if (isAuthenticated) fetchAdminData();
@@ -54,6 +60,9 @@ export default function AdminPage() {
     }
     const { data: blData } = await supabase.from('blacklist').select('*').order('created_at', { ascending: false });
     if (blData) setBlacklist(blData);
+    
+    const { data: logData } = await supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(100);
+    if (logData) setLogs(logData);
   };
 
   // 🌟 [추가됨] 저장 버튼 클릭 시 장소 변경 여부 감지
@@ -95,6 +104,7 @@ export default function AdminPage() {
   const handleApprove = async (ticket: any) => {
     if (!confirm(`${ticket.student_name}님의 예매를 확정하시겠습니까?`)) return;
     await supabase.from('reservations').update({ payment_status: 'confirmed' }).eq('id', ticket.id);
+    await supabase.from('activity_logs').insert([{ student_id: ticket.student_id, student_name: ticket.student_name, description: `관리자 승인 (${ticket.seat_number})` }]);
     const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
     if (userEmail) {
       await fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'confirmed', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl }) });
@@ -105,6 +115,16 @@ export default function AdminPage() {
   const handleCancel = async (ticket: any) => {
     if (!confirm(`정말 ${ticket.student_name}님의 예매를 취소하시겠습니까?`)) return;
     await supabase.from('reservations').delete().eq('id', ticket.id);
+
+    // 👇[여기에 복사해서 추가하세요!] 로그 기록 (관리자 강제 취소)
+    await supabase.from('activity_logs').insert([{ student_id: ticket.student_id, student_name: ticket.student_name, description: `관리자 강제 취소 (${ticket.seat_number})` }]);
+    // 👆[추가 끝]
+
+    await supabase.from('activity_logs').insert([{ 
+      student_id: ticket.student_id, student_name: ticket.student_name, 
+      description: `본인 예매 취소 (${ticket.seat_number})` 
+    }]);
+
     const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
     if (userEmail) {
       await fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl }) });
@@ -140,6 +160,10 @@ export default function AdminPage() {
       const ticket = existingTickets[0];
       await supabase.from('reservations').delete().eq('id', ticket.id);
       
+      // 👇 [여기에 복사해서 추가하세요!] 블랙리스트 등록에 의한 강제 취소 로그
+      await supabase.from('activity_logs').insert([{ student_id: newBlackId, student_name: studentName, description: `블랙리스트 등록 및 예매 강제 취소 (${ticket.seat_number})` }]);
+      // 👆 [추가 끝]
+
       if (userEmail) {
         await fetch('/api/ticket', { 
           method: 'POST', 
@@ -209,16 +233,43 @@ export default function AdminPage() {
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <h1 className="text-2xl md:text-3xl font-bold text-blue-400">👑 영화대교 관리자 대시보드</h1>
         
-        {/* 새로고침 버튼과 설정 닫기 버튼을 나란히 배치 */}
-        <div className="flex gap-2 w-full md:w-auto">
-          <button onClick={() => { fetchAdminData(); alert("데이터가 새로고침 되었습니다."); }} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold transition-colors flex-1 md:flex-none">
+        <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+          <button onClick={() => setShowLogs(!showLogs)} className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg font-bold transition-colors whitespace-nowrap">
+            {showLogs ? '📜 로그 닫기' : '📜 활동 로그'}
+          </button>
+          <button onClick={() => { fetchAdminData(); alert("데이터가 새로고침 되었습니다."); }} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold transition-colors whitespace-nowrap">
             🔄 새로고침
           </button>
-          <button onClick={() => setIsEditingSettings(!isEditingSettings)} className="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg font-bold transition-colors flex-1 md:flex-none">
-            {isEditingSettings ? '설정 닫기' : '⚙️ 영화 설정 변경'}
+          <button onClick={() => setIsEditingSettings(!isEditingSettings)} className="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg font-bold transition-colors whitespace-nowrap">
+            {isEditingSettings ? '설정 닫기' : '⚙️ 설정 변경'}
           </button>
         </div>
       </div>
+      
+      {/* 시스템 활동 로그 창 */}
+      {showLogs && (
+        <div className="bg-gray-900 border border-gray-700 p-6 rounded-xl shadow-2xl mb-8 max-h-[500px] overflow-y-auto">
+          <h2 className="text-xl font-bold text-blue-400 mb-4 sticky top-0 bg-gray-900 py-2 border-b border-gray-800">
+            📜 시스템 활동 로그 <span className="text-sm text-gray-500 font-normal ml-2">(최근 100건)</span>
+          </h2>
+          <div className="space-y-1 font-mono text-[13px] md:text-sm">
+            {logs.length === 0 && <p className="text-gray-500">기록된 로그가 없습니다.</p>}
+            {logs.map((log) => {
+              const d = new Date(log.created_at);
+              const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}. ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+              
+              return (
+                <div key={log.id} className="text-gray-300 border-b border-gray-800 py-2 hover:bg-gray-800 flex flex-wrap gap-2">
+                  <span className="text-gray-500 min-w-[150px]">{dateStr}</span>
+                  <span className="text-yellow-400 w-[45px] font-bold">{log.student_id}</span>
+                  <span className="text-blue-300 w-[60px]">{log.student_name}</span>
+                  <span className="text-white font-bold">{log.description}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {isEditingSettings && movieInfo && (
         <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-purple-600 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div><label className="block text-sm text-gray-400 mb-1">영화 제목</label><input type="text" value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600 outline-none"/></div>

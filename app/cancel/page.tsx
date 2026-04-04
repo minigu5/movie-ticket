@@ -48,6 +48,11 @@ function CancelForm() {
     // 3. 예매 내역 삭제
     await supabase.from('reservations').delete().eq('id', ticketId);
 
+    await supabase.from('activity_logs').insert([{ 
+      student_id: ticket.student_id, student_name: ticket.student_name, 
+      description: `본인 예매 취소 (${ticket.seat_number})` 
+    }]);
+
     // 4. 취소 안내 메일 발송
     const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
     if (userEmail) {

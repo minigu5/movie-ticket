@@ -254,6 +254,13 @@ export default function Home() {
         const { data: updatedTicket, error: updateError } = await supabase.from('reservations').update({ seat_number: selectedSeat, popcorn_order: formData.popcorn }).eq('id', myOldTicket.id).select('id').single();
         if (updateError) return alert("변경 중 오류 발생 (이미 선점된 좌석일 수 있습니다).");
 
+        // 👇 [여기에 추가!] 로그 기록 (좌석 변경)
+        await supabase.from('activity_logs').insert([{ 
+          student_id: cleanStudentId, student_name: formData.name, 
+          description: `좌석 변경 (${myOldTicket.seat_number} ➡️ ${selectedSeat})` 
+        }]);
+        // 👆 [추가 끝]
+
         if (userEmail && updatedTicket) {
           fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: formData.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'changed', popcorn: formData.popcorn, ticketId: updatedTicket.id, baseUrl }) });
         }
@@ -271,6 +278,13 @@ export default function Home() {
         alert("앗! 다른 분이 먼저 예매했습니다.");
         fetchInitialData(); return;
       }
+      
+      // 👇 [여기에 추가!] 로그 기록 (신규 예매)
+      const logDesc = formData.popcorn === 'none' ? `무료 관람 예매 (${selectedSeat})` : `팝콘 포함 예매 대기 (${selectedSeat})`;
+      await supabase.from('activity_logs').insert([{ 
+        student_id: cleanStudentId, student_name: formData.name, description: logDesc 
+      }]);
+      // 👆 [추가 끝]
 
       setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: finalStatus, name: formData.name, ticketId: newTicket?.id || '', popcorn: formData.popcorn } }));
       setIsModalOpen(false); 
