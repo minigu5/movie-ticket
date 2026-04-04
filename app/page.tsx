@@ -178,7 +178,6 @@ export default function Home() {
     }
 
     try {
-      // 🌟 [업데이트됨] 좌석 변경 시스템 (비밀번호 확인 추가)
       const { data: existingTickets, error: fetchError } = await supabase
         .from('reservations')
         .select('id, password, payment_status, seat_number')
@@ -187,99 +186,95 @@ export default function Home() {
 
       if (fetchError) throw fetchError;
       
-      // 이미 예매한 내역이 있다면? (좌석 변경 프로세스)
+      const baseUrl = window.location.origin; // 현재 접속 중인 웹사이트 주소
+      const userEmail = cleanStudentId === "교직원" ? USER_EMAILS[formData.name] : USER_EMAILS[cleanStudentId];
+
       if (existingTickets && existingTickets.length > 0) {
         const myOldTicket = existingTickets[0];
         
-        // 1. 비밀번호 틀림
         if (myOldTicket.password !== formData.password) {
-          alert("❌ 비밀번호가 일치하지 않습니다. 이전 예매 시 사용한 비밀번호를 입력해주세요.");
+          alert("❌ 비밀번호가 일치하지 않습니다.");
           return;
         }
 
-        // 2. 비밀번호 맞음 -> 변경 의사 묻기
-        const confirmChange = confirm(`이미 예약된 좌석(${myOldTicket.seat_number})이 있습니다.\n새로운 좌석(${selectedSeat})으로 변경하시겠습니까?\n(기존 결제 및 승인 상태는 그대로 유지됩니다.)`);
-        
+        const confirmChange = confirm(`이미 예약된 좌석(${myOldTicket.seat_number})이 있습니다.\n새로운 좌석(${selectedSeat})으로 변경하시겠습니까?`);
         if (!confirmChange) return;
 
-        // 3. 의사 확인 시 좌석만 덮어쓰기 (payment_status는 건드리지 않음 = 기존 상태 유지)
-        const { error: updateError } = await supabase
+        // 🌟[추가됨] 업데이트 후 해당 ID 받아오기 (.select('id').single())
+        const { data: updatedTicket, error: updateError } = await supabase
           .from('reservations')
-          .update({ 
-            seat_number: selectedSeat,
-            popcorn_order: formData.popcorn 
-          })
-          .eq('id', myOldTicket.id);
+          .update({ seat_number: selectedSeat, popcorn_order: formData.popcorn })
+          .eq('id', myOldTicket.id)
+          .select('id')
+          .single();
 
         if (updateError) {
-          if (updateError.code === '23505') alert("앗! 0.1초 차이로 다른 분이 먼저 예매했습니다.");
-          else alert("변경 중 오류가 발생했습니다.");
+          alert("변경 중 오류가 발생했습니다.");
           return;
         }
 
-        alert("✨ 좌석이 성공적으로 변경되었습니다!");
-        fetchInitialData(); // 최신 상태로 새로고침 (이전 자리 지우기)
-        setIsModalOpen(false);
-        setSelectedSeat(null);
+        // 🌟 [추가됨] 좌석 변경 이메일 발송
+        if (userEmail && updatedTicket) {
+          fetch('/api/ticket', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: userEmail, name: formData.name, seat: selectedSeat,
+              movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
+              statusType: 'changed', popcorn: formData.popcorn,
+              ticketId: updatedTicket.id, baseUrl
+            })
+          }).catch(err => console.error("메일 발송 에러:", err));
+        }
+
+        alert("✨ 좌석이 변경되었습니다! 이메일로 변경된 티켓이 발송되었습니다.");
+        fetchInitialData(); 
+        setIsModalOpen(false); setSelectedSeat(null);
         setFormData({ studentId: '', name: '', password: '', popcorn: 'none' });
-        return; // 여기서 함수 종료!
+        return; 
       }
 
-      // --- 여기까지 오면 신규 예매자입니다 ---
+      // --- 신규 예매 ---
       const finalStatus = formData.popcorn === 'none' ? 'confirmed' : 'pending';
 
-      const { error: insertError } = await supabase
+      // 🌟 [추가됨] insert 후 생성된 ID 받아오기 (.select('id').single())
+      const { data: newTicket, error: insertError } = await supabase
         .from('reservations')
         .insert([{
-          movie_date: movieInfo.db_date,
-          student_id: cleanStudentId,
-          student_name: formData.name,
-          password: formData.password,
-          seat_number: selectedSeat,
-          popcorn_order: formData.popcorn,
-          payment_status: finalStatus
-        }]);
+          movie_date: movieInfo.db_date, student_id: cleanStudentId, student_name: formData.name,
+          password: formData.password, seat_number: selectedSeat, popcorn_order: formData.popcorn, payment_status: finalStatus
+        }])
+        .select('id')
+        .single();
 
       if (insertError) {
-        if (insertError.code === '23505') { 
-          alert("앗! 0.1초 차이로 다른 분이 먼저 예매했습니다.");
-          fetchInitialData(); 
-        }
+        alert("앗! 0.1초 차이로 다른 분이 먼저 예매했습니다.");
+        fetchInitialData();
         return;
       }
 
       setSeatStatuses((prev) => ({ 
         ...prev,[selectedSeat as string]: { status: finalStatus, name: formData.name } 
       }));
-
       setIsModalOpen(false); 
-      
-      const userEmail = cleanStudentId === "교직원" 
-        ? USER_EMAILS[formData.name] 
-        : USER_EMAILS[cleanStudentId];
 
-      if (userEmail) {
-        // 비동기로 메일 전송 (사용자가 기다리지 않게 백그라운드 처리)
+      // 🌟 신규 예매 이메일 발송
+      if (userEmail && newTicket) {
         fetch('/api/ticket', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: userEmail,
-            name: formData.name,
-            seat: selectedSeat,
-            movieTitle: movieInfo.title,
-            movieDate: movieInfo.date_string,
-            isPending: finalStatus === 'pending',
-            popcorn: formData.popcorn
+            email: userEmail, name: formData.name, seat: selectedSeat,
+            movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
+            statusType: finalStatus, popcorn: formData.popcorn,
+            ticketId: newTicket.id, baseUrl
           })
         }).catch(err => console.error("메일 발송 에러:", err));
       }
 
-      // 화면 알림창
       if (finalStatus === 'confirmed') {
-        alert(`${formData.name}님, ${selectedSeat} 좌석 예매가 확정되었습니다!\n\n📧 [${userEmail || '알 수 없음'}] 로 영화 티켓이 발송되었습니다!`);
-        setSelectedSeat(null);
-        setFormData({ studentId: '', name: '', password: '', popcorn: 'none' });
+        alert(`${formData.name}님, 예매 확정! 📧 [${userEmail || '알 수 없음'}] 로 티켓이 발송되었습니다!`);
+        setSelectedSeat(null); setFormData({ studentId: '', name: '', password: '', popcorn: 'none' });
       } else {
         alert(`📧[${userEmail || '알 수 없음'}] 로 예매 안내 메일이 발송되었습니다! (결제 후 확정)`);
         setIsPaymentModalOpen(true);
