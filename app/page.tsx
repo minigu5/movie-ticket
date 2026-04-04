@@ -379,10 +379,24 @@ export default function Home() {
           <div className="bg-gray-800 p-6 rounded-2xl w-full max-w-md border border-gray-600 shadow-2xl">
             <h2 className="text-2xl font-bold text-white mb-6">예매 정보 입력</h2>
             <div className="space-y-4 text-left">
-              <div><label className="block text-gray-300 mb-1 text-sm">학번</label><input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none" placeholder="예: 2208 (교직원은 '교직원')"/></div>
-              <div><label className="block text-gray-300 mb-1 text-sm">이름 (본명)</label><input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none" placeholder="이름을 정확히 입력하세요"/></div>
-              <div><label className="block text-gray-300 mb-1 text-sm">예매 확인용 비밀번호 (숫자 4자리)</label><input type="password" name="password" maxLength={4} value={formData.password} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none" placeholder="반드시 숫자 4자리 입력"/><p className="text-red-400 text-xs mt-1 font-bold">* 좌석 변경 시 필요하므로 절대 잊어버리지 마세요!</p>
-              {/* 👇 [여기에 추가!] 비밀번호가 틀렸을 때만 나타나는 버튼 */}
+              {/* 👇 1. 학번 예시 2703으로 변경됨 */}
+              <div>
+                <label className="block text-gray-300 mb-1 text-sm">학번</label>
+                <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none" placeholder="예: 2703 (교직원은 '교직원')"/>
+              </div>
+              
+              <div>
+                <label className="block text-gray-300 mb-1 text-sm">이름 (본명)</label>
+                <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none" placeholder="이름을 정확히 입력하세요"/>
+              </div>
+              
+              {/* 👇 2. 영화관 입장 확인 문구 추가됨 */}
+              <div>
+                <label className="block text-gray-300 mb-1 text-sm">예매 확인용 비밀번호 (숫자 4자리)</label>
+                <input type="password" name="password" maxLength={4} value={formData.password} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none" placeholder="반드시 숫자 4자리 입력"/>
+                <p className="text-red-400 text-xs mt-1 font-bold">* 좌석 변경 및 영화관 입장 확인 시 필요하므로 절대 잊어버리지 마세요!</p>
+                
+                {/* 비밀번호가 틀렸을 때만 나타나는 재설정 버튼 (이전 단계 적용 완료) */}
                 {showResetButton && (
                   <button 
                     onClick={handleRequestReset}
@@ -392,8 +406,9 @@ export default function Home() {
                     {isResetting ? "메일 발송 중..." : "🚨 본인인데 비밀번호를 모르겠나요? (이메일로 재설정)"}
                   </button>
                 )}
-                {/* 👆 [추가 끝] */}
               </div>
+
+              {/* (이 아래부터는 기존의 팝콘 선택 코드가 이어집니다) */}
               <div>
                 <label className="block text-gray-300 mb-1 text-sm">팝콘 선택 (모두 2,500원)</label>
                 <select name="popcorn" value={formData.popcorn} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none">

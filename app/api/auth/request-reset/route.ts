@@ -6,7 +6,7 @@ import crypto from 'crypto';
 
 export async function POST(req: Request) {
   try {
-    const { studentId, studentName, baseUrl } = await req.json();
+    const { studentId, studentName, baseUrl, returnUrl } = await req.json();
 
     // 1. 이메일 찾기
     const userEmail = studentId === "교직원" ? USER_EMAILS[studentName] : USER_EMAILS[studentId];
@@ -30,8 +30,8 @@ export async function POST(req: Request) {
       auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
     });
 
-    const resetLink = `${baseUrl}/reset-password?token=${resetToken}&id=${studentId}`;
-
+    const resetLink = `${baseUrl}/reset-password?token=${resetToken}&id=${studentId}${returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''}`;
+    
     const htmlContent = `
       <div style="padding: 30px; background-color: #f8fafc; font-family: sans-serif; text-align: center;">
         <div style="max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">

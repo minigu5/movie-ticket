@@ -10,8 +10,8 @@ function ResetPasswordForm() {
   const token = searchParams.get('token');
   const studentId = searchParams.get('id');
 
-  const [newPassword, setNewPassword] = useState('');
-  const[status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const[newPassword, setNewPassword] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   const handleReset = async () => {
     if (!/^\d{4}$/.test(newPassword)) return alert("비밀번호는 숫자 4자리여야 합니다.");
@@ -47,19 +47,33 @@ function ResetPasswordForm() {
     }
 
     setStatus('success');
-    alert("비밀번호가 성공적으로 변경되었습니다! 다시 예매를 진행해주세요.");
-    router.push('/');
-  };
+    
+    // 🌟 url에 돌아갈 주소(returnUrl)가 있다면 취소 진행 여부를 묻기
+    const returnUrl = searchParams.get('returnUrl');
+    
+    if (returnUrl) {
+      const doCancel = confirm("✅ 비밀번호가 성공적으로 변경되었습니다!\n\n이어서 곧바로 해당 좌석의 예매를 취소하시겠습니까?");
+      if (doCancel) {
+        router.push(returnUrl); // 취소 페이지로 다시 이동
+      } else {
+        router.push('/'); // 취소 안하면 메인 홈으로 이동
+      }
+    } else {
+      alert("✅ 비밀번호가 성공적으로 변경되었습니다! 다시 예매를 진행해주세요.");
+      router.push('/');
+    }
+  }; // <-- 🚨 아까는 이 부분까지만 있고, 아래 코드가 없어서 에러가 났습니다!
 
+  // 👇 화면에 보여지는 UI (JSX) 부분
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-gray-700">
-        <h1 className="text-2xl font-bold text-white mb-6">비밀번호 재설정</h1>
+      <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-gray-700 shadow-2xl">
+        <h1 className="text-2xl font-bold text-white mb-6">🔒 비밀번호 재설정</h1>
         <p className="text-gray-400 text-sm mb-4">학번: {studentId}</p>
         <input 
           type="password" maxLength={4} placeholder="새로운 숫자 4자리"
           value={newPassword} onChange={(e) => setNewPassword(e.target.value.replace(/[^0-9]/g, ''))}
-          className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 mb-6 text-center text-xl tracking-widest" 
+          className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 mb-6 text-center text-xl tracking-widest outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
         />
         <button 
           onClick={handleReset} disabled={status === 'loading'}
@@ -72,9 +86,10 @@ function ResetPasswordForm() {
   );
 }
 
+// 🌟 Suspense(로딩 처리)로 전체 페이지를 감싸주는 부분
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="text-white text-center mt-20">로딩 중...</div>}>
+    <Suspense fallback={<div className="text-white text-center mt-20 font-bold">로딩 중...</div>}>
       <ResetPasswordForm />
     </Suspense>
   );
