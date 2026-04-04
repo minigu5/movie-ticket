@@ -114,82 +114,72 @@ export default function AdminPage() {
 
   const handleCancel = async (ticket: any) => {
     if (!confirm(`정말 ${ticket.student_name}님의 예매를 취소하시겠습니까?`)) return;
+    
     await supabase.from('reservations').delete().eq('id', ticket.id);
 
-    // 👇[여기에 복사해서 추가하세요!] 로그 기록 (관리자 강제 취소)
+    // 🌟 단일 로그 기록 보장!
     await supabase.from('activity_logs').insert([{ student_id: ticket.student_id, student_name: ticket.student_name, description: `관리자 강제 취소 (${ticket.seat_number})` }]);
-    // 👆[추가 끝]
-
-    await supabase.from('activity_logs').insert([{ 
-      student_id: ticket.student_id, student_name: ticket.student_name, 
-      description: `본인 예매 취소 (${ticket.seat_number})` 
-    }]);
 
     const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
     if (userEmail) {
-      await fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl }) });
+      // 🌟 환불 필요 여부 계산
+      const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
+      
+      await fetch('/api/ticket', { 
+        method: 'POST', 
+        body: JSON.stringify({ 
+          email: userEmail, name: ticket.student_name, seat: ticket.seat_number, 
+          movieTitle: movieInfo.title, movieDate: movieInfo.date_string, 
+          statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, 
+          baseUrl, isRefundNeeded 
+        }) 
+      });
     }
     alert("취소 완료 및 이메일 발송됨!"); fetchAdminData();
   };
-
-  // 👇 관리자 페이지(app/admin/page.tsx)의 기존 handleAddBlacklist 함수를 이 코드로 교체하세요!
 
   const handleAddBlacklist = async () => {
     if(newBlackId.length !== 4) return alert("학번 4자리를 정확히 입력해주세요.");
     const studentName = STUDENT_LIST[newBlackId];
     if(!studentName) return alert("존재하지 않는 학번입니다.");
     
-    // 🌟 확인 메시지에 자동 취소 경고 추가
     if(!confirm(`${studentName}(${newBlackId}) 학생을 블랙리스트에 추가하시겠습니까?\n(⚠️ 주의: 현재 진행 중이거나 완료된 예매 내역이 있다면 자동으로 취소됩니다.)`)) return;
     
-    // 1. 블랙리스트 DB에 추가
     const { error } = await supabase.from('blacklist').insert([{ student_id: newBlackId, student_name: studentName }]);
     if (error) return alert("추가 실패 (이미 등록된 학생일 수 있습니다.)");
 
     const userEmail = USER_EMAILS[newBlackId];
 
-    // 🌟 2. 해당 학생의 현재 상영작 예매 내역이 있는지 확인
-    const { data: existingTickets } = await supabase
-      .from('reservations')
-      .select('*')
-      .eq('student_id', newBlackId)
-      .eq('movie_date', movieInfo.db_date);
+    const { data: existingTickets } = await supabase.from('reservations').select('*').eq('student_id', newBlackId).eq('movie_date', movieInfo.db_date);
 
-    // 🌟 3. 예매 내역이 있다면 강제 삭제 및 취소 티켓 메일 발송
     if (existingTickets && existingTickets.length > 0) {
       const ticket = existingTickets[0];
       await supabase.from('reservations').delete().eq('id', ticket.id);
       
-      // 👇 [여기에 복사해서 추가하세요!] 블랙리스트 등록에 의한 강제 취소 로그
+      // 🌟 단일 로그 기록 보장!
       await supabase.from('activity_logs').insert([{ student_id: newBlackId, student_name: studentName, description: `블랙리스트 등록 및 예매 강제 취소 (${ticket.seat_number})` }]);
-      // 👆 [추가 끝]
-
+      
       if (userEmail) {
+        // 🌟 환불 필요 여부 계산
+        const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
+        
         await fetch('/api/ticket', { 
           method: 'POST', 
           body: JSON.stringify({ 
-            email: userEmail, 
-            name: studentName, 
-            seat: ticket.seat_number, 
-            movieTitle: movieInfo.title, 
-            movieDate: movieInfo.date_string, 
-            statusType: 'canceled', 
-            popcorn: ticket.popcorn_order, 
-            ticketId: ticket.id, 
-            baseUrl 
+            email: userEmail, name: studentName, seat: ticket.seat_number, 
+            movieTitle: movieInfo.title, movieDate: movieInfo.date_string, 
+            statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, 
+            baseUrl, isRefundNeeded
           }) 
         });
       }
     }
 
-    // 4. 블랙리스트 등록 안내 메일 발송
     if (userEmail) {
       await fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: userEmail, name: studentName, action: 'added' }) });
     }
     
-    alert("블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!"); 
-    setNewBlackId(''); 
-    fetchAdminData(); // 화면 새로고침
+    alert("블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!"); setNewBlackId(''); fetchAdminData();
   };
 
   const handleRemoveBlacklist = async (studentId: string, studentName: string) => {

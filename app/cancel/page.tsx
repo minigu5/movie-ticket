@@ -11,8 +11,8 @@ function CancelForm() {
   const router = useRouter();
 
   const [ticket, setTicket] = useState<any>(null);
-  const[password, setPassword] = useState('');
-  const [showResetButton, setShowResetButton] = useState(false);
+  const [password, setPassword] = useState('');
+  const[showResetButton, setShowResetButton] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -43,27 +43,32 @@ function CancelForm() {
     }
 
     // 2. 비밀번호가 맞으면 취소 진행 여부 확인
-    if (!confirm(`정말 [${ticket.seat_number}] 좌석 예매를 취소하시겠습니까?`)) return;
+    if (!confirm(`정말[${ticket.seat_number}] 좌석 예매를 취소하시겠습니까?`)) return;
 
     // 3. 예매 내역 삭제
     await supabase.from('reservations').delete().eq('id', ticketId);
 
+    // 🌟 4. 로그 중복 방지: 여기에만 '본인 예매 취소' 기록을 남깁니다.
     await supabase.from('activity_logs').insert([{ 
       student_id: ticket.student_id, student_name: ticket.student_name, 
       description: `본인 예매 취소 (${ticket.seat_number})` 
     }]);
 
-    // 4. 취소 안내 메일 발송
+    // 5. 취소 안내 메일 발송
     const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
     if (userEmail) {
       const { data: movieSettings } = await supabase.from('movie_settings').select('*').eq('id', 1).single();
+      
+      // 🌟 환불이 필요한 상황인지 체크 (팝콘을 시켰고 & 이미 결제 확정된 경우)
+      const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
+      
       await fetch('/api/ticket', {
         method: 'POST',
         body: JSON.stringify({
           email: userEmail, name: ticket.student_name, seat: ticket.seat_number,
           movieTitle: movieSettings.title, movieDate: movieSettings.date_string,
           statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id,
-          baseUrl: window.location.origin
+          baseUrl: window.location.origin, isRefundNeeded
         })
       });
     }
@@ -98,8 +103,8 @@ function CancelForm() {
   if (loading) return <div className="text-white text-center mt-20 font-bold">데이터를 불러오는 중...</div>;
   if (!ticket) return <div className="text-white text-center mt-20 font-bold">존재하지 않거나 이미 취소된 예매 내역입니다.</div>;
 
-  // 🌟 팝콘 구매 여부 확인
-  const hasPopcorn = ticket.popcorn_order !== 'none';
+  // 🌟 [핵심 변경] 팝콘을 샀더라도, 아직 'pending(결제 대기)' 상태면 취소 가능하도록 로직 변경!
+  const isPaidPopcorn = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
 
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
@@ -110,12 +115,12 @@ function CancelForm() {
           예매자: <span className="font-bold text-white">{ticket.student_id} {ticket.student_name}</span>
         </p>
         
-        {/* 🌟 팝콘을 구매한 경우 취소 입력창 대신 경고문 표시 */}
-        {hasPopcorn ? (
+        {/* 🌟 결제가 완료된 팝콘 예매자만 취소를 막습니다 */}
+        {isPaidPopcorn ? (
           <div className="mb-6 bg-red-900/40 border border-red-800 p-4 rounded-xl">
             <p className="text-red-400 font-bold mb-2">🚫 취소 불가 안내</p>
             <p className="text-sm text-gray-300 mb-4">
-              팝콘이 포함된 예매 내역은 직접 취소할 수 없습니다. (다른 자리로의 이동만 가능합니다.)<br/>
+              결제가 완료된 팝콘 예매 내역은 직접 취소할 수 없습니다. (다른 자리로의 이동만 가능합니다.)<br/>
               부득이한 경우 동아리 관리자에게 문의해 주세요.
             </p>
             <button 
@@ -126,7 +131,7 @@ function CancelForm() {
             </button>
           </div>
         ) : (
-          /* 팝콘을 안 산 경우 정상적으로 취소 가능 */
+          /* 미결제거나 무료 관람인 경우 정상적으로 취소 가능 */
           <>
             <input
               type="password" maxLength={4} placeholder="비밀번호 4자리"

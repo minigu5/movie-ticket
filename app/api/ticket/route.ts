@@ -4,7 +4,8 @@ import nodemailer from 'nodemailer';
 
 export async function POST(req: Request) {
   try {
-    const { email, name, seat, movieTitle, movieDate, statusType, popcorn, ticketId, baseUrl } = await req.json();
+    // 🌟 isRefundNeeded 파라미터를 추가로 받습니다.
+    const { email, name, seat, movieTitle, movieDate, statusType, popcorn, ticketId, baseUrl, isRefundNeeded } = await req.json();
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -23,7 +24,12 @@ export async function POST(req: Request) {
     } else if (statusType === 'canceled') {
       badgeBg = '#FEE2E2'; badgeColor = '#991B1B'; badgeText = '예매 취소됨';
       subject = `[영화대교] ${name}님의 예매 취소 안내`;
-      priceText = popcorn !== 'none' ? '2,500 원 (환불 요망)' : '0 원 (무료)';
+      // 🌟 결제 완료된 팝콘이면 환불 요망, 결제 전이면 미결제 취소
+      if (popcorn !== 'none') {
+        priceText = isRefundNeeded ? '2,500 원 (환불 요망)' : '2,500 원 (미결제 취소)';
+      } else {
+        priceText = '0 원 (무료)';
+      }
     } else {
       if(popcorn !== 'none') priceText = '2,500 원 (결제완료)';
     }

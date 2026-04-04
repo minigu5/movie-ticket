@@ -278,7 +278,7 @@ export default function Home() {
         alert("앗! 다른 분이 먼저 예매했습니다.");
         fetchInitialData(); return;
       }
-      
+
       // 👇 [여기에 추가!] 로그 기록 (신규 예매)
       const logDesc = formData.popcorn === 'none' ? `무료 관람 예매 (${selectedSeat})` : `팝콘 포함 예매 대기 (${selectedSeat})`;
       await supabase.from('activity_logs').insert([{ 
@@ -551,6 +551,14 @@ export default function Home() {
           </div>
         </div>
       )}
+      <footer className="mt-20 mb-8 text-center w-full opacity-50 hover:opacity-100 transition-opacity duration-300">
+        <p className="text-xs md:text-sm text-gray-400 font-light tracking-wide">
+          Crafted by <span className="font-semibold text-gray-200">Shin Mingyu</span> with <span className="font-semibold text-blue-400">Google AI Studio</span>
+        </p>
+        <p className="text-[10px] md:text-xs text-gray-500 mt-1.5 tracking-widest uppercase">
+          Powered by Supabase & Vercel
+        </p>
+      </footer>
     </div>
   );
 }
