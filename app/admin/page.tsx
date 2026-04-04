@@ -145,7 +145,17 @@ export default function AdminPage() {
           <div><label className="block text-sm text-gray-400 mb-1">영화 제목</label><input type="text" value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600 outline-none"/></div>
           <div><label className="block text-sm text-gray-400 mb-1">상영 일시 (화면 표시용)</label><input type="text" value={editForm.date_string} onChange={e => setEditForm({...editForm, date_string: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600 outline-none"/></div>
           <div><label className="block text-sm text-gray-400 mb-1">DB 기준 날짜 (YYYY-MM-DD)</label><input type="text" value={editForm.db_date} onChange={e => setEditForm({...editForm, db_date: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600 outline-none"/></div>
-          <div><label className="block text-sm text-gray-400 mb-1">상영 장소</label><input type="text" value={editForm.venue} onChange={e => setEditForm({...editForm, venue: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600 outline-none"/></div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">상영 장소 (좌석표 자동 변경)</label>
+            <select 
+              value={editForm.venue} 
+              onChange={e => setEditForm({...editForm, venue: e.target.value})} 
+              className="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:border-purple-500 outline-none text-white"
+            >
+              <option value="대구과학고등학교 중강당">중강당 (14x9 배열)</option>
+              <option value="대구과학고등학교 대강당">대강당 (27x18 배열)</option>
+            </select>
+          </div>
           <div className="md:col-span-2"><label className="block text-sm text-gray-400 mb-1">포스터 주소</label><input type="text" value={editForm.poster_url} onChange={e => setEditForm({...editForm, poster_url: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600 outline-none"/></div>
           <div className="md:col-span-2"><label className="block text-sm text-red-400 font-bold mb-1">예매 마감 일시 (ISO 형식)</label><input type="text" value={editForm.deadline_date} onChange={e => setEditForm({...editForm, deadline_date: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-red-800 outline-none"/></div>
           <div className="md:col-span-2 mt-4 text-right"><button onClick={handleSaveSettings} className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg">💾 변경사항 저장</button></div>
