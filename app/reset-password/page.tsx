@@ -45,11 +45,6 @@ function ResetPasswordForm() {
       setStatus('error');
       return alert("변경 중 오류가 발생했습니다.");
     }
-    
-    await supabase.from('activity_logs').insert([{ 
-      student_id: studentId || '알수없음', student_name: '-', 
-      description: `비밀번호 재설정 완료` 
-    }]);
 
     await supabase.from('activity_logs').insert([{ 
       student_id: studentId || '알수없음', student_name: '-', 
