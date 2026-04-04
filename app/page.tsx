@@ -28,6 +28,9 @@ const STAFF_LIST =[
   "강윤석", "권순정", "김가은", "김동우", "김미정", "김민정", "김상용", "김선옥", "김성진", "김수정", "김승철", "김윤주", "김정석", "김제훈", "김종수", "김종하", "김현심", "도동현", "류상욱", "마예리", "문우현", "박나연", "박소영", "박순덕", "박영희", "박정수", "박준홍", "박진환", "박현숙", "박홍", "배태윤", "백은희", "서미경", "서승은", "손영호", "손중록", "송미희", "송석준", "전리해", "엄경애", "옥창규", "우태성", "우희정", "윤소영", "윤수진", "윤정호", "이계화", "이민아", "이상규", "이승재", "이용호", "이윤아", "이재용", "이재욱", "이재웅", "이주열", "이준구", "이준열", "이지영", "이태현", "이형준", "전경희", "정재환", "정진실", "정휘정", "조우주", "조유경", "주혜령", "채대철", "최유리", "최재선", "추재석", "추철우", "허완규", "홍현주", "황영순"
 ];
 
+// 🌟 [추가됨] 영화대교 동아리 회원 명단
+const CLUB_MEMBERS =["2101", "2109", "2115", "2208", "2305", "2412", "2507", "2509", "2605", "2606"];
+
 interface SeatData {
   status: string;
   name: string;
@@ -42,13 +45,20 @@ export default function Home() {
   const[isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const[seatStatuses, setSeatStatuses] = useState<Record<string, SeatData>>({});
   
-  // 🌟 [추가됨] DB에서 불러올 영화 설정 데이터
-  const [movieInfo, setMovieInfo] = useState({
+  // 🌟[추가됨] 마감 여부 상태
+  const [isClosed, setIsClosed] = useState(false);
+
+  const[movieInfo, setMovieInfo] = useState({
     title: "로딩 중...",
     date_string: "로딩 중...",
     db_date: "",
     venue: "로딩 중...",
-    poster_url: "/poster.jpg"
+    poster_url: "/poster.jpg",
+    deadline_date: "2099-12-31T23:59:00+09:00", // 기본값
+    vip_start_row: "A",
+    vip_end_row: "C",
+    vip_start_col: 5,
+    vip_end_col: 10
   });
 
   const [formData, setFormData] = useState({
@@ -62,10 +72,8 @@ export default function Home() {
     fetchInitialData();
   },[]);
 
-  // 🌟 [업데이트됨] 영화 정보와 좌석 정보를 동시에 불러옵니다.
   const fetchInitialData = async () => {
     try {
-      // 1. 영화 정보 불러오기
       const { data: settingsData, error: settingsError } = await supabase
         .from('movie_settings')
         .select('*')
@@ -78,9 +86,15 @@ export default function Home() {
       if (settingsData) {
         setMovieInfo(settingsData);
         currentDbDate = settingsData.db_date;
+
+        // 🌟 [추가됨] 현재 시간과 마감 시간 비교
+        const now = new Date();
+        const deadline = new Date(settingsData.deadline_date);
+        if (now > deadline) {
+          setIsClosed(true); // 마감됨!
+        }
       }
 
-      // 2. 영화 정보(날짜)에 맞는 좌석 예약 내역 불러오기
       const { data: resData, error: resError } = await supabase
         .from('reservations')
         .select('seat_number, payment_status, student_name')
@@ -106,6 +120,7 @@ export default function Home() {
   };
 
   const handleSeatClick = (seatId: string) => {
+    if (isClosed) return; // 마감되면 클릭 아예 차단
     if (seatStatuses[seatId]) return;
     setSelectedSeat(seatId);
   };
@@ -121,17 +136,14 @@ export default function Home() {
       return;
     }
 
-    // 🌟[추가됨] 비밀번호 숫자 4자리 엄격 검증 로직
     const passwordRegex = /^[0-9]{4}$/;
     if (!passwordRegex.test(formData.password)) {
       alert("❌ 비밀번호는 반드시 4자리 '숫자'로만 입력해주세요!");
       return;
     }
 
-    // 🌟[업데이트됨] 학번 입력칸에 실수로 따옴표를 넣어도 자동으로 지워줌
     const cleanStudentId = formData.studentId.replace(/['"]/g, '').trim();
 
-    // 🌟 [업데이트됨] 교직원 검사 로직 (따옴표 없이 '교직원'으로 검사)
     if (cleanStudentId === "교직원") {
       if (!STAFF_LIST.includes(formData.name)) {
         alert("❌ 등록된 교직원 이름이 아닙니다. 다시 확인해주세요.");
@@ -148,25 +160,77 @@ export default function Home() {
       }
     }
 
+    // 🌟 [추가됨] 내가 선택한 자리가 동아리 전용(VIP) 자리인지 수학적으로 계산
+    const rowChar = selectedSeat!.charAt(0); // 'A'
+    const colNum = parseInt(selectedSeat!.slice(1)); // 5
+    
+    const isVipSeat = 
+      rowChar.charCodeAt(0) >= movieInfo.vip_start_row.charCodeAt(0) &&
+      rowChar.charCodeAt(0) <= movieInfo.vip_end_row.charCodeAt(0) &&
+      colNum >= movieInfo.vip_start_col &&
+      colNum <= movieInfo.vip_end_col;
+
+    // 만약 VIP자리인데 동아리원이 아니라면 차단!
+    if (isVipSeat && !CLUB_MEMBERS.includes(cleanStudentId)) {
+      alert("👑 선택하신 좌석은 '영화대교' 동아리 회원 전용 좌석입니다. 다른 좌석을 선택해주세요!");
+      return;
+    }
+
     try {
+      // 🌟 [업데이트됨] 좌석 변경 시스템 (비밀번호 확인 추가)
       const { data: existingTickets, error: fetchError } = await supabase
         .from('reservations')
-        .select('id')
-        .eq('movie_date', movieInfo.db_date) // 🌟 DB에 설정된 날짜 사용
+        .select('id, password, payment_status, seat_number')
+        .eq('movie_date', movieInfo.db_date)
         .eq('student_id', cleanStudentId);
 
       if (fetchError) throw fetchError;
+      
+      // 이미 예매한 내역이 있다면? (좌석 변경 프로세스)
       if (existingTickets && existingTickets.length > 0) {
-        alert("🚨 이미 예매를 완료하셨습니다! 티켓은 1인당 1매만 가능합니다.");
-        return;
+        const myOldTicket = existingTickets[0];
+        
+        // 1. 비밀번호 틀림
+        if (myOldTicket.password !== formData.password) {
+          alert("❌ 비밀번호가 일치하지 않습니다. 이전 예매 시 사용한 비밀번호를 입력해주세요.");
+          return;
+        }
+
+        // 2. 비밀번호 맞음 -> 변경 의사 묻기
+        const confirmChange = confirm(`이미 예약된 좌석(${myOldTicket.seat_number})이 있습니다.\n새로운 좌석(${selectedSeat})으로 변경하시겠습니까?\n(기존 결제 및 승인 상태는 그대로 유지됩니다.)`);
+        
+        if (!confirmChange) return;
+
+        // 3. 의사 확인 시 좌석만 덮어쓰기 (payment_status는 건드리지 않음 = 기존 상태 유지)
+        const { error: updateError } = await supabase
+          .from('reservations')
+          .update({ 
+            seat_number: selectedSeat,
+            popcorn_order: formData.popcorn 
+          })
+          .eq('id', myOldTicket.id);
+
+        if (updateError) {
+          if (updateError.code === '23505') alert("앗! 0.1초 차이로 다른 분이 먼저 예매했습니다.");
+          else alert("변경 중 오류가 발생했습니다.");
+          return;
+        }
+
+        alert("✨ 좌석이 성공적으로 변경되었습니다!");
+        fetchInitialData(); // 최신 상태로 새로고침 (이전 자리 지우기)
+        setIsModalOpen(false);
+        setSelectedSeat(null);
+        setFormData({ studentId: '', name: '', password: '', popcorn: 'none' });
+        return; // 여기서 함수 종료!
       }
 
+      // --- 여기까지 오면 신규 예매자입니다 ---
       const finalStatus = formData.popcorn === 'none' ? 'confirmed' : 'pending';
 
       const { error: insertError } = await supabase
         .from('reservations')
         .insert([{
-          movie_date: movieInfo.db_date, // 🌟 DB에 설정된 날짜 사용
+          movie_date: movieInfo.db_date,
           student_id: cleanStudentId,
           student_name: formData.name,
           password: formData.password,
@@ -212,9 +276,7 @@ export default function Home() {
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8 flex flex-col items-center select-none overflow-x-hidden">
       <h1 className="text-2xl md:text-3xl font-bold mb-6 text-blue-400">영화대교 예매 시스템</h1>
 
-      {/* 🌟[업데이트됨] DB에서 불러온 영화 정보 반영 */}
       <div className="flex flex-col md:flex-row items-center gap-6 mb-12 bg-gray-800 p-6 rounded-2xl w-full max-w-4xl shadow-xl border border-gray-700">
-        {/* DB에서 가져온 포스터 URL 사용 */}
         <img src={movieInfo.poster_url} alt="영화 포스터" className="w-32 h-48 object-cover rounded-lg shadow-[0_0_15px_rgba(0,0,0,0.5)] bg-gray-700" />
         <div className="flex flex-col text-center md:text-left">
           <span className="text-blue-400 font-bold mb-1 text-sm tracking-wider">이달의 명작 상영작</span>
@@ -230,7 +292,16 @@ export default function Home() {
         <span className="text-gray-800 font-bold tracking-[0.5em] text-sm md:text-base">SCREEN</span>
       </div>
 
-      <div className="w-full overflow-x-auto pb-8">
+      {/* 🌟 [추가됨] 마감 시 좌석표 위에 반투명 오버레이 씌우기 */}
+      <div className="relative w-full overflow-x-auto pb-8">
+        {isClosed && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm rounded-xl">
+            <span className="text-4xl font-black text-red-500 drop-shadow-lg transform -rotate-12 border-4 border-red-500 p-4 rounded-xl">
+              예매가 마감되었습니다
+            </span>
+          </div>
+        )}
+
         <div className="flex flex-col gap-3 min-w-max px-4 w-fit mx-auto">
           {rows.map((row) => (
             <div key={row} className="flex items-center gap-2">
@@ -247,13 +318,20 @@ export default function Home() {
                   const isPending = seatData?.status === 'pending';
                   const isReserved = isConfirmed || isPending;
 
+                  // 🌟 [추가됨] 동아리석(VIP) 시각적 표시 계산
+                  const isVipSeat = 
+                    row.charCodeAt(0) >= movieInfo.vip_start_row.charCodeAt(0) &&
+                    row.charCodeAt(0) <= movieInfo.vip_end_row.charCodeAt(0) &&
+                    col >= movieInfo.vip_start_col &&
+                    col <= movieInfo.vip_end_col;
+
                   const displayText = isReserved ? seatData.name : seatId;
 
                   return (
                     <div key={seatId} className={`flex ${isAisle ? 'mr-8 md:mr-12' : ''}`}>
                       <button
                         onClick={() => handleSeatClick(seatId)}
-                        disabled={isReserved} 
+                        disabled={isReserved || isClosed} 
                         className={`w-9 h-9 md:w-11 md:h-11 rounded-t-xl rounded-b-md flex items-center justify-center font-bold transition-all
                           ${isReserved ? 'text-[10px] md:text-xs tracking-tighter' : 'text-xs md:text-sm'} 
                           ${isConfirmed 
@@ -262,7 +340,9 @@ export default function Home() {
                               ? 'bg-yellow-600/20 border border-yellow-600 text-yellow-500 cursor-not-allowed animate-pulse'
                               : isSelected 
                                 ? 'bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.6)] transform -translate-y-1' 
-                                : 'bg-gray-700 hover:bg-gray-500 text-gray-300'
+                                : isVipSeat
+                                  ? 'bg-indigo-900/40 border border-indigo-700 text-indigo-300 hover:bg-indigo-800/60' // 동아리석 표시 (은은한 남보라색)
+                                  : 'bg-gray-700 hover:bg-gray-500 text-gray-300'
                           }
                         `}
                       >
@@ -279,14 +359,20 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="mt-4 flex gap-6 text-sm text-gray-400">
+      <div className="mt-4 flex flex-wrap justify-center gap-6 text-sm text-gray-400">
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-700 rounded-sm"></div>예매 가능</div>
+        <div className="flex items-center gap-2"><div className="w-4 h-4 border border-indigo-700 bg-indigo-900/40 rounded-sm"></div>동아리 전용</div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 border border-yellow-600 bg-yellow-600/20 rounded-sm"></div>입금 대기중</div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-gray-800 border border-gray-700 rounded-sm"></div>예매 완료</div>
       </div>
 
       <div className="mt-8 p-6 bg-gray-800 rounded-2xl w-full max-w-xl text-center shadow-xl border border-gray-700">
-        {selectedSeat ? (
+        {isClosed ? (
+           // 🌟 [추가됨] 마감되었을 때 버튼 디자인 변경
+           <div className="py-4 px-8 rounded-xl w-full bg-red-900/40 border border-red-800 text-red-400 font-bold text-lg cursor-not-allowed">
+             예매가 모두 마감되었습니다
+           </div>
+        ) : selectedSeat ? (
           <>
             <p className="text-lg md:text-xl mb-6">
               선택된 좌석: <span className="text-blue-400 font-bold text-2xl md:text-3xl ml-2">{selectedSeat}</span>
@@ -295,7 +381,7 @@ export default function Home() {
               onClick={() => setIsModalOpen(true)}
               className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-8 rounded-xl w-full transition-colors text-lg"
             >
-              다음 단계로 (예매 정보 입력)
+              예매하기
             </button>
           </>
         ) : (
@@ -303,6 +389,7 @@ export default function Home() {
         )}
       </div>
 
+      {/* 모달 창들 */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-800 p-6 md:p-8 rounded-2xl w-full max-w-md border border-gray-600 shadow-2xl">
@@ -361,7 +448,6 @@ export default function Home() {
             <p className="text-gray-300 mb-6 text-sm">가예약이 완료되었습니다.<br/>아래 QR코드로 30분 내에 입금해주세요.</p>
             
             <div className="bg-white p-4 rounded-xl mb-6 flex justify-center">
-              {/* 🌟 [업데이트됨] 확장자를 qr.jpeg 로 수정했습니다! */}
               <img src="/qr.jpeg" alt="송금 QR 코드" className="w-48 h-48 object-contain" />
             </div>
 
