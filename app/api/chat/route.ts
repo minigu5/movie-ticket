@@ -14,6 +14,7 @@ export async function POST(req: Request) {
       },
     });
 
+    
     const statusText = isPending ? '결제 대기중' : '예매 완료 (CONFIRMED)';
     const priceText = isPending ? '2,500 원' : '0 원 (무료)';
     const popcornText = popcorn !== 'none' ? '🍿 팝콘 포함' : '음료/팝콘 없음';
