@@ -61,6 +61,10 @@ export default function Home() {
     studentId: '', name: '', password: '', popcorn: 'none'
   });
 
+  // 👇 [여기에 추가!] 비밀번호 재설정 관련 상태
+  const [showResetButton, setShowResetButton] = useState(false);
+  const[isResetting, setIsResetting] = useState(false);
+
   // 🌟 [추가됨] 장소에 따라 좌석 배열(Grid) 동적 계산
   const isGrandHall = movieInfo.venue.includes('대강당');
   
@@ -102,6 +106,30 @@ export default function Home() {
       if (bgData) setBlacklistedUsers(bgData.map(b => b.student_id));
     } catch (err) {
       console.error("데이터 불러오기 오류:", err);
+    }
+  };
+
+  // 👇 [여기에 추가!] 비밀번호 재설정 버튼 클릭 시 실행되는 함수
+  const handleRequestReset = async () => {
+    const cleanStudentId = formData.studentId.replace(/['"]/g, '').trim();
+    setIsResetting(true);
+    try {
+      const res = await fetch('/api/auth/request-reset', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          studentId: cleanStudentId, 
+          studentName: formData.name, 
+          baseUrl: window.location.origin 
+        })
+      });
+      if (res.ok) {
+        alert("학교 이메일로 비밀번호 재설정 링크가 발송되었습니다. (최대 1~2분 소요)");
+        setShowResetButton(false);
+      } else {
+        alert("등록된 이메일이 없거나 발송에 실패했습니다.");
+      }
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -151,6 +179,31 @@ export default function Home() {
       alert("👑 선택하신 좌석은 '영화대교' 동아리 전용 좌석입니다. 다른 좌석을 선택해주세요!");
       return;
     }
+
+    // 👇[여기에 추가!] 영구 보관된 비밀번호 검증 로직
+    const { data: authData } = await supabase
+      .from('student_auth')
+      .select('password')
+      .eq('student_id', cleanStudentId)
+      .single();
+
+    if (!authData) {
+      // 최초 예매인 경우 DB에 비밀번호 영구 저장
+      await supabase.from('student_auth').insert({
+        student_id: cleanStudentId,
+        password: formData.password
+      });
+      setShowResetButton(false);
+    } else {
+      // 이미 비밀번호를 설정한 적이 있는 경우 일치 여부 확인
+      if (authData.password !== formData.password) {
+        setShowResetButton(true); // 틀렸으므로 재설정 버튼 띄우기
+        return alert("❌ 비밀번호가 일치하지 않습니다. 본인이라면 하단의 '비밀번호 재설정'을 이용하세요.");
+      } else {
+        setShowResetButton(false); // 맞았으면 버튼 숨기기
+      }
+    }
+    // 👆[추가 끝]
 
     const isAgree = confirm("예매를 확정하시겠습니까?\n확정 시 입력하신 정보로 티켓이 발송됩니다.");
     if (!isAgree) return;
@@ -328,7 +381,19 @@ export default function Home() {
             <div className="space-y-4 text-left">
               <div><label className="block text-gray-300 mb-1 text-sm">학번</label><input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none" placeholder="예: 2208 (교직원은 '교직원')"/></div>
               <div><label className="block text-gray-300 mb-1 text-sm">이름 (본명)</label><input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none" placeholder="이름을 정확히 입력하세요"/></div>
-              <div><label className="block text-gray-300 mb-1 text-sm">예매 확인용 비밀번호 (숫자 4자리)</label><input type="password" name="password" maxLength={4} value={formData.password} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none" placeholder="반드시 숫자 4자리 입력"/><p className="text-red-400 text-xs mt-1 font-bold">* 좌석 변경 시 필요하므로 절대 잊어버리지 마세요!</p></div>
+              <div><label className="block text-gray-300 mb-1 text-sm">예매 확인용 비밀번호 (숫자 4자리)</label><input type="password" name="password" maxLength={4} value={formData.password} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none" placeholder="반드시 숫자 4자리 입력"/><p className="text-red-400 text-xs mt-1 font-bold">* 좌석 변경 시 필요하므로 절대 잊어버리지 마세요!</p>
+              {/* 👇 [여기에 추가!] 비밀번호가 틀렸을 때만 나타나는 버튼 */}
+                {showResetButton && (
+                  <button 
+                    onClick={handleRequestReset}
+                    disabled={isResetting}
+                    className="mt-3 text-sm text-yellow-400 hover:text-yellow-300 underline underline-offset-4 transition-colors font-bold text-left"
+                  >
+                    {isResetting ? "메일 발송 중..." : "🚨 본인인데 비밀번호를 모르겠나요? (이메일로 재설정)"}
+                  </button>
+                )}
+                {/* 👆 [추가 끝] */}
+              </div>
               <div>
                 <label className="block text-gray-300 mb-1 text-sm">팝콘 선택 (모두 2,500원)</label>
                 <select name="popcorn" value={formData.popcorn} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 outline-none">
