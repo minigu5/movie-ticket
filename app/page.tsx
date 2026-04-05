@@ -66,6 +66,8 @@ export default function Home() {
   // 이미 예매된 좌석 클릭 시 팝업을 띄우기 위한 상태
   const [clickedSeatInfo, setClickedSeatInfo] = useState<{seatId: string, status: string, ticketId: string, popcorn: string} | null>(null);
 
+  const [isLoading, setIsLoading] = useState(true);
+
   const isGrandHall = movieInfo.venue.includes('대강당');
   
   const rows = isGrandHall 
@@ -125,6 +127,9 @@ export default function Home() {
       if (bgData) setBlacklistedUsers(bgData.map(b => b.student_id));
     } catch (err) {
       console.error("데이터 불러오기 오류:", err);
+    } finally {
+      // 👇 [여기에 추가!] 성공하든 에러가 나든 데이터 요청이 끝나면 로딩 창을 끕니다.
+      setIsLoading(false);
     }
   };
 
@@ -310,6 +315,29 @@ export default function Home() {
   const userKey = `${cleanId}_${formData.name}`;
   const existingTicket = userTickets[userKey];
   const hasPopcornAlready = existingTicket && existingTicket.popcorn !== 'none';
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center select-none overflow-hidden">
+        <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');` }} />
+        
+        {/* 전체적으로 천천히 깜빡이는(Pulse) 애니메이션 적용 */}
+        <div className="relative flex flex-col items-center justify-center animate-pulse">
+          {/* 로딩용 거대한 스포트라이트 조명 */}
+          <div className="absolute w-48 h-48 md:w-64 md:h-64 bg-yellow-500/20 rounded-full blur-[60px] pointer-events-none"></div>
+          
+          <div style={{ fontFamily: "'Song Myung', serif" }} className="text-center flex flex-col leading-tight z-10">
+            <span className="text-[60px] md:text-[80px] text-gray-100 tracking-[0.1em] drop-shadow-md">영화</span>
+            <span className="text-[60px] md:text-[80px] text-gray-100 tracking-[0.1em] drop-shadow-md">대교</span>
+          </div>
+          
+          <p className="mt-8 text-yellow-500/80 text-[10px] md:text-xs tracking-[0.4em] font-bold z-10 uppercase font-sans">
+            시스템 로딩 중...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8 flex flex-col items-center select-none overflow-x-hidden">
