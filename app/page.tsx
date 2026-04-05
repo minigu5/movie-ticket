@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { USER_EMAILS } from '../lib/emails';
+import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
 
 const STUDENT_LIST: Record<string, string> = {
   "1101": "김세준", "1102": "김시우", "1103": "김연우", "1104": "김윤재", "1105": "박시현", "1106": "배하준", "1107": "손민재", "1108": "이동건", "1109": "이주원", "1110": "이주형", "1111": "이지훈", "1112": "이하은", "1113": "전시윤", "1114": "정윤재", "1115": "차승민", "1116": "최은성",
@@ -317,6 +318,14 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8 flex flex-col items-center select-none overflow-x-hidden">
+      <div className="w-full max-w-4xl flex justify-end gap-3 z-20 mt-2 md:mt-0">
+        <Link href="/admin" className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">
+          ⚙️ 관리자
+        </Link>
+        <Link href="/print" className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">
+          🖨️ 발권기
+        </Link>
+      </div>
       
       <div className="relative flex flex-col items-center justify-center mb-10 mt-4 select-none">
         <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');` }} />

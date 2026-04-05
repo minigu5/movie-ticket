@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { USER_EMAILS } from '../../lib/emails';
+import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
 
 const STUDENT_LIST: Record<string, string> = {
   // (이전과 동일)
@@ -221,6 +222,10 @@ export default function AdminPage() {
 
   if (!isAuthenticated) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm flex justify-end gap-3 mb-4">
+        <Link href="/" className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🏠 메인 홈</Link>
+        <Link href="/print" className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🖨️ 발권기</Link>
+      </div>
       <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-gray-700">
         <h1 className="text-2xl font-bold text-white mb-6">🔒 관리자 로그인</h1>
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && password === ADMIN_PASSWORD && setIsAuthenticated(true)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 mb-4 text-center" placeholder="비밀번호 입력" />
@@ -231,6 +236,10 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8 relative">
+      <div className="w-full flex justify-end gap-3 mb-6 z-20">
+        <Link href="/" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🏠 메인 홈</Link>
+        <Link href="/print" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🖨️ 현장 발권기</Link>
+      </div>
       
       {showVenueWarning && (
         <div className="fixed inset-0 bg-red-900/90 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
