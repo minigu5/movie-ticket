@@ -107,7 +107,7 @@ export default function Home() {
         return `C${String(num).padStart(3, '0')}`;
       }
     }
-  };
+  }; 
   
     const vipSeats = useMemo(() => {
     const vips = new Set<string>();
