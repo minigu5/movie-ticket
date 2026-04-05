@@ -3,10 +3,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { USER_EMAILS } from '../lib/emails';
-// 폰트는 안전한 CSS 임포트 방식을 사용합니다 (이전 패치 적용)
 
 const STUDENT_LIST: Record<string, string> = {
-  // (이전과 동일한 학생 명단 생략 없이 모두 유지 - Vercel 용량 최적화를 위해 일부 생략 표기했으니 기존 명단을 그대로 쓰셔도 무방합니다)
   "1101": "김세준", "1102": "김시우", "1103": "김연우", "1104": "김윤재", "1105": "박시현", "1106": "배하준", "1107": "손민재", "1108": "이동건", "1109": "이주원", "1110": "이주형", "1111": "이지훈", "1112": "이하은", "1113": "전시윤", "1114": "정윤재", "1115": "차승민", "1116": "최은성",
   "1201": "김민우", "1202": "김민찬", "1203": "김시현", "1204": "김현서", "1205": "김현성", "1206": "류도헌", "1207": "배성호", "1208": "손시흔", "1209": "옥지훈", "1210": "이건우", "1211": "임해준", "1212": "장민하", "1213": "주지환", "1214": "최우진", "1215": "최윤서", "1216": "최정원", "1217": "최지요",
   "1301": "강도겸", "1302": "고민석", "1303": "김희정", "1304": "박라원", "1305": "박준영", "1306": "신강우", "1307": "신동희", "1308": "오경택", "1309": "윤정우", "1310": "이민희", "1311": "이승현", "1312": "이시안", "1313": "이희승", "1314": "임용준", "1315": "정재우", "1316": "조현찬", "1317": "천현서",
@@ -43,7 +41,7 @@ interface SeatData {
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const[isModalOpen, setIsModalOpen] = useState(false);
   const[isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   
   const [seatStatuses, setSeatStatuses] = useState<Record<string, SeatData>>({});
@@ -52,19 +50,17 @@ export default function Home() {
   
   const [isClosed, setIsClosed] = useState(false);
 
-  const [movieInfo, setMovieInfo] = useState({
+  const[movieInfo, setMovieInfo] = useState({
     title: "로딩 중...", date_string: "로딩 중...", db_date: "", venue: "대구과학고등학교 중강당",
     poster_url: "/poster.jpg", deadline_date: "2099-12-31T23:59:00+09:00",
     mid_vip_start_row: "A", mid_vip_end_row: "C", mid_vip_start_col: 5, mid_vip_end_col: 10,
     grand_vip_start_row: "A", grand_vip_end_row: "C", grand_vip_start_col: 10, grand_vip_end_col: 18
   });
   
-  const [formData, setFormData] = useState({ studentId: '', name: '', password: '' });
+  const[formData, setFormData] = useState({ studentId: '', name: '', password: '' });
   
-  // 🌟 [추가됨] 다중 팝콘 선택을 위한 배열 상태 (기본값:['none'])
-  const [popcornList, setPopcornList] = useState<string[]>(['none']);
-  // 🌟 [추가됨] 결제해야 할 총 금액
-  const [totalPrice, setTotalPrice] = useState(0);
+  const[popcornList, setPopcornList] = useState<string[]>(['none']);
+  const[totalPrice, setTotalPrice] = useState(0);
 
   const [showResetButton, setShowResetButton] = useState(false);
   const[isResetting, setIsResetting] = useState(false);
@@ -84,13 +80,11 @@ export default function Home() {
     fetchInitialData();
   },[]);
 
-  // 🌟 [추가됨] 팝콘 배열이 변할 때마다 총 결제 금액 자동 계산
   useEffect(() => {
     const validPopcorns = popcornList.filter(p => p !== 'none');
     setTotalPrice(validPopcorns.length * 2500);
   }, [popcornList]);
 
-  // 🌟 [수정됨] 유저 정보를 기반으로 기존 팝콘 내역을 불러와서 세팅
   useEffect(() => {
     const cleanId = formData.studentId.replace(/['"]/g, '').trim();
     const userKey = `${cleanId}_${formData.name}`;
@@ -98,7 +92,7 @@ export default function Home() {
     
     if (existingTicket && existingTicket.popcorn !== 'none') {
       const existingArray = existingTicket.popcorn.split(',');
-      setPopcornList([...existingArray, 'none']); // 기존 팝콘 세팅 + 추가 슬롯 1개
+      setPopcornList([...existingArray, 'none']); 
     } else {
       setPopcornList(['none']);
     }
@@ -142,41 +136,21 @@ export default function Home() {
     }
   };
 
-  // 🌟 [핵심 로직] 세로형 그룹 좌석 번호 변환 알고리즘
-  const getSeatId = (rowIndex: number, colIndex: number) => {
-    if (!isGrandHall) { 
-      // 중강당 (14열 x 9행)
-      if (colIndex < 7) { 
-        // 왼쪽 그룹 (A01 ~ A63)
-        const num = colIndex * 9 + rowIndex + 1;
-        return `A${String(num).padStart(2, '0')}`;
-      } else {
-        // 오른쪽 그룹 (B01 ~ B62)
-        if (colIndex === 13 && rowIndex === 8) return null; // 오른쪽 가장 끝자리(B63) 없음
-        const num = (colIndex - 7) * 9 + rowIndex + 1;
-        return `B${String(num).padStart(2, '0')}`;
-      }
+  // 🌟[수정됨] 가로형 직관적인 번호 부여 알고리즘 (A01, A02 ... H14 방식)
+  const getSeatId = (rowChar: string, colNum: number) => {
+    if (!isGrandHall) {
+      // 중강당의 경우, 기존 세로형 로직의 마지막 빈자리와 동일하게 맨 뒷줄 오른쪽 끝(I열 14번)을 빈자리로 취급
+      if (rowChar === 'I' && colNum === 14) return null;
+      return `${rowChar}${String(colNum).padStart(2, '0')}`;
     } else {
-      // 대강당 (27열 x 18행)
-      if (colIndex < 9) { // 왼쪽 블록 A001~A162
-        const num = colIndex * 18 + rowIndex + 1;
-        return `A${String(num).padStart(3, '0')}`;
-      } else if (colIndex < 18) { // 중간 블록 B001~B162
-        const num = (colIndex - 9) * 18 + rowIndex + 1;
-        return `B${String(num).padStart(3, '0')}`;
-      } else { // 오른쪽 블록 C001~C162
-        const num = (colIndex - 18) * 18 + rowIndex + 1;
-        return `C${String(num).padStart(3, '0')}`;
-      }
+      // 대강당
+      return `${rowChar}${String(colNum).padStart(2, '0')}`;
     }
   };
 
-  // 🌟[추가됨] 팝콘 무한 추가/변경 핸들러
   const handlePopcornChange = (index: number, value: string) => {
     let newList = [...popcornList];
     newList[index] = value;
-    
-    // 'none'을 모두 걸러낸 뒤, 가장 마지막에 항상 'none'(추가 슬롯)을 1개 붙여줌
     const filtered = newList.filter(p => p !== 'none');
     filtered.push('none');
     setPopcornList(filtered);
@@ -231,13 +205,6 @@ export default function Home() {
 
     if (blacklistedUsers.includes(cleanStudentId)) return alert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
 
-    // VIP 체크 (기존의 시각적 Row, Col 인덱스 기반으로 검사하여 안전함)
-    const selectedVisualRow = selectedSeat?.charAt(0) || 'A'; // 이 부분은 seatId가 A01로 바뀌어서 작동하지 않습니다.
-    // 🌟 [수정됨] VIP 검사를 위해 현재 선택된 seatId를 통해 시각적 좌표를 역추적하거나, 선택 시 좌표를 저장해야 합니다.
-    // 더 쉬운 방법: 좌석을 그릴 때 VIP 여부를 계산해서 seatId로 VIP 목록을 저장해 둡니다. (아래 렌더링 부분에서 확인)
-    // 여기서는 간단히 통과시키고 백엔드/클라이언트 분기를 위해 생략하거나 우회할 수 있지만, 가장 깔끔한 방법은 seat 렌더링 시 VIP 배열을 만드는 것입니다.
-    // 일단 여기서는 렌더링 로직 안의 isVipSeat 변수에서 처리되므로 클릭 시 바로 검증하도록 놔둡니다.
-
     const { data: authData } = await supabase.from('student_auth').select('password').eq('student_id', cleanStudentId).single();
 
     if (!authData) {
@@ -253,7 +220,6 @@ export default function Home() {
     const isAgree = confirm("예매를 확정하시겠습니까?\n확정 시 입력하신 정보로 티켓이 발송됩니다.");
     if (!isAgree) return;
 
-    // 🌟 팝콘 리스트를 쉼표 문자열로 변환 (예: 'original,caramel')
     const finalPopcornString = popcornList.filter(p => p !== 'none').join(',') || 'none';
 
     try {
@@ -265,7 +231,6 @@ export default function Home() {
         const myOldTicket = existingTickets[0];
         if (myOldTicket.password !== formData.password) return alert("❌ 비밀번호가 일치하지 않습니다.");
         
-        // 자리 변경 시 팝콘 양/맛이 변경되었을 때 경고 (환불/추가결제 복잡성 방지)
         if (myOldTicket.popcorn_order !== finalPopcornString) {
           if (!confirm(`팝콘 주문 내역이 변경되었습니다.\n계속 진행하시겠습니까? (결제 관련 변동 사항은 현장에서 관리자에게 문의해야 할 수 있습니다.)`)) return;
         }
@@ -317,11 +282,6 @@ export default function Home() {
     }
   };
 
-  const cleanId = formData.studentId.replace(/['"]/g, '').trim();
-  const userKey = `${cleanId}_${formData.name}`;
-  const existingTicket = userTickets[userKey];
-  const hasPopcornAlready = existingTicket && existingTicket.popcorn !== 'none';
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center select-none overflow-hidden">
@@ -341,7 +301,6 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8 flex flex-col items-center select-none overflow-x-hidden">
       
-      {/* 로고 영역 */}
       <div className="relative flex flex-col items-center justify-center mb-10 mt-4 select-none">
         <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');` }} />
         <div className="absolute w-32 h-32 md:w-40 md:h-40 bg-yellow-500/20 rounded-full blur-[40px] pointer-events-none"></div>
@@ -386,14 +345,15 @@ export default function Home() {
               <div className="flex gap-1 md:gap-2">
                 {cols.map((colNum, colIndex) => {
                   
-                  // 🌟 세로 기반 새 알고리즘으로 좌석 ID 생성
-                  const seatId = getSeatId(rowIndex, colIndex);
+                  // 🌟 [수정됨] 직관적인 가로형 아이디 생성
+                  const seatId = getSeatId(rowChar, colNum);
                   
                   const isAisle = isGrandHall ? (colNum === 9 || colNum === 18) : (colNum === 7);
                   const aisleMargin = isGrandHall ? 'mr-4 md:mr-8' : 'mr-8 md:mr-12';
-                  const btnSize = isGrandHall ? 'w-7 h-7 md:w-8 md:h-8' : 'w-9 h-9 md:w-11 md:h-11';
+                  
+                  // 🌟[수정됨] 버튼 크기 조금 더 확대
+                  const btnSize = isGrandHall ? 'w-8 h-8 md:w-10 md:h-10' : 'w-10 h-10 md:w-12 md:h-12';
 
-                  // 🌟 중강당 B63 빈자리 렌더링 스킵 (공백만 유지)
                   if (!seatId) {
                     return <div key={`empty-${colNum}`} className={`${isAisle ? aisleMargin : ''} ${btnSize}`} />;
                   }
@@ -404,7 +364,6 @@ export default function Home() {
                   const isPending = seatData?.status === 'pending';
                   const isReserved = isConfirmed || isPending;
                   
-                  // VIP 검사: 변환 전 시각적 좌표(행 문자, 열 숫자)를 그대로 이용
                   const isVipSeat = isGrandHall
                     ? rowChar.charCodeAt(0) >= movieInfo.grand_vip_start_row.charCodeAt(0) &&
                       rowChar.charCodeAt(0) <= movieInfo.grand_vip_end_row.charCodeAt(0) &&
@@ -417,10 +376,10 @@ export default function Home() {
 
                   const displayText = isReserved ? seatData.name : seatId;
 
-                  // 🌟 [수정됨] 세로형 아이디(A001 등 4글자)를 수용하기 위해 폰트 사이즈 최적화
+                  // 🌟 [수정됨] 텍스트 사이즈 대폭 확대
                   const textSize = isReserved 
-                    ? (isGrandHall ? 'text-[6.5px] md:text-[8px] tracking-tighter whitespace-nowrap' : 'text-[10px] md:text-xs tracking-tighter') 
-                    : (isGrandHall ? 'text-[6px] md:text-[8px] tracking-tighter' : 'text-[9px] md:text-[11px] tracking-tighter');
+                    ? (isGrandHall ? 'text-[7px] md:text-[9px] tracking-tighter whitespace-nowrap' : 'text-[11px] md:text-xs tracking-tighter') 
+                    : (isGrandHall ? 'text-[8px] md:text-[10px] tracking-tighter' : 'text-[11px] md:text-sm tracking-tighter');
 
                   return (
                     <div key={seatId} className={`flex ${isAisle ? aisleMargin : ''}`}>
@@ -470,7 +429,6 @@ export default function Home() {
         ) : <p className="text-gray-400 py-4">관람하실 좌석을 선택해주세요.</p>}
       </div>
 
-      {/* 예매 모달창 */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-gray-800 p-6 rounded-2xl w-full max-w-md border border-gray-600 shadow-2xl my-8">
@@ -495,7 +453,6 @@ export default function Home() {
                 )}
               </div>
               
-              {/* 🌟 다중 팝콘 선택 구역 */}
               <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-700">
                 <label className="block text-gray-300 mb-3 text-sm font-bold">🍿 팝콘 선택 (개당 2,500원)</label>
                 
@@ -536,7 +493,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 결제 대기 모달 */}
       {isPaymentModalOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60]">
           <div className="bg-gray-800 p-8 rounded-2xl max-w-sm border border-yellow-600 text-center shadow-2xl">
@@ -544,7 +500,6 @@ export default function Home() {
             <p className="text-gray-300 mb-6 text-sm">QR코드로 30분 내에 입금해주세요.</p>
             <div className="bg-white p-4 rounded-xl mb-6 inline-block"><img src="/qr.jpeg" alt="QR" className="w-48 h-48 object-contain" /></div>
             <div className="bg-gray-700 rounded-lg p-4 text-left mb-6">
-              {/* 🌟 다중 팝콘 결제 금액 반영 */}
               <p className="text-sm text-gray-300 mb-1">결제 금액: <span className="text-yellow-400 font-bold text-xl">{totalPrice.toLocaleString()}원</span></p>
               <p className="text-sm text-gray-300">입금자명: <span className="text-blue-400 font-bold">{formData.studentId} {formData.name}</span></p>
             </div>
@@ -553,7 +508,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 이미 예매된 좌석 클릭 시 정보/제어 모달 */}
       {clickedSeatInfo && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[70]">
           <div className="bg-gray-800 p-8 rounded-2xl max-w-sm w-full border border-gray-600 shadow-2xl text-center">
