@@ -403,10 +403,6 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="w-full max-w-4xl h-10 bg-gray-300 rounded-t-3xl flex items-center justify-center mb-8 md:mb-16">
-        <span className="text-gray-800 font-bold tracking-[0.5em] text-sm md:text-base">SCREEN</span>
-      </div>
-
       <div className="relative w-full overflow-x-auto pb-8">
         {isClosed && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm rounded-xl">
@@ -414,7 +410,20 @@ export default function Home() {
           </div>
         )}
 
-        <div className="flex flex-col gap-1 md:gap-2 min-w-max px-4 pt-6 w-fit mx-auto">
+        {/* 🌟 [수정됨] items-center를 추가하여 내부의 스크린과 좌석들이 가운데(B005)를 기준으로 완벽히 정렬되게 합니다. */}
+        <div className="flex flex-col items-center gap-1 md:gap-2 min-w-max px-4 pt-6 w-fit mx-auto relative">
+          
+          {/* 🌟 [수정됨] 스크린을 스크롤 영역 안으로 이동시켰습니다. 
+              모바일에서 처음 열면 스크린이 잘려 보여서 옆으로 넘겨야 한다는 것을 직관적으로 알게 됩니다! */}
+          <div className="w-[70%] h-8 md:h-10 bg-gray-300 rounded-t-3xl flex items-center justify-center mb-8 md:mb-12 shadow-[0_-5px_20px_rgba(255,255,255,0.1)]">
+            <span className="text-gray-800 font-black tracking-[1em] text-xs md:text-base ml-2">SCREEN</span>
+          </div>
+
+          {/* 🌟 [추가됨] 모바일 사용자를 위한 확실한 스와이프 유도 텍스트 애니메이션 */}
+          <div className="md:hidden absolute top-0 right-10 animate-bounce text-yellow-400 font-bold text-xs flex items-center gap-1 z-10 pointer-events-none">
+            옆으로 밀어서 확인 <span className="text-lg">👉</span>
+          </div>
+
           {rows.map((rowChar, rowIndex) => (
             <div key={rowIndex} className={`flex items-center gap-1 md:gap-2 ${isGrandHall && rowChar === 'H' ? 'mb-8 md:mb-12' : ''}`}>
               <span className="w-6 md:w-8 text-center font-bold text-gray-500 text-xs md:text-sm">{rowChar}</span>
