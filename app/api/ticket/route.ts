@@ -1,10 +1,8 @@
-// app/api/ticket/route.ts
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
 export async function POST(req: Request) {
   try {
-    // 🌟 isRefundNeeded 파라미터를 추가로 받습니다.
     const { email, name, seat, movieTitle, movieDate, statusType, popcorn, ticketId, baseUrl, isRefundNeeded } = await req.json();
 
     const transporter = nodemailer.createTransport({
@@ -12,33 +10,45 @@ export async function POST(req: Request) {
       auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
     });
 
+    // 🌟 [추가됨] 다중 팝콘 분석 및 총액 계산
+    const popcornArray = popcorn !== 'none' ? popcorn.split(',') :[];
+    const totalPrice = popcornArray.length * 2500;
+    const formattedPrice = totalPrice.toLocaleString();
+
     let badgeBg = '#D1FAE5'; let badgeColor = '#065F46'; let badgeText = '예매 완료';
     let priceText = '0 원 (무료)'; let subject = `[영화대교] ${name}님의 티켓 예매 안내 - ${seat} 좌석`;
 
+    // 🌟 [수정됨] 상태별 가격 텍스트 분기 (총 금액 반영)
     if (statusType === 'pending') {
-      badgeBg = '#FDE68A'; badgeColor = '#B45309'; badgeText = '결제 대기중'; priceText = '2,500 원';
+      badgeBg = '#FDE68A'; badgeColor = '#B45309'; badgeText = '결제 대기중'; priceText = `${formattedPrice} 원`;
     } else if (statusType === 'changed') {
       badgeBg = '#DBEAFE'; badgeColor = '#1E40AF'; badgeText = '좌석 변경됨';
       subject = `[영화대교] ${name}님의 좌석 변경 안내 - ${seat} 좌석`;
-      priceText = popcorn !== 'none' ? '2,500 원' : '0 원 (무료)';
+      priceText = popcornArray.length > 0 ? `${formattedPrice} 원` : '0 원 (무료)';
     } else if (statusType === 'canceled') {
       badgeBg = '#FEE2E2'; badgeColor = '#991B1B'; badgeText = '예매 취소됨';
       subject = `[영화대교] ${name}님의 예매 취소 안내`;
-      // 🌟 결제 완료된 팝콘이면 환불 요망, 결제 전이면 미결제 취소
-      if (popcorn !== 'none') {
-        priceText = isRefundNeeded ? '2,500 원 (환불 요망)' : '2,500 원 (미결제 취소)';
+      if (popcornArray.length > 0) {
+        priceText = isRefundNeeded ? `${formattedPrice} 원 (환불 요망)` : `${formattedPrice} 원 (미결제 취소)`;
       } else {
         priceText = '0 원 (무료)';
       }
     } else {
-      if(popcorn !== 'none') priceText = '2,500 원 (결제완료)';
+      if(popcornArray.length > 0) priceText = `${formattedPrice} 원 (결제완료)`;
     }
 
-    const popcornNames: Record<string, string> = { original: '오리지널 버터 팝콘', consomme: '콘소메맛 팝콘', caramel: '카라멜맛 팝콘', none: '음료/팝콘 없음' };
-    const popcornText = popcorn !== 'none' ? `🍿 ${popcornNames[popcorn]}` : popcornNames['none'];
+    // 🌟 [추가됨] 팝콘 종류별 개수 요약 생성 (예: 오리지널 버터 2개, 카라멜맛 1개)
+    const popcornNames: Record<string, string> = { original: '오리지널 버터 팝콘', consomme: '콘소메맛 팝콘', caramel: '카라멜맛 팝콘' };
+    let popcornText = '음료/팝콘 없음';
+    
+    if (popcornArray.length > 0) {
+      const counts: Record<string, number> = {};
+      popcornArray.forEach((p: string) => { counts[p] = (counts[p] || 0) + 1; });
+      popcornText = Object.entries(counts).map(([key, count]) => `🍿 ${popcornNames[key]} ${count}개`).join('<br/>');
+    }
+
     const displayId = ticketId ? ticketId.split('-')[0].toUpperCase() : 'UNKNOWN';
 
-    // 🌟 모바일에서 절대 안 깨지는 세로형(수직) 카드 레이아웃으로 변경!
     const ticketHTML = `
       <!DOCTYPE html>
       <html>
@@ -53,7 +63,7 @@ export async function POST(req: Request) {
           
           <div style="margin: 0 auto; width: 100%; max-width: 380px; background-color: #2C3338; border-radius: 16px; overflow: hidden; box-shadow: 0 15px 25px rgba(0,0,0,0.2); text-align: left;">
             <div style="padding: 30px 25px; color: white; border-bottom: 3px dashed #fceea7;">
-              <p style="margin: 0 0 5px 0; color: #E85D04; font-weight: bold; font-size: 12px; letter-spacing: 1px;">🎬 CINEMA HALL - 중강당</p>
+              <p style="margin: 0 0 5px 0; color: #E85D04; font-weight: bold; font-size: 12px; letter-spacing: 1px;">🎬 CINEMA HALL</p>
               <h1 style="margin: 0 0 25px 0; font-size: 22px; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.3;">${movieTitle}</h1>
               
               <div style="margin-bottom: 15px;">
@@ -62,10 +72,9 @@ export async function POST(req: Request) {
               </div>
               <div style="margin-bottom: 15px;">
                 <div style="color: #E85D04; font-size: 11px; font-weight: bold; margin-bottom: 4px;">OPTION</div>
-                <div style="color: white; font-size: 14px; font-weight: 500;">${popcornText}</div>
+                <div style="color: white; font-size: 14px; font-weight: 500; line-height: 1.5;">${popcornText}</div>
               </div>
 
-              <!-- 🌟 데스크톱 정렬 깨짐 해결: Flex 대신 고전적인 Table 구조 사용 -->
               <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 1px solid #555; margin-top: 25px; padding-top: 15px;">
                 <tr>
                   <td style="color: #aaa; font-size: 12px; text-align: left; vertical-align: bottom;"># ${displayId}</td>
@@ -89,7 +98,7 @@ export async function POST(req: Request) {
           </div>
 
           ${statusType === 'pending' ? `
-            <p style="margin-top: 25px; color: #d97706; font-weight: bold; font-size: 14px;">⚠️ 30분 내로 아래 QR코드로 입금해주세요.</p>
+            <p style="margin-top: 25px; color: #d97706; font-weight: bold; font-size: 14px;">⚠️ 30분 내로 아래 QR코드로 입금해주세요. (총액: ${formattedPrice}원)</p>
             <div style="margin-top: 15px; text-align: center;">
               <img src="${baseUrl}/qr.jpeg" alt="송금 QR" width="150" height="150" style="border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);" />
             </div>
@@ -100,6 +109,7 @@ export async function POST(req: Request) {
           ` : `
             <p style="margin-top: 25px; color: #059669; font-weight: bold; font-size: 14px;">✅ 예매가 확정되었습니다. 상영 당일 보여주세요!</p>
           `}
+
           ${statusType !== 'canceled' ? `
             <div style="margin-top: 35px; border-top: 1px dashed #ccc; padding-top: 20px; text-align: center;">
               <p style="font-size: 13px; color: #555; margin-bottom: 12px;">본인이 예매하지 않으셨거나, 예매를 취소하고 싶으신가요?</p>
