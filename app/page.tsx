@@ -137,14 +137,31 @@ export default function Home() {
   };
 
   // 🌟[수정됨] 가로형 직관적인 번호 부여 알고리즘 (A01, A02 ... H14 방식)
-  const getSeatId = (rowChar: string, colNum: number) => {
-    if (!isGrandHall) {
-      // 중강당의 경우, 기존 세로형 로직의 마지막 빈자리와 동일하게 맨 뒷줄 오른쪽 끝(I열 14번)을 빈자리로 취급
-      if (rowChar === 'I' && colNum === 14) return null;
-      return `${rowChar}${String(colNum).padStart(2, '0')}`;
+  const getSeatId = (rowIndex: number, colIndex: number) => {
+    if (!isGrandHall) { 
+      // 중강당 (14열 x 9행)
+      if (colIndex < 7) { 
+        // 왼쪽 그룹 (A01 ~ A63)
+        const num = colIndex * 9 + rowIndex + 1;
+        return `A${String(num).padStart(2, '0')}`;
+      } else {
+        // 오른쪽 그룹 (B01 ~ B62)
+        if (colIndex === 13 && rowIndex === 8) return null; // 오른쪽 가장 끝자리(B63) 없음
+        const num = (colIndex - 7) * 9 + rowIndex + 1;
+        return `B${String(num).padStart(2, '0')}`;
+      }
     } else {
-      // 대강당
-      return `${rowChar}${String(colNum).padStart(2, '0')}`;
+      // 대강당 (27열 x 18행)
+      if (colIndex < 9) { // 왼쪽 블록 A001~A162
+        const num = colIndex * 18 + rowIndex + 1;
+        return `A${String(num).padStart(3, '0')}`;
+      } else if (colIndex < 18) { // 중간 블록 B001~B162
+        const num = (colIndex - 9) * 18 + rowIndex + 1;
+        return `B${String(num).padStart(3, '0')}`;
+      } else { // 오른쪽 블록 C001~C162
+        const num = (colIndex - 18) * 18 + rowIndex + 1;
+        return `C${String(num).padStart(3, '0')}`;
+      }
     }
   };
 
@@ -345,8 +362,7 @@ export default function Home() {
               <div className="flex gap-1 md:gap-2">
                 {cols.map((colNum, colIndex) => {
                   
-                  // 🌟 [수정됨] 직관적인 가로형 아이디 생성
-                  const seatId = getSeatId(rowChar, colNum);
+                  const seatId = getSeatId(rowIndex, colIndex);
                   
                   const isAisle = isGrandHall ? (colNum === 9 || colNum === 18) : (colNum === 7);
                   const aisleMargin = isGrandHall ? 'mr-4 md:mr-8' : 'mr-8 md:mr-12';
