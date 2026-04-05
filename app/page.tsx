@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { USER_EMAILS } from '../lib/emails';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
+
 
 const STUDENT_LIST: Record<string, string> = {
   "1101": "김세준", "1102": "김시우", "1103": "김연우", "1104": "김윤재", "1105": "박시현", "1106": "배하준", "1107": "손민재", "1108": "이동건", "1109": "이주원", "1110": "이주형", "1111": "이지훈", "1112": "이하은", "1113": "전시윤", "1114": "정윤재", "1115": "차승민", "1116": "최은성",
@@ -13,9 +14,9 @@ const STUDENT_LIST: Record<string, string> = {
   "1501": "김나연", "1502": "김백호", "1503": "김의준", "1504": "박예준", "1505": "박준현", "1506": "방극찬", "1507": "양재우", "1508": "윤나경", "1509": "윤상현", "1510": "윤채원", "1511": "이승윤", "1512": "이준하", "1513": "장현우", "1514": "전준현", "1515": "최선", "1516": "홍재윤", "1517": "황윤찬",
   "1601": "강민겸", "1602": "강민균", "1603": "김건도", "1604": "김상현", "1605": "김주아", "1606": "김준호", "1607": "나연우", "1608": "박상원", "1609": "박윤후", "1610": "성준서", "1611": "안소이", "1612": "오주원", "1613": "이동준", "1614": "이채린", "1615": "정우진", "1616": "최준혁", "1617": "황의정",
   "2101": "고도균", "2102": "김동환", "2103": "김예슬", "2104": "김의겸", "2105": "박예찬", "2106": "박지윤", "2107": "서제나", "2108": "손명규", "2109": "안시준", "2110": "안재훈", "2111": "엄지우", "2112": "이승빈", "2113": "이지훈", "2114": "장인호", "2115": "정서범",
-  "2201": "김서후", "2202": "김성윤", "2203": "김승현", "2204": "김은결", "2205": "박시후", "2206": "서준서", "2207": "성윤건", "2208": "신민규", "2209": "이소민", "2210": "이예인", "2211": "조승우", "2212": "최성준", "2213": "최아성", "2214": "최율", "2215": "최준서",
+  "2201": "김서후", "2202": "김성윤", "2203": "김승헌", "2204": "김은결", "2205": "박시후", "2206": "서준서", "2207": "성윤건", "2208": "신민규", "2209": "이소민", "2210": "이예인", "2211": "조승우", "2212": "최성준", "2213": "최아성", "2214": "최율", "2215": "최준서",
   "2301": "곽지원", "2302": "김민재", "2303": "남연우", "2304": "노유나", "2305": "박우주", "2306": "박주찬", "2307": "박지효", "2308": "이예서", "2309": "이재준", "2310": "정우성", "2311": "정원준", "2312": "천승준", "2313": "최서울", "2314": "추미강", "2315": "홍지민",
-  "2401": "강승유", "2402": "구민준", "2403": "구성현", "2404": "권민재", "2405": "김민규", "2406": "김시현", "2407": "김태율", "2408": "박도윤", "2409": "박예완", "2410": "이시영", "2411": "이영휘", "2412": "장준혁", "2413": "장현준", "2414": "정원석", "2415": "정유태", "2416": "최준모",
+  "2401": "강승유", "2402": "구민준", "2403": "구성현", "2404": "권민재", "2405": "김민규", "2406": "김시헌", "2407": "김태율", "2408": "박도윤", "2409": "박예완", "2410": "이시영", "2411": "이영휘", "2412": "장준혁", "2413": "장현준", "2414": "정원석", "2415": "정유태", "2416": "최준모",
   "2501": "강민석", "2502": "권미진", "2503": "김민율", "2504": "김민준", "2505": "김준", "2506": "김희찬", "2507": "문서욱", "2508": "안시후", "2509": "이현준", "2510": "임채원", "2511": "장민서", "2512": "장서율", "2513": "최여준", "2514": "허가은", "2515": "황유나",
   "2601": "김건우", "2602": "김도경", "2603": "김도현", "2604": "김동현", "2605": "김연호", "2606": "도현호", "2607": "류나현", "2608": "박건우", "2609": "박선율", "2610": "오세현", "2611": "우가희", "2612": "이민섭", "2613": "이선민", "2614": "주동준", "2615": "하승진",
   "3101": "김건희", "3102": "김태경", "3103": "박준우", "3104": "송우주", "3105": "신윤빈", "3106": "안성민", "3107": "이민재", "3108": "이솔민", "3109": "이지헌", "3110": "임태규", "3111": "정재현", "3112": "조용민", "3113": "지승후", "3114": "최승호", "3115": "홍채민",
@@ -76,6 +77,29 @@ export default function Home() {
   const cols = isGrandHall 
     ? Array.from({ length: 27 }, (_, i) => i + 1) 
     : Array.from({ length: 14 }, (_, i) => i + 1); 
+  
+    const vipSeats = useMemo(() => {
+    const vips = new Set<string>();
+    rows.forEach((rowChar, rowIndex) => {
+      cols.forEach((colNum, colIndex) => {
+        const isVip = isGrandHall
+          ? rowChar.charCodeAt(0) >= (movieInfo.grand_vip_start_row || 'A').charCodeAt(0) &&
+            rowChar.charCodeAt(0) <= (movieInfo.grand_vip_end_row || 'C').charCodeAt(0) &&
+            colNum >= (movieInfo.grand_vip_start_col || 10) &&
+            colNum <= (movieInfo.grand_vip_end_col || 18)
+          : rowChar.charCodeAt(0) >= (movieInfo.mid_vip_start_row || 'A').charCodeAt(0) &&
+            rowChar.charCodeAt(0) <= (movieInfo.mid_vip_end_row || 'C').charCodeAt(0) &&
+            colNum >= (movieInfo.mid_vip_start_col || 5) &&
+            colNum <= (movieInfo.mid_vip_end_col || 10);
+            
+        if (isVip) {
+          const seatId = getSeatId(rowIndex, colIndex);
+          if (seatId) vips.add(seatId);
+        }
+      });
+    });
+    return vips;
+  },[movieInfo, isGrandHall, rows, cols]);
 
   useEffect(() => {
     fetchInitialData();
@@ -224,6 +248,11 @@ export default function Home() {
     }
 
     if (blacklistedUsers.includes(cleanStudentId)) return alert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
+      if (selectedSeat && vipSeats.has(selectedSeat)) {
+      if (!CLUB_MEMBERS.includes(cleanStudentId)) {
+        return alert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
+      }
+    }
 
     const { data: authData } = await supabase.from('student_auth').select('password').eq('student_id', cleanStudentId).single();
 
@@ -391,15 +420,7 @@ export default function Home() {
                   const isPending = seatData?.status === 'pending';
                   const isReserved = isConfirmed || isPending;
                   
-                  const isVipSeat = isGrandHall
-                    ? rowChar.charCodeAt(0) >= movieInfo.grand_vip_start_row.charCodeAt(0) &&
-                      rowChar.charCodeAt(0) <= movieInfo.grand_vip_end_row.charCodeAt(0) &&
-                      colNum >= movieInfo.grand_vip_start_col &&
-                      colNum <= movieInfo.grand_vip_end_col
-                    : rowChar.charCodeAt(0) >= movieInfo.mid_vip_start_row.charCodeAt(0) &&
-                      rowChar.charCodeAt(0) <= movieInfo.mid_vip_end_row.charCodeAt(0) &&
-                      colNum >= movieInfo.mid_vip_start_col &&
-                      colNum <= movieInfo.mid_vip_end_col;
+                  const isVipSeat = vipSeats.has(seatId);
 
                   const displayText = isReserved ? seatData.name : seatId;
 
@@ -411,12 +432,7 @@ export default function Home() {
                   return (
                     <div key={seatId} className={`flex ${isAisle ? aisleMargin : ''}`}>
                       <button
-                        onClick={() => {
-                          if (isVipSeat && formData.studentId && !CLUB_MEMBERS.includes(formData.studentId)) {
-                            alert("👑 이 좌석은 '영화대교' 동아리 전용입니다."); return;
-                          }
-                          handleSeatClick(seatId);
-                        }}
+                        onClick={() => handleSeatClick(seatId)}
                         disabled={isClosed} 
                         className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold transition-all
                           ${isConfirmed ? 'bg-gray-800 text-gray-500 border border-gray-700 hover:bg-gray-700 cursor-pointer' 
