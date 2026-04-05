@@ -419,16 +419,19 @@ export default function Home() {
             <div key={rowIndex} className={`flex items-center gap-1 md:gap-2 ${isGrandHall && rowChar === 'H' ? 'mb-8 md:mb-12' : ''}`}>
               <span className="w-6 md:w-8 text-center font-bold text-gray-500 text-xs md:text-sm">{rowChar}</span>
               
-              <div className="flex gap-1 md:gap-2">
+              {/* 🌟 [수정됨] 좌석 간의 가로 간격을 최소화 (gap-0.5는 2px, gap-1은 4px) */}
+              <div className="flex gap-0.5 md:gap-1">
                 {cols.map((colNum, colIndex) => {
+                  
                   const seatId = getSeatId(rowIndex, colIndex);
                   
                   const isAisle = isGrandHall ? (colNum === 9 || colNum === 18) : (colNum === 7);
+                  // 통로 여백은 확실하게 분리되도록 유지
                   const aisleMargin = isGrandHall ? 'mr-4 md:mr-8' : 'mr-8 md:mr-12';
                   
-                  // 🌟 [수정됨] 좌석의 높이(h)는 유지하고, 가로 너비(w)만 절반 수준으로 줄입니다. (세로로 긴 직사각형)
-                  // 대강당 너비: w-6(24px) / 중강당 너비: w-7(28px)
-                  const btnSize = isGrandHall ? 'w-6 h-10 md:w-7 md:h-12' : 'w-7 h-12 md:w-9 md:h-16';
+                  // 🌟 [수정됨] 글자가 들어갈 수 있도록 가로 너비(w)를 다시 적절히 늘림
+                  // 대강당: w-8~10 / 중강당: w-10~12
+                  const btnSize = isGrandHall ? 'w-8 h-10 md:w-10 md:h-12' : 'w-10 h-12 md:w-12 md:h-14';
 
                   if (!seatId) {
                     return <div key={`empty-${colNum}`} className={`${isAisle ? aisleMargin : ''} ${btnSize}`} />;
@@ -444,18 +447,17 @@ export default function Home() {
 
                   const displayText = isReserved ? seatData.name : seatId;
 
-                  // 🌟 [수정됨] 글자 크기는 아까 확대한 사이즈 유지 + 가로가 좁아져서 글자가 두 줄로 쪼개지는 것을 막기 위해 모든 텍스트에 whitespace-nowrap 강제 적용
+                  // 🌟 [수정됨] 글자가 버튼 밖으로 나가지 않도록 폰트 크기를 버튼 너비에 맞춰 1~2px 미세 조정
                   const textSize = isReserved 
-                    ? (isGrandHall ? 'text-[11px] md:text-[13px] tracking-tighter whitespace-nowrap' : 'text-[14px] md:text-[16px] tracking-tighter whitespace-nowrap') 
-                    : (isGrandHall ? 'text-[12px] md:text-[14px] tracking-tighter whitespace-nowrap' : 'text-[15px] md:text-[17px] tracking-tighter whitespace-nowrap');
+                    ? (isGrandHall ? 'text-[10px] md:text-[11px] tracking-tighter whitespace-nowrap' : 'text-[12px] md:text-[14px] tracking-tighter whitespace-nowrap') 
+                    : (isGrandHall ? 'text-[11px] md:text-[12px] tracking-tighter whitespace-nowrap' : 'text-[13px] md:text-[15px] tracking-tighter whitespace-nowrap');
 
                   return (
                     <div key={seatId} className={`flex ${isAisle ? aisleMargin : ''}`}>
                       <button
                         onClick={() => handleSeatClick(seatId)}
                         disabled={isClosed} 
-                        // 🌟[수정됨] px-0을 추가하여 버튼 안쪽의 기본 여백을 없애 글자가 최대한 덜 잘리게 만듭니다.
-                        className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold px-0 transition-all
+                        className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold px-0 transition-all overflow-hidden
                           ${isConfirmed ? 'bg-gray-800 text-gray-500 border border-gray-700 hover:bg-gray-700 cursor-pointer' 
                             : isPending ? 'bg-yellow-600/20 border border-yellow-600 text-yellow-500 hover:bg-yellow-600/40 cursor-pointer animate-pulse'
                             : isSelected ? 'bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.6)] transform -translate-y-1 z-10' 
@@ -469,7 +471,6 @@ export default function Home() {
                   );
                 })}
               </div>
-              {/* 🌟 [수정됨] 오른쪽 끝 행 표시 알파벳 크기도 좌석에 맞춰서 키움 */}
               <span className="w-6 md:w-8 text-center font-bold text-gray-500 text-xs md:text-sm ml-1 md:ml-2">{rowChar}</span>
             </div>
           ))}
