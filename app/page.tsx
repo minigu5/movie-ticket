@@ -420,7 +420,7 @@ export default function Home() {
           </div>
 
           {/* 🌟 [추가됨] 모바일 사용자를 위한 확실한 스와이프 유도 텍스트 애니메이션 */}
-          <div className="md:hidden absolute top-0 right-10 animate-bounce text-yellow-400 font-bold text-xs flex items-center gap-1 z-10 pointer-events-none">
+          <div className="md:hidden absolute top-0 left-6 animate-bounce text-yellow-400 font-bold text-xs flex items-center gap-1 z-10 pointer-events-none">
             옆으로 밀어서 확인 <span className="text-lg">👉</span>
           </div>
 
