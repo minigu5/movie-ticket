@@ -426,9 +426,9 @@ export default function Home() {
                   const isAisle = isGrandHall ? (colNum === 9 || colNum === 18) : (colNum === 7);
                   const aisleMargin = isGrandHall ? 'mr-4 md:mr-8' : 'mr-8 md:mr-12';
                   
-                  // 🌟 [수정됨] 버튼 크기 50% 대폭 확대
-                  // 대강당: w-10(40px), 중강당: w-12(48px) ~ w-16(64px)
-                  const btnSize = isGrandHall ? 'w-10 h-10 md:w-12 md:h-12' : 'w-12 h-12 md:w-16 md:h-16';
+                  // 🌟 [수정됨] 좌석의 높이(h)는 유지하고, 가로 너비(w)만 절반 수준으로 줄입니다. (세로로 긴 직사각형)
+                  // 대강당 너비: w-6(24px) / 중강당 너비: w-7(28px)
+                  const btnSize = isGrandHall ? 'w-6 h-10 md:w-7 md:h-12' : 'w-7 h-12 md:w-9 md:h-16';
 
                   if (!seatId) {
                     return <div key={`empty-${colNum}`} className={`${isAisle ? aisleMargin : ''} ${btnSize}`} />;
@@ -444,20 +444,21 @@ export default function Home() {
 
                   const displayText = isReserved ? seatData.name : seatId;
 
-                  // 🌟 [수정됨] 텍스트 사이즈 대폭 확대
+                  // 🌟 [수정됨] 글자 크기는 아까 확대한 사이즈 유지 + 가로가 좁아져서 글자가 두 줄로 쪼개지는 것을 막기 위해 모든 텍스트에 whitespace-nowrap 강제 적용
                   const textSize = isReserved 
-                    ? (isGrandHall ? 'text-[11px] md:text-[13px] tracking-tighter whitespace-nowrap' : 'text-[14px] md:text-[16px] tracking-tighter') 
-                    : (isGrandHall ? 'text-[12px] md:text-[14px] tracking-tighter' : 'text-[15px] md:text-[17px] tracking-tighter');
+                    ? (isGrandHall ? 'text-[11px] md:text-[13px] tracking-tighter whitespace-nowrap' : 'text-[14px] md:text-[16px] tracking-tighter whitespace-nowrap') 
+                    : (isGrandHall ? 'text-[12px] md:text-[14px] tracking-tighter whitespace-nowrap' : 'text-[15px] md:text-[17px] tracking-tighter whitespace-nowrap');
 
                   return (
                     <div key={seatId} className={`flex ${isAisle ? aisleMargin : ''}`}>
                       <button
                         onClick={() => handleSeatClick(seatId)}
                         disabled={isClosed} 
-                        className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold transition-all
+                        // 🌟[수정됨] px-0을 추가하여 버튼 안쪽의 기본 여백을 없애 글자가 최대한 덜 잘리게 만듭니다.
+                        className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold px-0 transition-all
                           ${isConfirmed ? 'bg-gray-800 text-gray-500 border border-gray-700 hover:bg-gray-700 cursor-pointer' 
                             : isPending ? 'bg-yellow-600/20 border border-yellow-600 text-yellow-500 hover:bg-yellow-600/40 cursor-pointer animate-pulse'
-                            : isSelected ? 'bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.6)] transform -translate-y-1' 
+                            : isSelected ? 'bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.6)] transform -translate-y-1 z-10' 
                             : isVipSeat ? 'bg-indigo-900/40 border border-indigo-700 text-indigo-300 hover:bg-indigo-800/60'
                             : 'bg-gray-700 hover:bg-gray-500 text-gray-300'}
                         `}
