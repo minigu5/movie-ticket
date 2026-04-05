@@ -280,13 +280,33 @@ export default function Home() {
         const myOldTicket = existingTickets[0];
         if (myOldTicket.password !== formData.password) return alert("❌ 비밀번호가 일치하지 않습니다.");
         
+        // 🌟 [수정됨] 팝콘 삭제(수량 축소) 방지 로직 완성본
+        const oldPopcorns = myOldTicket.popcorn_order !== 'none' ? myOldTicket.popcorn_order.split(',') :[];
+        const newPopcorns = finalPopcornString !== 'none' ? finalPopcornString.split(',') :[];
+
+        // 1. 기존 수량보다 줄이려고(삭제) 하면 강제 차단
+        if (newPopcorns.length < oldPopcorns.length) {
+          return alert("🚫 결제 혼선 방지를 위해 기존에 주문한 팝콘 수량을 취소/삭제할 수 없습니다. (맛 변경 및 추가만 가능)");
+        }
+
+        // 2. 수량을 늘리거나 맛을 바꾼 경우 경고 모달 띄우기
         if (myOldTicket.popcorn_order !== finalPopcornString) {
-          if (!confirm(`팝콘 주문 내역이 변경되었습니다.\n계속 진행하시겠습니까? (결제 관련 변동 사항은 현장에서 관리자에게 문의해야 할 수 있습니다.)`)) return;
+          let msg = "팝콘 주문 내역이 변경되었습니다.";
+          if (newPopcorns.length > oldPopcorns.length) {
+            msg += `\n(추가된 팝콘에 대해서는 현장에서 추가 결제가 필요합니다.)`;
+          }
+          if (!confirm(`${msg}\n\n계속 진행하시겠습니까?`)) return;
         }
 
         if (!confirm(`이미 예약된 좌석(${myOldTicket.seat_number})을 새로운 좌석(${selectedSeat})으로 변경하시겠습니까?`)) return;
 
-        const { data: updatedTicket, error: updateError } = await supabase.from('reservations').update({ seat_number: selectedSeat, popcorn_order: finalPopcornString }).eq('id', myOldTicket.id).select('id').single();
+        // 🌟 위에서 구문이 완벽히 닫혔으므로 여기서부터 const 에러가 발생하지 않습니다!
+        const { data: updatedTicket, error: updateError } = await supabase.from('reservations')
+          .update({ seat_number: selectedSeat, popcorn_order: finalPopcornString })
+          .eq('id', myOldTicket.id)
+          .select('id')
+          .single();
+
         if (updateError) return alert("변경 중 오류 발생 (이미 선점된 좌석일 수 있습니다).");
 
         await supabase.from('activity_logs').insert([{ student_id: cleanStudentId, student_name: formData.name, description: `좌석 변경 (${myOldTicket.seat_number} ➡️ ${selectedSeat})` }]);
@@ -397,18 +417,18 @@ export default function Home() {
         <div className="flex flex-col gap-1 md:gap-2 min-w-max px-4 pt-6 w-fit mx-auto">
           {rows.map((rowChar, rowIndex) => (
             <div key={rowIndex} className={`flex items-center gap-1 md:gap-2 ${isGrandHall && rowChar === 'H' ? 'mb-8 md:mb-12' : ''}`}>
-              <span className="w-4 md:w-6 text-center font-bold text-gray-500 text-[10px] md:text-xs">{rowChar}</span>
+              <span className="w-6 md:w-8 text-center font-bold text-gray-500 text-xs md:text-sm">{rowChar}</span>
               
               <div className="flex gap-1 md:gap-2">
                 {cols.map((colNum, colIndex) => {
-                  
                   const seatId = getSeatId(rowIndex, colIndex);
                   
                   const isAisle = isGrandHall ? (colNum === 9 || colNum === 18) : (colNum === 7);
                   const aisleMargin = isGrandHall ? 'mr-4 md:mr-8' : 'mr-8 md:mr-12';
                   
-                  // 🌟[수정됨] 버튼 크기 조금 더 확대
-                  const btnSize = isGrandHall ? 'w-8 h-8 md:w-10 md:h-10' : 'w-10 h-10 md:w-12 md:h-12';
+                  // 🌟 [수정됨] 버튼 크기 50% 대폭 확대
+                  // 대강당: w-10(40px), 중강당: w-12(48px) ~ w-16(64px)
+                  const btnSize = isGrandHall ? 'w-10 h-10 md:w-12 md:h-12' : 'w-12 h-12 md:w-16 md:h-16';
 
                   if (!seatId) {
                     return <div key={`empty-${colNum}`} className={`${isAisle ? aisleMargin : ''} ${btnSize}`} />;
@@ -426,8 +446,8 @@ export default function Home() {
 
                   // 🌟 [수정됨] 텍스트 사이즈 대폭 확대
                   const textSize = isReserved 
-                    ? (isGrandHall ? 'text-[7px] md:text-[9px] tracking-tighter whitespace-nowrap' : 'text-[11px] md:text-xs tracking-tighter') 
-                    : (isGrandHall ? 'text-[8px] md:text-[10px] tracking-tighter' : 'text-[11px] md:text-sm tracking-tighter');
+                    ? (isGrandHall ? 'text-[11px] md:text-[13px] tracking-tighter whitespace-nowrap' : 'text-[14px] md:text-[16px] tracking-tighter') 
+                    : (isGrandHall ? 'text-[12px] md:text-[14px] tracking-tighter' : 'text-[15px] md:text-[17px] tracking-tighter');
 
                   return (
                     <div key={seatId} className={`flex ${isAisle ? aisleMargin : ''}`}>
@@ -448,7 +468,8 @@ export default function Home() {
                   );
                 })}
               </div>
-              <span className="w-4 md:w-6 text-center font-bold text-gray-500 text-[10px] md:text-xs ml-1 md:ml-2">{rowChar}</span>
+              {/* 🌟 [수정됨] 오른쪽 끝 행 표시 알파벳 크기도 좌석에 맞춰서 키움 */}
+              <span className="w-6 md:w-8 text-center font-bold text-gray-500 text-xs md:text-sm ml-1 md:ml-2">{rowChar}</span>
             </div>
           ))}
         </div>
