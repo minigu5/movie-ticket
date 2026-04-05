@@ -222,14 +222,22 @@ export default function AdminPage() {
 
   if (!isAuthenticated) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm flex justify-end gap-3 mb-4">
-        <Link href="/" className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🏠 메인 홈</Link>
-        <Link href="/print" className="px-4 py-2 bg-gray-800/80 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🖨️ 발권기</Link>
-      </div>
-      <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-gray-700">
+      <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-gray-700 shadow-2xl">
         <h1 className="text-2xl font-bold text-white mb-6">🔒 관리자 로그인</h1>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && password === ADMIN_PASSWORD && setIsAuthenticated(true)} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 mb-4 text-center" placeholder="비밀번호 입력" />
-        <button onClick={() => password === ADMIN_PASSWORD ? setIsAuthenticated(true) : alert('비밀번호가 틀렸습니다.')} className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold">접속하기</button>
+        <input 
+          type="password" 
+          value={password} 
+          onChange={(e) => setPassword(e.target.value)} 
+          onKeyDown={(e) => e.key === 'Enter' && password === ADMIN_PASSWORD && setIsAuthenticated(true)} 
+          className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 mb-4 text-center outline-none focus:border-blue-500" 
+          placeholder="비밀번호 입력" 
+        />
+        <button 
+          onClick={() => password === ADMIN_PASSWORD ? setIsAuthenticated(true) : alert('비밀번호가 틀렸습니다.')} 
+          className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold transition-colors"
+        >
+          접속하기
+        </button>
       </div>
     </div>
   );
