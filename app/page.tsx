@@ -137,30 +137,32 @@ export default function Home() {
     }
   };
 
-  // 🌟[수정됨] 가로형 직관적인 번호 부여 알고리즘 (A01, A02 ... H14 방식)
   const getSeatId = (rowIndex: number, colIndex: number) => {
     if (!isGrandHall) { 
-      // 중강당 (14열 x 9행)
+      // 🟦 중강당 (14열 x 9행) - A구역(왼쪽 7칸), B구역(오른쪽 7칸)
       if (colIndex < 7) { 
-        // 왼쪽 그룹 (A01 ~ A63)
-        const num = colIndex * 9 + rowIndex + 1;
+        // A구역 (A01 ~ A63)
+        const num = rowIndex * 7 + colIndex + 1;
         return `A${String(num).padStart(2, '0')}`;
       } else {
-        // 오른쪽 그룹 (B01 ~ B62)
-        if (colIndex === 13 && rowIndex === 8) return null; // 오른쪽 가장 끝자리(B63) 없음
-        const num = (colIndex - 7) * 9 + rowIndex + 1;
+        // B구역 (B01 ~ B62)
+        const num = rowIndex * 7 + (colIndex - 7) + 1;
+        if (num === 63) return null; // 오른쪽 맨 뒷줄 끝자리(B63)는 없는 좌석이므로 비움
         return `B${String(num).padStart(2, '0')}`;
       }
     } else {
-      // 대강당 (27열 x 18행)
-      if (colIndex < 9) { // 왼쪽 블록 A001~A162
-        const num = colIndex * 18 + rowIndex + 1;
+      // 🟥 대강당 (27열 x 18행) - A구역(9칸), B구역(9칸), C구역(9칸)
+      if (colIndex < 9) {
+        // A구역 (A001 ~ A162)
+        const num = rowIndex * 9 + colIndex + 1;
         return `A${String(num).padStart(3, '0')}`;
-      } else if (colIndex < 18) { // 중간 블록 B001~B162
-        const num = (colIndex - 9) * 18 + rowIndex + 1;
+      } else if (colIndex < 18) {
+        // B구역 (B001 ~ B162)
+        const num = rowIndex * 9 + (colIndex - 9) + 1;
         return `B${String(num).padStart(3, '0')}`;
-      } else { // 오른쪽 블록 C001~C162
-        const num = (colIndex - 18) * 18 + rowIndex + 1;
+      } else {
+        // C구역 (C001 ~ C162)
+        const num = rowIndex * 9 + (colIndex - 18) + 1;
         return `C${String(num).padStart(3, '0')}`;
       }
     }
