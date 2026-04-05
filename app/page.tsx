@@ -77,6 +77,37 @@ export default function Home() {
   const cols = isGrandHall 
     ? Array.from({ length: 27 }, (_, i) => i + 1) 
     : Array.from({ length: 14 }, (_, i) => i + 1); 
+
+    const getSeatId = (rowIndex: number, colIndex: number) => {
+    if (!isGrandHall) { 
+      // 🟦 중강당 (14열 x 9행) - A구역(왼쪽 7칸), B구역(오른쪽 7칸)
+      if (colIndex < 7) { 
+        // A구역 (A01 ~ A63)
+        const num = rowIndex * 7 + colIndex + 1;
+        return `A${String(num).padStart(2, '0')}`;
+      } else {
+        // B구역 (B01 ~ B62)
+        const num = rowIndex * 7 + (colIndex - 7) + 1;
+        if (num === 63) return null; // 오른쪽 맨 뒷줄 끝자리(B63)는 없는 좌석이므로 비움
+        return `B${String(num).padStart(2, '0')}`;
+      }
+    } else {
+      // 🟥 대강당 (27열 x 18행) - A구역(9칸), B구역(9칸), C구역(9칸)
+      if (colIndex < 9) {
+        // A구역 (A001 ~ A162)
+        const num = rowIndex * 9 + colIndex + 1;
+        return `A${String(num).padStart(3, '0')}`;
+      } else if (colIndex < 18) {
+        // B구역 (B001 ~ B162)
+        const num = rowIndex * 9 + (colIndex - 9) + 1;
+        return `B${String(num).padStart(3, '0')}`;
+      } else {
+        // C구역 (C001 ~ C162)
+        const num = rowIndex * 9 + (colIndex - 18) + 1;
+        return `C${String(num).padStart(3, '0')}`;
+      }
+    }
+  };
   
     const vipSeats = useMemo(() => {
     const vips = new Set<string>();
@@ -93,13 +124,13 @@ export default function Home() {
             colNum <= (movieInfo.mid_vip_end_col || 10);
             
         if (isVip) {
-          const seatId = getSeatId(rowIndex, colIndex);
+          const seatId = getSeatId(rowIndex, colIndex); // 여기서 문제없이 사용 가능!
           if (seatId) vips.add(seatId);
         }
       });
     });
     return vips;
-  },[movieInfo, isGrandHall, rows, cols]);
+  }, [movieInfo, isGrandHall, rows, cols]); 
 
   useEffect(() => {
     fetchInitialData();
@@ -158,37 +189,6 @@ export default function Home() {
       console.error("데이터 불러오기 오류:", err);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const getSeatId = (rowIndex: number, colIndex: number) => {
-    if (!isGrandHall) { 
-      // 🟦 중강당 (14열 x 9행) - A구역(왼쪽 7칸), B구역(오른쪽 7칸)
-      if (colIndex < 7) { 
-        // A구역 (A01 ~ A63)
-        const num = rowIndex * 7 + colIndex + 1;
-        return `A${String(num).padStart(2, '0')}`;
-      } else {
-        // B구역 (B01 ~ B62)
-        const num = rowIndex * 7 + (colIndex - 7) + 1;
-        if (num === 63) return null; // 오른쪽 맨 뒷줄 끝자리(B63)는 없는 좌석이므로 비움
-        return `B${String(num).padStart(2, '0')}`;
-      }
-    } else {
-      // 🟥 대강당 (27열 x 18행) - A구역(9칸), B구역(9칸), C구역(9칸)
-      if (colIndex < 9) {
-        // A구역 (A001 ~ A162)
-        const num = rowIndex * 9 + colIndex + 1;
-        return `A${String(num).padStart(3, '0')}`;
-      } else if (colIndex < 18) {
-        // B구역 (B001 ~ B162)
-        const num = rowIndex * 9 + (colIndex - 9) + 1;
-        return `B${String(num).padStart(3, '0')}`;
-      } else {
-        // C구역 (C001 ~ C162)
-        const num = rowIndex * 9 + (colIndex - 18) + 1;
-        return `C${String(num).padStart(3, '0')}`;
-      }
     }
   };
 
