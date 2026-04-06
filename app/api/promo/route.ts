@@ -10,17 +10,15 @@ export async function POST(req: Request) {
       auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
     });
 
-    // Vercel 타임아웃 방지를 위해 전달받은 묶음(chunk)만 병렬로 발송
     await Promise.all(chunk.map(async (user: any) => {
       
-      // 날짜 포맷 예쁘게 변경
       const utcDate = new Date(movieInfo.deadline_date);
-      const kstDate = new Date(utcDate.getTime() + (9 * 60 * 60 * 1000)); // +9시간 더하기
+      const kstDate = new Date(utcDate.getTime() + (9 * 60 * 60 * 1000));
       
       const formattedMonth = kstDate.getUTCMonth() + 1;
       const formattedDay = kstDate.getUTCDate();
       const formattedHour = kstDate.getUTCHours();
-      const formattedMinute = String(kstDate.getUTCMinutes()).padStart(2, '0'); // 0분 -> 00분으로 예쁘게 표시
+      const formattedMinute = String(kstDate.getUTCMinutes()).padStart(2, '0');
 
       const formattedDeadline = `${formattedMonth}월 ${formattedDay}일 ${formattedHour}시 ${formattedMinute}분`;
 
@@ -36,7 +34,6 @@ export async function POST(req: Request) {
         <body style="margin: 0; padding: 0; background-color: #111827;">
           <div style="background-color: #111827; padding: 30px 15px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; text-align: center;">
             
-            <!-- 🌟 이메일 전용 영화대교 로고 구역 -->
             <div style="margin-bottom: 25px; padding: 20px 0; background: radial-gradient(circle, #422006 0%, #111827 60%); text-align: center;">
               <style>@import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');</style>
               <div style="font-family: 'Song Myung', 'Batang', 'Myungjo', serif; color: #f9fafb; font-size: 38px; line-height: 1.1; letter-spacing: 4px; text-shadow: 0 0 8px #eab308, 0 0 15px #ca8a04; font-weight: normal;">
@@ -48,7 +45,6 @@ export async function POST(req: Request) {
               </p>
             </div>
             
-            <!-- 🌟 메인 카드 (모바일 100% 꽉 차도록 width: 100% 강제 적용) -->
             <div style="width: 100%; max-width: 400px; margin: 0 auto; background-color: #1f2937; border-radius: 16px; overflow: hidden; box-shadow: 0 15px 30px rgba(0,0,0,0.5); text-align: left; border: 1px solid #374151;">
               
               <img src="${movieInfo.poster_url}" alt="영화 포스터" style="width: 100%; max-width: 100%; height: auto; display: block; border-bottom: 3px solid #3b82f6; margin: 0; padding: 0;" />
@@ -63,7 +59,7 @@ export async function POST(req: Request) {
 
                 <p style="color: #e5e7eb; font-size: 15px; line-height: 1.6; margin-bottom: 30px; word-break: keep-all;">
                   안녕하세요, <strong>${user.name}</strong>님!<br/>
-                  이번 달에도 어김없이 명작 영화와 함께 돌아왔습니다. 🍿 팝콘과 함께 즐거운 관람을 원하신다면 지금 바로 예매해주세요!
+                  이번 달에도 어김없이 명작 영화와 함께 돌아왔습니다. 즐거운 관람을 원하신다면 지금 바로 예매해 주세요!
                 </p>
 
                 <a href="${baseUrl}" style="display: block; background-color: #3b82f6; color: white; text-align: center; text-decoration: none; padding: 16px; border-radius: 10px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(59,130,246,0.3);">🎟️ 영화 예매하러 가기</a>

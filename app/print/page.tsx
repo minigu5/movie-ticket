@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { USER_EMAILS } from '@/lib/emails';
+import Link from 'next/link';
 
 const STUDENT_LIST: Record<string, string> = {
   "1101": "김세준", "1102": "김시우", "1103": "김연우", "1104": "김윤재", "1105": "박시현", "1106": "배하준", "1107": "손민재", "1108": "이동건", "1109": "이주원", "1110": "이주형", "1111": "이지훈", "1112": "이하은", "1113": "전시윤", "1114": "정윤재", "1115": "차승민", "1116": "최은성",
@@ -24,14 +25,14 @@ const STUDENT_LIST: Record<string, string> = {
   "3501": "공리영", "3502": "길은수", "3503": "김대현", "3504": "김동욱", "3505": "김지원", "3506": "류태현", "3507": "류한경", "3508": "박성호", "3509": "손지형", "3510": "염예승", "3511": "이윤승", "3512": "이은성", "3513": "이준우", "3514": "이진수", "3515": "전시현", "3516": "하대엽",
   "3601": "권윤재", "3602": "김시준", "3603": "김율", "3604": "김태우", "3605": "박성준", "3606": "박시원", "3607": "안혜우", "3608": "양다희", "3609": "유지원", "3610": "이상민", "3611": "이수연", "3612": "이지헌", "3613": "장유승", "3614": "전재형", "3615": "조준서", "3616": "채재현"
 };
+
 const STAFF_LIST =[
   "강윤석", "권순정", "김가은", "김동우", "김미정", "김민정", "김상용", "김선옥", "김성진", "김수정", "김승철", "김윤주", "김정석", "김제훈", "김종수", "김종하", "김현심", "도동현", "류상욱", "마예리", "문우현", "박나연", "박소영", "박순덕", "박영희", "박정수", "박준홍", "박진환", "박현숙", "박홍", "배태윤", "백은희", "서미경", "서승은", "손영호", "손중록", "송미희", "송석준", "전리해", "엄경애", "옥창규", "우태성", "우희정", "윤소영", "윤수진", "윤정호", "이계화", "이민아", "이상규", "이승재", "이용호", "이윤아", "이재용", "이재욱", "이재웅", "이주열", "이준구", "이준열", "이지영", "이태현", "이형준", "전경희", "정재환", "정진실", "정휘정", "조우주", "조유경", "주혜령", "채대철", "최유리", "최재선", "추재석", "추철우", "허완규", "홍현주", "황영순"
 ];
 
 export default function KioskPrintPage() {
-  // 🌟 [추가됨] 관리자 로그인 상태 관리
   const [isAdminAuth, setIsAdminAuth] = useState(false);
-  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const[adminPasswordInput, setAdminPasswordInput] = useState('');
 
   const[formData, setFormData] = useState({ studentId: '', name: '', password: '' });
   const[movieInfo, setMovieInfo] = useState<any>(null);
@@ -72,7 +73,6 @@ export default function KioskPrintPage() {
     setFormData(prev => ({ ...prev,[e.target.name]: e.target.value }));
   };
 
-  // 🌟 [추가됨] 관리자 로그인 함수
   const handleAdminLogin = () => {
     if (adminPasswordInput === "영화대교최고") {
       setIsAdminAuth(true);
@@ -116,7 +116,6 @@ export default function KioskPrintPage() {
     setIsPrinting(true);
 
     try {
-      // 🌟 [수정됨] 교직원은 이름으로 비밀번호를 확인합니다.
       const authKey = cleanId === "교직원" ? formData.name : cleanId;
       const { data: authData } = await supabase.from('student_auth').select('password').eq('student_id', authKey).single();
       
@@ -127,7 +126,6 @@ export default function KioskPrintPage() {
         setShowResetButton(false);
       }
 
-      // 🌟 [수정됨] 교직원의 티켓을 정확히 찾기 위해 student_name 조건 추가
       const { data: ticket } = await supabase.from('reservations')
         .select('*')
         .eq('student_id', cleanId)
@@ -137,9 +135,6 @@ export default function KioskPrintPage() {
 
       if (!ticket) return alert("예매 내역이 존재하지 않습니다.");
 
-      if (ticket.payment_status !== 'confirmed') {
-        return alert("🚨 결제가 아직 완료되지 않은 티켓입니다. 입금 후 관리자에게 문의하세요.");
-      }
       if (ticket.is_printed) {
         return alert("⚠️ 이미 현장에서 발권이 완료된 티켓입니다! (1인 1매 원칙)\n오류인 경우 관리자에게 문의하세요.");
       }
@@ -156,21 +151,13 @@ export default function KioskPrintPage() {
     }
   };
 
-  const getPopcornReceiptText = (popcornString: string) => {
-    if (popcornString === 'none') return "❌ 팝콘 수령 대상 아님\n(무료 관람권)";
-    
-    const popcornArray = popcornString.split(',');
-    const POPCORN_NAMES: Record<string, string> = { original: '오리지널 버터 팝콘', consomme: '콘소메맛 팝콘', caramel: '카라멜맛 팝콘' };
-    const counts: Record<string, number> = {};
-    
-    popcornArray.forEach((p: string) => { counts[p] = (counts[p] || 0) + 1; });
-    return Object.entries(counts).map(([k, c]) => `[ ${POPCORN_NAMES[k]} ]  x  ${c}개`).join('\n');
-  };
-
-  // 🌟 [추가됨] 관리자 인증 전 화면
   if (!isAdminAuth) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-sm flex justify-end gap-3 mb-4">
+          <Link href="/" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-yellow-600/50 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🏠 홈</Link>
+          <Link href="/admin" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-yellow-600/50 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">⚙️ 관리자</Link>
+        </div>
         <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-yellow-600 shadow-2xl">
           <h1 className="text-2xl font-bold text-yellow-500 mb-6">🖨️ KIOSK 발권기 접속</h1>
           <p className="text-gray-400 text-sm mb-6">원활한 현장 발권 준비를 위해<br/>관리자 비밀번호를 입력해주세요.</p>
@@ -195,7 +182,6 @@ export default function KioskPrintPage() {
 
   return (
     <>
-      {/* 🌟 [수정됨] 프린터 여백 확보를 위한 CSS @page margin 수정 */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page { margin: 5mm; size: auto; }
@@ -203,43 +189,47 @@ export default function KioskPrintPage() {
         }
       `}} />
 
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4 print:bg-white print:text-black print:min-h-0 print:p-0 print:block select-none">
+      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4 print:bg-white print:text-black print:min-h-0 print:p-0 print:block select-none">
         
         {!ticketData ? (
-          <div className="w-full max-w-md bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-600 print:hidden">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-yellow-500 tracking-wider mb-2">현장 발권기</h1>
-              <p className="text-gray-400 text-sm">현장에서 예매 티켓을 스티커/영수증으로 출력합니다.</p>
+          <>
+            <div className="w-full max-w-md flex justify-end gap-3 mb-4 print:hidden">
+              <Link href="/" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🏠 메인 홈</Link>
+              <Link href="/admin" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">⚙️ 관리자</Link>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-gray-300 mb-1 text-sm font-bold">학번</label>
-                <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-lg" placeholder="예: 2703"/>
+            <div className="w-full max-w-md bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-600 print:hidden">
+              <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-yellow-500 tracking-wider mb-2">현장 발권기</h1>
+                <p className="text-gray-400 text-sm">현장에서 예매 티켓을 스티커/영수증으로 출력합니다.</p>
               </div>
-              <div>
-                <label className="block text-gray-300 mb-1 text-sm font-bold">이름</label>
-                <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-lg" placeholder="본명 입력"/>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-gray-300 mb-1 text-sm font-bold">학번</label>
+                  <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-lg" placeholder="예: 2703"/>
+                </div>
+                <div>
+                  <label className="block text-gray-300 mb-1 text-sm font-bold">이름</label>
+                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-lg" placeholder="본명 입력"/>
+                </div>
+                <div>
+                  <label className="block text-gray-300 mb-1 text-sm font-bold">예매 비밀번호 (숫자 4자리)</label>
+                  <input type="password" name="password" maxLength={4} value={formData.password} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-center text-2xl tracking-widest" placeholder="****"/>
+                  {showResetButton && (
+                    <button onClick={handleRequestReset} disabled={isResetting} className="mt-3 text-sm text-red-400 hover:text-red-300 underline font-bold block w-full text-left">
+                      {isResetting ? "메일 발송 중..." : "🚨 비밀번호를 잊으셨나요? (폰으로 재설정 링크 받기)"}
+                    </button>
+                  )}
+                </div>
               </div>
-              <div>
-                <label className="block text-gray-300 mb-1 text-sm font-bold">예매 비밀번호 (숫자 4자리)</label>
-                <input type="password" name="password" maxLength={4} value={formData.password} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-center text-2xl tracking-widest" placeholder="****"/>
-                {showResetButton && (
-                  <button onClick={handleRequestReset} disabled={isResetting} className="mt-3 text-sm text-red-400 hover:text-red-300 underline font-bold block w-full text-left">
-                    {isResetting ? "메일 발송 중..." : "🚨 비밀번호를 잊으셨나요? (폰으로 재설정 링크 받기)"}
-                  </button>
-                )}
-              </div>
+
+              <button onClick={handlePrintSubmit} disabled={isPrinting} className="w-full mt-8 py-4 bg-yellow-600 hover:bg-yellow-500 text-black font-black text-xl rounded-xl shadow-[0_0_20px_rgba(202,138,4,0.4)] transition-all">
+                {isPrinting ? '티켓 정보 확인 중...' : '🖨️ 영수증 티켓 출력하기'}
+              </button>
             </div>
-
-            <button onClick={handlePrintSubmit} disabled={isPrinting} className="w-full mt-8 py-4 bg-yellow-600 hover:bg-yellow-500 text-black font-black text-xl rounded-xl shadow-[0_0_20px_rgba(202,138,4,0.4)] transition-all">
-              {isPrinting ? '티켓 정보 확인 중...' : '🖨️ 영수증 티켓 출력하기'}
-            </button>
-          </div>
-
+          </>
         ) : (
-
-          // 🌟[수정됨] 프린트 시 좌우 여백을 주기 위해 print:px-4 추가
           <div className="w-[80mm] mx-auto bg-white text-black font-mono print:w-full print:m-0 print:px-4">
             
             <div className="text-center text-2xl font-black mb-1 tracking-widest pt-2">영화대교 입장권</div>
