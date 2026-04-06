@@ -435,43 +435,21 @@ export default function AdminPage() {
           </thead>
           <tbody>
             {reservations.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-gray-500">예매 내역이 없습니다.</td></tr>}
-            {reservations.map((ticket) => {
-              
-              // 🌟 현재 티켓의 팝콘 데이터 분석
-              const popcornArray = ticket.popcorn_order !== 'none' ? ticket.popcorn_order.split(',') :[];
-              const totalPrice = popcornArray.length * 2500;
-              
-              const counts: Record<string, number> = {};
-              popcornArray.forEach((p: string) => { counts[p] = (counts[p] || 0) + 1; });
-              const popcornSummary = popcornArray.length > 0 
-                ? Object.entries(counts).map(([k, c]) => `${POPCORN_NAMES[k]} ${c}개`).join(', ') 
-                : '무료 관람';
+            {reservations.map((ticket) => (
+              <tr key={ticket.id} className="border-b border-gray-700 hover:bg-gray-750">
+                <td className="p-4"><span className="bg-green-600/20 text-green-500 px-2 py-1 rounded border border-green-600 font-bold">확정됨</span></td>
+                <td className="p-4 font-bold text-lg">{ticket.seat_number}</td>
+                <td className="p-4">{ticket.student_id} <span className="text-blue-300 font-bold">{ticket.student_name}</span></td>
+                
+                <td className="p-4">
+                  <span className="text-gray-500 text-sm">무료 관람</span>
+                </td>
 
-              return (
-                <tr key={ticket.id} className="border-b border-gray-700 hover:bg-gray-750">
-                  <td className="p-4">{ticket.payment_status === 'pending' ? <span className="bg-yellow-600/20 text-yellow-500 px-2 py-1 rounded border border-yellow-600 font-bold">입금 대기</span> : <span className="bg-green-600/20 text-green-500 px-2 py-1 rounded border border-green-600 font-bold">확정됨</span>}</td>
-                  <td className="p-4 font-bold text-lg">{ticket.seat_number}</td>
-                  <td className="p-4">{ticket.student_id} <span className="text-blue-300 font-bold">{ticket.student_name}</span></td>
-                  
-                  {/* 🌟 팝콘 요약 및 금액 표시 UI */}
-                  <td className="p-4">
-                    {popcornArray.length > 0 ? (
-                      <div className="flex flex-col">
-                        <span className="text-yellow-400 font-bold text-sm tracking-widest">{totalPrice.toLocaleString()}원</span>
-                        <span className="text-gray-400 text-xs mt-1">🍿 {popcornSummary}</span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-500 text-sm">무료 관람 (0원)</span>
-                    )}
-                  </td>
-
-                  <td className="p-4 text-right flex justify-end gap-2">
-                    {ticket.payment_status === 'pending' && <button onClick={() => handleApprove(ticket)} className="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded font-bold shadow-md">✅ 승인</button>}
-                    <button onClick={() => handleCancel(ticket)} className="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded font-bold shadow-md">❌ 취소</button>
-                  </td>
-                </tr>
-              );
-            })}
+                <td className="p-4 text-right flex justify-end gap-2">
+                  <button onClick={() => handleCancel(ticket)} className="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded font-bold shadow-md">❌ 강제 취소</button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

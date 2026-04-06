@@ -251,7 +251,7 @@ export default function KioskPrintPage() {
             <div className="text-3xl font-black leading-tight tracking-tighter my-1">{movieInfo?.title}</div>
             <div className="text-sm font-bold bg-black text-white inline-block px-1 py-0.5 mb-1">상영일시: {movieInfo?.date_string}</div>
             
-            <div className="flex justify-between items-end mt-4">
+            <div className="flex justify-between items-end mt-4 mb-4">
               <div>
                 <div className="text-sm font-bold">{movieInfo?.venue}</div>
                 <div className="text-sm font-bold mt-1">예매자: {ticketData.student_name} ({ticketData.student_id})</div>
@@ -264,18 +264,10 @@ export default function KioskPrintPage() {
             
             <div className="border-b-2 border-dashed border-black my-3"></div>
             
-            <div className="text-lg font-black mb-1">🍿 팝콘 수령 정보</div>
-            <div className="text-sm font-bold whitespace-pre-wrap leading-relaxed">
-              {getPopcornReceiptText(ticketData.popcorn_order)}
-            </div>
-            
-            <div className="border-b-2 border-dashed border-black my-3"></div>
-            
-            <div className="text-center font-bold text-sm mb-2">대구과학고등학교 영화대교</div>
+            <div className="text-center font-bold text-sm mb-2 mt-4">대구과학고등학교 영화대교</div>
             <div className="text-[11px] leading-relaxed mb-6 text-left font-bold">
               * 본 티켓은 1인 1매 한정으로 1회만 출력됩니다.<br/>
-              * 티켓 분실 시 재발권 및 팝콘 수령이 불가합니다.<br/>
-              * 팝콘 배부처에 본 티켓을 반드시 제시해 주세요.<br/>
+              * 티켓 분실 시 재발권 및 입장이 불가합니다.<br/>
               * 원활한 관람을 위해 시작 전 입장 바랍니다.
             </div>
             

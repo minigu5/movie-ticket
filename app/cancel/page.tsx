@@ -113,46 +113,26 @@ function CancelForm() {
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-gray-700 shadow-2xl">
-        <h1 className="text-2xl font-bold text-red-500 mb-2">예매 취소 및 보호</h1>
+        <h1 className="text-2xl font-bold text-red-500 mb-2">예매 취소</h1>
         <p className="text-gray-300 text-sm mb-6 bg-gray-700 p-3 rounded-lg">
           좌석: <span className="font-bold text-white">{ticket.seat_number}</span><br/>
           예매자: <span className="font-bold text-white">{ticket.student_id} {ticket.student_name}</span>
         </p>
         
-        {/* 🌟 결제가 완료된 팝콘 예매자만 취소를 막습니다 */}
-        {isPaidPopcorn ? (
-          <div className="mb-6 bg-red-900/40 border border-red-800 p-4 rounded-xl">
-            <p className="text-red-400 font-bold mb-2">🚫 취소 불가 안내</p>
-            <p className="text-sm text-gray-300 mb-4">
-              결제가 완료된 팝콘 예매 내역은 직접 취소할 수 없습니다. (다른 자리로의 이동만 가능합니다.)<br/>
-              부득이한 경우 동아리 관리자에게 문의해 주세요.
-            </p>
-            <button 
-              onClick={() => router.push('/')} 
-              className="w-full py-3 bg-gray-600 hover:bg-gray-500 rounded-lg text-white font-bold transition-colors"
-            >
-              메인 화면으로 돌아가기
-            </button>
-          </div>
-        ) : (
-          /* 미결제거나 무료 관람인 경우 정상적으로 취소 가능 */
-          <>
-            <input
-              type="password" maxLength={4} placeholder="비밀번호 4자리"
-              value={password} onChange={(e) => setPassword(e.target.value.replace(/[^0-9]/g, ''))}
-              className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 mb-4 text-center text-xl tracking-widest outline-none focus:border-red-500"
-            />
-            
-            <button onClick={handleCancel} className="w-full py-3 bg-red-600 hover:bg-red-500 rounded-lg text-white font-bold transition-colors mb-4 shadow-lg">
-              예매 취소하기
-            </button>
+        <input
+          type="password" maxLength={4} placeholder="비밀번호 4자리"
+          value={password} onChange={(e) => setPassword(e.target.value.replace(/[^0-9]/g, ''))}
+          className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 mb-4 text-center text-xl tracking-widest outline-none focus:border-red-500"
+        />
+        
+        <button onClick={handleCancel} className="w-full py-3 bg-red-600 hover:bg-red-500 rounded-lg text-white font-bold transition-colors mb-4 shadow-lg">
+          예매 취소하기
+        </button>
 
-            {showResetButton && (
-              <button onClick={handleRequestReset} disabled={isResetting} className="text-sm text-yellow-400 hover:text-yellow-300 underline underline-offset-4 transition-colors font-bold block w-full">
-                {isResetting ? "메일 발송 중..." : "🚨 비밀번호를 모르시나요? (이메일로 재설정)"}
-              </button>
-            )}
-          </>
+        {showResetButton && (
+          <button onClick={handleRequestReset} disabled={isResetting} className="text-sm text-yellow-400 hover:text-yellow-300 underline underline-offset-4 transition-colors font-bold block w-full">
+            {isResetting ? "메일 발송 중..." : "🚨 비밀번호를 모르시나요? (이메일로 재설정)"}
+          </button>
         )}
       </div>
     </div>
