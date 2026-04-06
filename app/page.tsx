@@ -248,16 +248,19 @@ export default function Home() {
     }
 
     if (blacklistedUsers.includes(cleanStudentId)) return alert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
-      if (selectedSeat && vipSeats.has(selectedSeat)) {
+
+    if (selectedSeat && vipSeats.has(selectedSeat)) {
       if (!CLUB_MEMBERS.includes(cleanStudentId)) {
         return alert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
       }
     }
 
-    const { data: authData } = await supabase.from('student_auth').select('password').eq('student_id', cleanStudentId).single();
+    // 🌟[수정됨] 교직원의 경우 '이름'을 고유 비밀번호 키값으로 사용합니다.
+    const authKey = cleanStudentId === "교직원" ? formData.name : cleanStudentId;
+    const { data: authData } = await supabase.from('student_auth').select('password').eq('student_id', authKey).single();
 
     if (!authData) {
-      await supabase.from('student_auth').insert({ student_id: cleanStudentId, password: formData.password });
+      await supabase.from('student_auth').insert({ student_id: authKey, password: formData.password });
       setShowResetButton(false);
     } else {
       if (authData.password !== formData.password) {
@@ -272,7 +275,13 @@ export default function Home() {
     const finalPopcornString = popcornList.filter(p => p !== 'none').join(',') || 'none';
 
     try {
-      const { data: existingTickets } = await supabase.from('reservations').select('*').eq('movie_date', movieInfo.db_date).eq('student_id', cleanStudentId);
+      // 🌟 [수정됨] 교직원끼리 예매를 덮어쓰지 않도록 'student_name' 조건도 함께 검사합니다.
+      const { data: existingTickets } = await supabase.from('reservations')
+        .select('*')
+        .eq('movie_date', movieInfo.db_date)
+        .eq('student_id', cleanStudentId)
+        .eq('student_name', formData.name);
+
       const baseUrl = window.location.origin;
       const userEmail = cleanStudentId === "교직원" ? USER_EMAILS[formData.name] : USER_EMAILS[cleanStudentId];
 

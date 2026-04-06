@@ -8,19 +8,19 @@ export async function POST(req: Request) {
   try {
     const { studentId, studentName, baseUrl, returnUrl } = await req.json();
 
-    // 1. 이메일 찾기
     const userEmail = studentId === "교직원" ? USER_EMAILS[studentName] : USER_EMAILS[studentId];
     if (!userEmail) return NextResponse.json({ success: false, error: '등록된 이메일이 없습니다.' }, { status: 400 });
 
-    // 2. 보안 토큰 생성 (30분 유효)
     const resetToken = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
-    // 3. DB에 토큰 저장 (student_auth 테이블)
+    // 🌟 [수정됨] 교직원은 이름(studentName)을 ID 키값으로 업데이트
+    const authKey = studentId === "교직원" ? studentName : studentId;
+
     const { error } = await supabase
       .from('student_auth')
       .update({ reset_token: resetToken, token_expires_at: expiresAt })
-      .eq('student_id', studentId);
+      .eq('student_id', authKey);
 
     if (error) throw error;
 
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
     });
 
-    const resetLink = `${baseUrl}/reset-password?token=${resetToken}&id=${studentId}${returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''}`;
+    const resetLink = `${baseUrl}/reset-password?token=${resetToken}&id=${encodeURIComponent(authKey)}${returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''}`;
     
     const htmlContent = `
       <div style="padding: 30px; background-color: #f8fafc; font-family: sans-serif; text-align: center;">

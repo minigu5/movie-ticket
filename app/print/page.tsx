@@ -116,7 +116,10 @@ export default function KioskPrintPage() {
     setIsPrinting(true);
 
     try {
-      const { data: authData } = await supabase.from('student_auth').select('password').eq('student_id', cleanId).single();
+      // 🌟 [수정됨] 교직원은 이름으로 비밀번호를 확인합니다.
+      const authKey = cleanId === "교직원" ? formData.name : cleanId;
+      const { data: authData } = await supabase.from('student_auth').select('password').eq('student_id', authKey).single();
+      
       if (!authData || authData.password !== formData.password) {
         setShowResetButton(true);
         return alert("❌ 비밀번호가 일치하지 않습니다.");
@@ -124,9 +127,11 @@ export default function KioskPrintPage() {
         setShowResetButton(false);
       }
 
+      // 🌟 [수정됨] 교직원의 티켓을 정확히 찾기 위해 student_name 조건 추가
       const { data: ticket } = await supabase.from('reservations')
         .select('*')
         .eq('student_id', cleanId)
+        .eq('student_name', formData.name)
         .eq('movie_date', movieInfo.db_date)
         .single();
 

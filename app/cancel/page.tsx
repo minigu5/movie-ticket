@@ -30,17 +30,21 @@ function CancelForm() {
   const handleCancel = async () => {
     if (!/^\d{4}$/.test(password)) return alert("비밀번호 숫자 4자리를 입력해주세요.");
 
+    // 🌟 [수정됨] 교직원은 이름으로 비밀번호를 찾도록 수정
+    const authKey = ticket.student_id === "교직원" ? ticket.student_name : ticket.student_id;
+
     // 1. student_auth 테이블에서 영구 비밀번호 확인
     const { data: authData } = await supabase
       .from('student_auth')
       .select('password')
-      .eq('student_id', ticket.student_id)
+      .eq('student_id', authKey)
       .single();
 
     if (!authData || authData.password !== password) {
       setShowResetButton(true);
       return alert("❌ 비밀번호가 일치하지 않습니다.");
     }
+
 
     // 2. 비밀번호가 맞으면 취소 진행 여부 확인
     if (!confirm(`정말[${ticket.seat_number}] 좌석 예매를 취소하시겠습니까?`)) return;
