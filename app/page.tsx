@@ -51,6 +51,7 @@ export default function Home() {
 
   const[movieInfo, setMovieInfo] = useState({
     title: "로딩 중...", date_string: "로딩 중...", db_date: "", venue: "대구과학고등학교 중강당",
+    age_rating: "전체관람가", // 🌟 [추가됨]
     poster_url: "/poster.jpg", deadline_date: "2099-12-31T23:59:00+09:00",
     mid_vip_start_row: "A", mid_vip_end_row: "C", mid_vip_start_col: 5, mid_vip_end_col: 10,
     grand_vip_start_row: "A", grand_vip_end_row: "C", grand_vip_start_col: 10, grand_vip_end_col: 18

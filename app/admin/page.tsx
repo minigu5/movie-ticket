@@ -67,6 +67,7 @@ export default function AdminPage() {
       setMovieInfo(movieData);
       setEditForm({
         ...movieData,
+        age_rating: movieData.age_rating || '전체관람가',
         mid_vip_start_row: movieData.mid_vip_start_row || 'A',
         mid_vip_end_row: movieData.mid_vip_end_row || 'C',
         mid_vip_start_col: movieData.mid_vip_start_col || 5,
@@ -97,7 +98,7 @@ export default function AdminPage() {
   const proceedSave = async (isVenueChanged: boolean) => {
     const { error } = await supabase.from('movie_settings').update({
       title: editForm.title, date_string: editForm.date_string, db_date: editForm.db_date,
-      venue: editForm.venue, poster_url: editForm.poster_url, deadline_date: editForm.deadline_date,
+      venue: editForm.venue, poster_url: editForm.poster_url, deadline_date: editForm.deadline_date, age_rating: editForm.age_rating,
       mid_vip_start_row: editForm.mid_vip_start_row, mid_vip_end_row: editForm.mid_vip_end_row,
       mid_vip_start_col: editForm.mid_vip_start_col, mid_vip_end_col: editForm.mid_vip_end_col,
       grand_vip_start_row: editForm.grand_vip_start_row, grand_vip_end_row: editForm.grand_vip_end_row,
@@ -355,6 +356,15 @@ export default function AdminPage() {
             <select value={editForm.venue} onChange={e => setEditForm({...editForm, venue: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:border-purple-500 outline-none">
               <option value="대구과학고등학교 중강당">중강당 (14x9 배열)</option>
               <option value="대구과학고등학교 대강당">대강당 (27x18 배열)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">관람가 등급</label>
+            <select value={editForm.age_rating} onChange={e => setEditForm({...editForm, age_rating: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600 outline-none">
+              <option value="전체관람가">전체관람가</option>
+              <option value="12세이상관람가">12세 이상 관람가</option>
+              <option value="15세이상관람가">15세 이상 관람가</option>
+              <option value="청소년관람불가">청소년 관람불가</option>
             </select>
           </div>
           <div className="md:col-span-2"><label className="block text-sm text-gray-400 mb-1">포스터 주소</label><input type="text" value={editForm.poster_url} onChange={e => setEditForm({...editForm, poster_url: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600 outline-none"/></div>

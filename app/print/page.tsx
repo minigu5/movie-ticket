@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { USER_EMAILS } from '@/lib/emails';
 import Link from 'next/link';
 
+// (STUDENT_LIST, STAFF_LIST 명단은 기존 그대로 유지)
+
 const STUDENT_LIST: Record<string, string> = {
   "1101": "김세준", "1102": "김시우", "1103": "김연우", "1104": "김윤재", "1105": "박시현", "1106": "배하준", "1107": "손민재", "1108": "이동건", "1109": "이주원", "1110": "이주형", "1111": "이지훈", "1112": "이하은", "1113": "전시윤", "1114": "정윤재", "1115": "차승민", "1116": "최은성",
   "1201": "김민우", "1202": "김민찬", "1203": "김시현", "1204": "김현서", "1205": "김현성", "1206": "류도헌", "1207": "배성호", "1208": "손시흔", "1209": "옥지훈", "1210": "이건우", "1211": "임해준", "1212": "장민하", "1213": "주지환", "1214": "최우진", "1215": "최윤서", "1216": "최정원", "1217": "최지요",
@@ -30,22 +32,24 @@ const STAFF_LIST =[
   "강윤석", "권순정", "김가은", "김동우", "김미정", "김민정", "김상용", "김선옥", "김성진", "김수정", "김승철", "김윤주", "김정석", "김제훈", "김종수", "김종하", "김현심", "도동현", "류상욱", "마예리", "문우현", "박나연", "박소영", "박순덕", "박영희", "박정수", "박준홍", "박진환", "박현숙", "박홍", "배태윤", "백은희", "서미경", "서승은", "손영호", "손중록", "송미희", "송석준", "전리해", "엄경애", "옥창규", "우태성", "우희정", "윤소영", "윤수진", "윤정호", "이계화", "이민아", "이상규", "이승재", "이용호", "이윤아", "이재용", "이재욱", "이재웅", "이주열", "이준구", "이준열", "이지영", "이태현", "이형준", "전경희", "정재환", "정진실", "정휘정", "조우주", "조유경", "주혜령", "채대철", "최유리", "최재선", "추재석", "추철우", "허완규", "홍현주", "황영순"
 ];
 
+
 export default function KioskPrintPage() {
   const [isAdminAuth, setIsAdminAuth] = useState(false);
-  const[adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
 
   const[formData, setFormData] = useState({ studentId: '', name: '', password: '' });
   const[movieInfo, setMovieInfo] = useState<any>(null);
   
-  const[ticketData, setTicketData] = useState<any>(null);
-  const[isPrinting, setIsPrinting] = useState(false);
+  const [ticketData, setTicketData] = useState<any>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
   
   const [showResetButton, setShowResetButton] = useState(false);
   const[isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     const fetchMovie = async () => {
-      const { data } = await supabase.from('movie_settings').select('title, date_string, db_date, venue').eq('id', 1).single();
+      // 🌟 [수정됨] DB에서 age_rating(관람가)도 함께 불러옵니다.
+      const { data } = await supabase.from('movie_settings').select('title, date_string, db_date, venue, age_rating').eq('id', 1).single();
       if (data) setMovieInfo(data);
     };
     fetchMovie();
@@ -70,7 +74,7 @@ export default function KioskPrintPage() {
   },[]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev,[e.target.name]: e.target.value }));
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleAdminLogin = () => {
@@ -152,6 +156,7 @@ export default function KioskPrintPage() {
   };
 
   if (!isAdminAuth) {
+    // ... (기존 로그인 UI 화면 동일하므로 생략하지 않고 그대로 포함합니다.)
     return (
       <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-sm flex justify-end gap-3 mb-4">
@@ -237,9 +242,12 @@ export default function KioskPrintPage() {
             
             <div className="border-b-2 border-dashed border-black my-2"></div>
             
-            <div className="text-[13px] font-bold">2D, 전체관람가</div>
+            {/* 🌟 [수정됨] DB에 저장된 관람가(age_rating)를 동적으로 반영합니다. 기본값은 전체관람가 */}
+            <div className="text-[13px] font-bold">2D, {movieInfo?.age_rating || '전체관람가'}</div>
             <div className="text-3xl font-black leading-tight tracking-tighter my-1">{movieInfo?.title}</div>
-            <div className="text-sm font-bold bg-black text-white inline-block px-1 py-0.5 mb-1">상영일시: {movieInfo?.date_string}</div>
+            
+            {/* 🌟 [수정됨] 배경 반전을 지우고 검은색 두꺼운 테두리와 굵은 글씨로 흐려짐(연하게 찍힘) 문제 해결 */}
+            <div className="text-[15px] font-extrabold border-[3px] border-black inline-block px-2 py-1 mb-2 mt-1">상영일시: {movieInfo?.date_string}</div>
             
             <div className="flex justify-between items-end mt-4 mb-4">
               <div>
@@ -261,8 +269,9 @@ export default function KioskPrintPage() {
               * 원활한 관람을 위해 시작 전 입장 바랍니다.
             </div>
             
-            <div className="text-center text-5xl font-light tracking-widest overflow-hidden mb-4">
-              ||| |||| || |||||| | ||
+            {/* 🌟 [수정됨] whitespace-nowrap 추가로 무조건 1줄로 고정하고, 한 줄에 맞게 크기 축소 */}
+            <div className="text-center text-3xl font-light tracking-[0.2em] whitespace-nowrap overflow-hidden mt-2 mb-4">
+              ||| ||| || |||| || ||| |||
             </div>
           </div>
         )}
