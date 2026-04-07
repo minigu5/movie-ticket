@@ -71,7 +71,7 @@ export async function POST(req: Request) {
             <p style="margin-top: 25px; color: #b91c1c; font-weight: bold; font-size: 14px;">❌ 예매가 취소되었습니다.</p>
           ` : `
             <p style="margin-top: 25px; color: #059669; font-weight: bold; font-size: 14px;">✅ 예매가 확정되었습니다. 상영 당일 보여주세요!</p>
-          `}
+          `} 
 
           ${statusType !== 'canceled' ? `
             <div style="margin-top: 35px; border-top: 1px dashed #ccc; padding-top: 20px; text-align: center;">
