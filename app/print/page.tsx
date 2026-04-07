@@ -159,10 +159,6 @@ export default function KioskPrintPage() {
     // ... (기존 로그인 UI 화면 동일하므로 생략하지 않고 그대로 포함합니다.)
     return (
       <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-sm flex justify-end gap-3 mb-4">
-          <Link href="/" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-yellow-600/50 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🏠 홈</Link>
-          <Link href="/admin" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-yellow-600/50 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">⚙️ 관리자</Link>
-        </div>
         <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-yellow-600 shadow-2xl">
           <h1 className="text-2xl font-bold text-yellow-500 mb-6">🖨️ KIOSK 발권기 접속</h1>
           <p className="text-gray-400 text-sm mb-6">원활한 현장 발권 준비를 위해<br/>관리자 비밀번호를 입력해주세요.</p>
@@ -198,11 +194,6 @@ export default function KioskPrintPage() {
         
         {!ticketData ? (
           <>
-            <div className="w-full max-w-md flex justify-end gap-3 mb-4 print:hidden">
-              <Link href="/" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🏠 메인 홈</Link>
-              <Link href="/admin" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">⚙️ 관리자</Link>
-            </div>
-
             <div className="w-full max-w-md bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-600 print:hidden">
               <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold text-yellow-500 tracking-wider mb-2">현장 발권기</h1>

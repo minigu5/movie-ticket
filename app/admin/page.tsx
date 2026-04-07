@@ -152,6 +152,26 @@ export default function AdminPage() {
     alert("취소 완료 및 이메일 발송됨!"); fetchAdminData();
   };
 
+  const handleResetPrint = async (ticket: any) => {
+    if (!confirm(`${ticket.student_name}님의 티켓 발권 상태를 '미발권'으로 초기화하시겠습니까?\n(학생이 현장 키오스크에서 다시 티켓을 출력할 수 있게 됩니다.)`)) return;
+
+    const { error } = await supabase.from('reservations').update({ is_printed: false }).eq('id', ticket.id);
+    
+    if (error) {
+      alert("초기화 실패: " + error.message);
+      return;
+    }
+
+    await supabase.from('activity_logs').insert([{ 
+      student_id: ticket.student_id, 
+      student_name: ticket.student_name, 
+      description: `관리자 티켓 발권 상태 초기화 (${ticket.seat_number})` 
+    }]);
+
+    alert("✅ 발권 상태가 초기화되었습니다.");
+    fetchAdminData();
+  };
+
   const handleAddBlacklist = async () => {
     if(newBlackId.length !== 4) return alert("학번 4자리를 정확히 입력해주세요.");
     const studentName = STUDENT_LIST[newBlackId];
@@ -440,7 +460,11 @@ export default function AdminPage() {
         <table className="w-full text-left text-sm whitespace-nowrap">
           <thead className="bg-gray-700 text-gray-300">
             <tr>
-              <th className="p-4">상태</th><th className="p-4">좌석</th><th className="p-4">학번/이름</th><th className="p-4">팝콘 및 결제금액</th><th className="p-4 text-right">관리 작업</th>
+              <th className="p-4">상태</th>
+              <th className="p-4">좌석</th>
+              <th className="p-4">학번/이름</th>
+              <th className="p-4 text-center">발권 여부</th>
+              <th className="p-4 text-right">관리 작업</th>
             </tr>
           </thead>
           <tbody>
@@ -451,12 +475,25 @@ export default function AdminPage() {
                 <td className="p-4 font-bold text-lg">{ticket.seat_number}</td>
                 <td className="p-4">{ticket.student_id} <span className="text-blue-300 font-bold">{ticket.student_name}</span></td>
                 
-                <td className="p-4">
-                  <span className="text-gray-500 text-sm">무료 관람</span>
+                {/* 🌟 [추가됨] 발권 상태 표시 UI */}
+                <td className="p-4 text-center">
+                  {ticket.is_printed ? (
+                    <span className="text-blue-400 font-bold border border-blue-600 bg-blue-900/30 px-3 py-1 rounded-lg text-xs tracking-wider">🖨️ 발권 완료</span>
+                  ) : (
+                    <span className="text-gray-500 font-bold text-sm">미발권</span>
+                  )}
                 </td>
 
                 <td className="p-4 text-right flex justify-end gap-2">
-                  <button onClick={() => handleCancel(ticket)} className="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded font-bold shadow-md">❌ 강제 취소</button>
+                  {/* 🌟 [추가됨] 발권된 티켓만 '초기화' 버튼이 나타남 */}
+                  {ticket.is_printed && (
+                    <button onClick={() => handleResetPrint(ticket)} className="bg-yellow-600 hover:bg-yellow-500 text-black px-3 py-1 rounded font-bold shadow-md transition-colors">
+                      🔄 발권 초기화
+                    </button>
+                  )}
+                  <button onClick={() => handleCancel(ticket)} className="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded font-bold shadow-md transition-colors">
+                    ❌ 강제 취소
+                  </button>
                 </td>
               </tr>
             ))}
