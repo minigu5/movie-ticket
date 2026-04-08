@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, memo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { USER_EMAILS } from '../lib/emails';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
@@ -39,39 +39,7 @@ interface SeatData {
   ticketId: string;
 }
 
-interface SeatButtonProps {
-  seatId: string;
-  isClosed: boolean;
-  btnSize: string;
-  textSize: string;
-  isConfirmed: boolean;
-  isSelected: boolean;
-  isVipSeat: boolean;
-  displayText: string;
-  onSeatClick: (seatId: string) => void;
-}
 
-const SeatButton = memo(({
-  seatId, isClosed, btnSize, textSize, isConfirmed, isSelected, isVipSeat, displayText, onSeatClick
-}: SeatButtonProps) => {
-  const handleClick = useCallback(() => onSeatClick(seatId), [seatId, onSeatClick]);
-  
-  return (
-    <button
-      onClick={handleClick}
-      disabled={isClosed} 
-      className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold px-0 transition-all duration-300 overflow-hidden
-        ${isConfirmed ? 'bg-slate-800/80 text-slate-500 border border-white/5 cursor-not-allowed opacity-80' 
-          : isSelected ? 'bg-amber-500 text-slate-900 shadow-[0_0_20px_rgba(245,158,11,0.6)] transform -translate-y-2 z-10 scale-110 font-black border border-amber-300' 
-          : isVipSeat ? 'bg-indigo-900/60 border border-indigo-500/50 text-indigo-300 hover:bg-indigo-600/80 hover:-translate-y-1 hover:shadow-[0_0_15px_rgba(79,70,229,0.5)]'
-          : 'bg-white/10 hover:bg-white/20 text-slate-300 border border-white/5 hover:border-white/20 hover:-translate-y-1 shadow-lg'}
-      `}
-    >
-      {displayText}
-    </button>
-  );
-});
-SeatButton.displayName = 'SeatButton';
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
@@ -192,7 +160,7 @@ export default function Home() {
     }
   };
 
-  const handleSeatClick = useCallback((seatId: string) => {
+  const handleSeatClick = (seatId: string) => {
     if (isClosed) return;
     if (seatStatuses[seatId]) {
       setClickedSeatInfo({
@@ -203,7 +171,7 @@ export default function Home() {
       return;
     }
     setSelectedSeat(seatId);
-  }, [isClosed, seatStatuses]);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -433,17 +401,18 @@ export default function Home() {
 
                   return (
                     <div key={seatId} className={`flex ${isAisle ? aisleMargin : ''}`}>
-                      <SeatButton
-                        seatId={seatId}
-                        isClosed={isClosed}
-                        btnSize={btnSize}
-                        textSize={textSize}
-                        isConfirmed={isConfirmed}
-                        isSelected={isSelected}
-                        isVipSeat={isVipSeat}
-                        displayText={displayText}
-                        onSeatClick={handleSeatClick}
-                      />
+                      <button
+                        onClick={() => handleSeatClick(seatId)}
+                        disabled={isClosed} 
+                        className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold px-0 transition-colors overflow-hidden
+                          ${isConfirmed ? 'bg-slate-800/80 text-slate-500 cursor-not-allowed opacity-80' 
+                            : isSelected ? 'bg-amber-500 text-slate-900 shadow-[0_0_15px_rgba(245,158,11,0.6)] transform -translate-y-1 z-10 font-black' 
+                            : isVipSeat ? 'bg-indigo-900/60 text-indigo-300 hover:bg-indigo-600/80'
+                            : 'bg-white/10 hover:bg-white/20 text-slate-300'}
+                        `}
+                      >
+                        {displayText}
+                      </button>
                     </div>
                   );
                 })}
