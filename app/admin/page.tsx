@@ -57,9 +57,27 @@ export default function AdminPage() {
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const ADMIN_PASSWORD = "영화대교최고"; 
 
+  const [skipAuth, setSkipAuth] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('skip_auth') === 'true') {
+      setSkipAuth(true);
+      setIsAuthenticated(true);
+    }
+  }, []);
+
   useEffect(() => {
     if (isAuthenticated) fetchAdminData();
   }, [isAuthenticated]);
+
+  const toggleSkipAuth = () => {
+    const newVal = !skipAuth;
+    setSkipAuth(newVal);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('skip_auth', newVal ? 'true' : 'false');
+    }
+    alert(newVal ? "현재 브라우저에서 관리자/발권기 접속 시 비밀번호가 생략됩니다! (베타용)" : "비밀번호 생략이 해제되었습니다.");
+  };
 
   const fetchAdminData = async () => {
     const { data: movieData } = await supabase.from('movie_settings').select('*').eq('id', 1).single();
@@ -281,7 +299,12 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8 relative">
-      <div className="w-full flex justify-end gap-3 mb-6 z-20">
+      <div className="w-full flex flex-wrap justify-end gap-3 mb-6 z-20">
+        {isAuthenticated && (
+          <button onClick={toggleSkipAuth} className={`px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-colors shadow-lg border ${skipAuth ? 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/50 text-amber-400' : 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-400'}`}>
+            {skipAuth ? "🔓 자동 로그인 (ON)" : "🔒 자동 로그인 (OFF)"}
+          </button>
+        )}
         <Link href="/" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🏠 메인 홈</Link>
         <Link href="/print" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🖨️ 현장 발권기</Link>
       </div>

@@ -47,6 +47,12 @@ export default function KioskPrintPage() {
   const[isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('skip_auth') === 'true') {
+      setIsAdminAuth(true);
+    }
+  }, []);
+
+  useEffect(() => {
     const fetchMovie = async () => {
       // 🌟 [수정됨] DB에서 age_rating(관람가)도 함께 불러옵니다.
       const { data } = await supabase.from('movie_settings').select('title, date_string, db_date, venue, age_rating').eq('id', 1).single();
