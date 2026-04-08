@@ -65,6 +65,14 @@ export default function Home() {
   const [isResetting, setIsResetting] = useState(false);
   const [clickedSeatInfo, setClickedSeatInfo] = useState<{seatId: string, status: string, ticketId: string} | null>(null);
 
+  const [alertInfo, setAlertInfo] = useState<{message: string, isError: boolean} | null>(null);
+  const [confirmInfo, setConfirmInfo] = useState<{message: string, onConfirm: () => void} | null>(null);
+  const [successInfo, setSuccessInfo] = useState<{title: string, message: string} | null>(null);
+
+  const showAlert = (message: string, isError = true) => setAlertInfo({ message, isError });
+  const showConfirm = (message: string, onConfirm: () => void) => setConfirmInfo({ message, onConfirm });
+  const showSuccess = (title: string, message: string) => setSuccessInfo({ title, message });
+
   const isGrandHall = movieInfo.venue.includes('대강당');
   
   const rows = isGrandHall 
@@ -187,30 +195,30 @@ export default function Home() {
         body: JSON.stringify({ studentId: cleanStudentId, studentName: formData.name, baseUrl: window.location.origin })
       });
       if (res.ok) {
-        alert("학교 이메일로 비밀번호 재설정 링크가 발송되었습니다.");
+        showAlert("학교 이메일로 비밀번호 재설정 링크가 발송되었습니다.", false);
         setShowResetButton(false);
-      } else { alert("발송에 실패했습니다."); }
+      } else { showAlert("발송에 실패했습니다."); }
     } finally { setIsResetting(false); }
   };
 
   const handleSubmit = async () => {
-    if (!formData.studentId || !formData.name || !formData.password) return alert("정보를 모두 입력해주세요!");
-    if (!/^[0-9]{4}$/.test(formData.password)) return alert("❌ 비밀번호는 4자리 '숫자'만 입력해주세요!");
+    if (!formData.studentId || !formData.name || !formData.password) return showAlert("정보를 모두 입력해주세요!");
+    if (!/^[0-9]{4}$/.test(formData.password)) return showAlert("❌ 비밀번호는 4자리 '숫자'만 입력해주세요!");
 
     const cleanStudentId = formData.studentId.replace(/['"]/g, '').trim();
 
     if (cleanStudentId === "교직원") {
-      if (!STAFF_LIST.includes(formData.name)) return alert("❌ 등록된 교직원 이름이 아닙니다.");
+      if (!STAFF_LIST.includes(formData.name)) return showAlert("❌ 등록된 교직원 이름이 아닙니다.");
     } else {
-      if (cleanStudentId.length !== 4) return alert("학번은 4자리 숫자로 입력해주세요.");
-      if (STUDENT_LIST[cleanStudentId] !== formData.name) return alert(`❌ 학번과 이름이 일치하지 않습니다.`);
+      if (cleanStudentId.length !== 4) return showAlert("학번은 4자리 숫자로 입력해주세요.");
+      if (STUDENT_LIST[cleanStudentId] !== formData.name) return showAlert(`❌ 학번과 이름이 일치하지 않습니다.`);
     }
 
-    if (blacklistedUsers.includes(cleanStudentId)) return alert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
+    if (blacklistedUsers.includes(cleanStudentId)) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
 
     if (selectedSeat && vipSeats.has(selectedSeat)) {
       if (!CLUB_MEMBERS.includes(cleanStudentId)) {
-        return alert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
+        return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
       }
     }
 
@@ -223,72 +231,73 @@ export default function Home() {
     } else {
       if (authData.password !== formData.password) {
         setShowResetButton(true);
-        return alert("❌ 비밀번호가 일치하지 않습니다.");
+        return showAlert("❌ 비밀번호가 일치하지 않습니다.");
       } else setShowResetButton(false); 
     }
 
-    const isAgree = confirm("예매를 확정하시겠습니까?\n확정 시 입력하신 정보로 티켓이 발송됩니다.");
-    if (!isAgree) return;
+    const processReservation = async () => {
+      try {
+        const { data: existingTickets } = await supabase.from('reservations')
+          .select('*')
+          .eq('movie_date', movieInfo.db_date)
+          .eq('student_id', cleanStudentId)
+          .eq('student_name', formData.name);
 
-    try {
-      const { data: existingTickets } = await supabase.from('reservations')
-        .select('*')
-        .eq('movie_date', movieInfo.db_date)
-        .eq('student_id', cleanStudentId)
-        .eq('student_name', formData.name);
+        const baseUrl = window.location.origin;
+        const userEmail = cleanStudentId === "교직원" ? USER_EMAILS[formData.name] : USER_EMAILS[cleanStudentId];
 
-      const baseUrl = window.location.origin;
-      const userEmail = cleanStudentId === "교직원" ? USER_EMAILS[formData.name] : USER_EMAILS[cleanStudentId];
+        if (existingTickets && existingTickets.length > 0) {
+          const myOldTicket = existingTickets[0];
+          if (myOldTicket.password !== formData.password) return showAlert("❌ 비밀번호가 일치하지 않습니다.");
+          
+          showConfirm(`이미 예약된 좌석(${myOldTicket.seat_number})을 새로운 좌석(${selectedSeat})으로 변경하시겠습니까?`, async () => {
+            const { data: updatedTicket, error: updateError } = await supabase.from('reservations')
+              .update({ seat_number: selectedSeat })
+              .eq('id', myOldTicket.id)
+              .select('id')
+              .single();
 
-      if (existingTickets && existingTickets.length > 0) {
-        const myOldTicket = existingTickets[0];
-        if (myOldTicket.password !== formData.password) return alert("❌ 비밀번호가 일치하지 않습니다.");
-        
-        if (!confirm(`이미 예약된 좌석(${myOldTicket.seat_number})을 새로운 좌석(${selectedSeat})으로 변경하시겠습니까?`)) return;
+            if (updateError) return showAlert("변경 중 오류 발생 (이미 선점된 좌석일 수 있습니다).");
 
-        const { data: updatedTicket, error: updateError } = await supabase.from('reservations')
-          .update({ seat_number: selectedSeat })
-          .eq('id', myOldTicket.id)
-          .select('id')
-          .single();
+            await supabase.from('activity_logs').insert([{ student_id: cleanStudentId, student_name: formData.name, description: `좌석 변경 (${myOldTicket.seat_number} ➡️ ${selectedSeat})` }]);
 
-        if (updateError) return alert("변경 중 오류 발생 (이미 선점된 좌석일 수 있습니다).");
-
-        await supabase.from('activity_logs').insert([{ student_id: cleanStudentId, student_name: formData.name, description: `좌석 변경 (${myOldTicket.seat_number} ➡️ ${selectedSeat})` }]);
-
-        if (userEmail && updatedTicket) {
-          fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: formData.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'changed', popcorn: 'none', ticketId: updatedTicket.id, baseUrl }) });
+            if (userEmail && updatedTicket) {
+              fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: formData.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'changed', popcorn: 'none', ticketId: updatedTicket.id, baseUrl }) });
+            }
+            showSuccess("예매 변경 완료!", "✨ 좌석이 성공적으로 변경되었습니다.\n새로운 티켓이 학교 메일로 발송되었습니다.");
+            fetchInitialData(); setIsModalOpen(false); setSelectedSeat(null);
+          });
+          return;
         }
-        alert("✨ 좌석이 변경되었습니다! 티켓이 재발송되었습니다.");
-        fetchInitialData(); setIsModalOpen(false); setSelectedSeat(null);
-        return;
+
+        // 🌟 이제 모든 예매는 무료이므로 무조건 confirmed 처리
+        const { data: newTicket, error: insertError } = await supabase.from('reservations')
+          .insert([{ movie_date: movieInfo.db_date, student_id: cleanStudentId, student_name: formData.name, password: formData.password, seat_number: selectedSeat, popcorn_order: 'none', payment_status: 'confirmed' }])
+          .select('id').single();
+
+        if (insertError) {
+          showAlert("앗! 다른 분이 먼저 예매했습니다.\n다른 좌석을 선택해주세요.");
+          fetchInitialData(); return;
+        }
+
+        await supabase.from('activity_logs').insert([{ student_id: cleanStudentId, student_name: formData.name, description: `무료 관람 예매 (${selectedSeat})` }]);
+
+        setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: 'confirmed', name: formData.name, ticketId: newTicket?.id || '' } }));
+        setIsModalOpen(false); 
+
+        if (userEmail && newTicket) {
+          fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: formData.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'confirmed', popcorn: 'none', ticketId: newTicket.id, baseUrl }) });
+        }
+
+        showSuccess("🎉 예매 성공!", `${formData.name}님 귀중한 예매 감사합니다! 📧\n입력하신 학교 이메일로 VIP 모바일 티켓이 발송되었습니다.`);
+        setSelectedSeat(null);
+        
+      } catch (err) {
+        showAlert("네트워크 오류가 발생했습니다.");
       }
+    };
 
-      // 🌟 이제 모든 예매는 무료이므로 무조건 confirmed 처리
-      const { data: newTicket, error: insertError } = await supabase.from('reservations')
-        .insert([{ movie_date: movieInfo.db_date, student_id: cleanStudentId, student_name: formData.name, password: formData.password, seat_number: selectedSeat, popcorn_order: 'none', payment_status: 'confirmed' }])
-        .select('id').single();
-
-      if (insertError) {
-        alert("앗! 다른 분이 먼저 예매했습니다.");
-        fetchInitialData(); return;
-      }
-
-      await supabase.from('activity_logs').insert([{ student_id: cleanStudentId, student_name: formData.name, description: `무료 관람 예매 (${selectedSeat})` }]);
-
-      setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: 'confirmed', name: formData.name, ticketId: newTicket?.id || '' } }));
-      setIsModalOpen(false); 
-
-      if (userEmail && newTicket) {
-        fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: formData.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'confirmed', popcorn: 'none', ticketId: newTicket.id, baseUrl }) });
-      }
-
-      alert(`${formData.name}님, 예매 확정! 📧 티켓 발송 완료!`);
-      setSelectedSeat(null);
-      
-    } catch (err) {
-      alert("네트워크 오류가 발생했습니다.");
-    }
+    showConfirm(`[${selectedSeat}] 좌석 예매를 확정하시겠습니까?\n확정 시 즉시 학교 이메일로 티켓이 발송됩니다.`, processReservation);
   };
 
   if (isLoading) {
@@ -488,12 +497,64 @@ export default function Home() {
               <button onClick={() => window.location.href = `/cancel?ticketId=${clickedSeatInfo.ticketId}`} className="w-full py-3 bg-rose-600/90 hover:bg-rose-500 border border-rose-500 rounded-lg text-white font-bold transition-all shadow-lg hover:shadow-[0_0_15px_rgba(225,29,72,0.4)]">
                 🚨 예매 취소하기
               </button>
-              <button onClick={() => alert(`🔄 [자리 변경 안내]\n\n자리를 변경하시려면 현재 창을 닫고, 원하시는[새로운 빈 좌석]을 클릭하세요.\n기존과 동일한 학번, 이름, 비밀번호를 입력하여 예매하시면\n기존 자리가 자동으로 취소되고 새 자리로 이동됩니다!`)} className="w-full py-3 bg-indigo-600/90 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-lg hover:shadow-[0_0_15px_rgba(79,70,229,0.4)]">
+              <button onClick={() => showAlert(`🔄 [자리 변경 안내]\n\n자리를 변경하시려면 현재 창을 닫고, 원하시는[새로운 빈 좌석]을 클릭하세요.\n기존과 동일한 학번, 이름, 비밀번호를 입력하여 예매하시면\n기존 자리가 자동으로 취소되고 새 자리로 이동됩니다!`, false)} className="w-full py-3 bg-indigo-600/90 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-lg hover:shadow-[0_0_15px_rgba(79,70,229,0.4)]">
                 🔄 자리 변경 방법 보기
               </button>
               <button onClick={() => setClickedSeatInfo(null)} className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all">
                 닫기
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== 웹 자체 팝업 UI ===== */}
+      
+      {alertInfo && (
+        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-[80]">
+          <div className="bg-slate-900 border border-white/10 p-6 rounded-2xl w-full max-w-sm text-center shadow-2xl">
+            <div className={`text-4xl mb-4 text-center mx-auto flex justify-center ${alertInfo.isError ? 'text-rose-500' : 'text-indigo-400'}`}>
+               {alertInfo.isError ? '🚨' : '✨'}
+            </div>
+            <p className="text-white text-lg font-bold mb-6 whitespace-pre-line leading-relaxed">{alertInfo.message}</p>
+            <button onClick={() => setAlertInfo(null)} className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-lg text-white font-bold transition-all border border-white/10">확인</button>
+          </div>
+        </div>
+      )}
+
+      {confirmInfo && (
+        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-[90]">
+          <div className="bg-slate-900 border border-indigo-500/30 p-6 rounded-2xl w-full max-w-sm text-center shadow-[0_0_30px_rgba(79,70,229,0.2)]">
+            <div className="text-4xl mb-4 text-center mx-auto flex justify-center">🤔</div>
+            <p className="text-white text-lg font-bold mb-6 whitespace-pre-line leading-relaxed">{confirmInfo.message}</p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setConfirmInfo(null)} 
+                className="flex-1 py-3 bg-white/5 hover:bg-white/10 rounded-lg text-slate-300 font-bold transition-all border border-white/10">취소</button>
+              <button 
+                onClick={() => {
+                  setConfirmInfo(null);
+                  confirmInfo.onConfirm();
+                }} 
+                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] border border-indigo-500">확인</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {successInfo && (
+        <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center p-4 z-[100] animate-in fade-in zoom-in duration-300">
+          <div className="bg-slate-900 border border-emerald-500/50 p-8 rounded-2xl w-full max-w-md w-[90%] md:w-full text-center shadow-[0_0_50px_rgba(16,185,129,0.3)]">
+            <div className="text-6xl mb-4 text-center mx-auto flex justify-center animate-bounce">🎉</div>
+            <h3 className="text-2xl font-black text-white mb-2">{successInfo.title}</h3>
+            <p className="text-slate-300 text-base mb-8 whitespace-pre-line leading-relaxed">{successInfo.message}</p>
+            <div className="flex flex-col gap-3">
+              <a href="https://mail.google.com/" target="_blank" rel="noopener noreferrer" 
+                 onClick={() => setSuccessInfo(null)}
+                 className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white font-black text-lg transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)] border border-emerald-400 flex items-center justify-center gap-2">
+                <span>💌</span> 티켓 확인하러 가기
+              </a>
+              <button onClick={() => setSuccessInfo(null)} className="w-full py-3 bg-transparent text-slate-400 hover:text-white font-bold transition-all mt-2">그냥 닫기</button>
             </div>
           </div>
         </div>
