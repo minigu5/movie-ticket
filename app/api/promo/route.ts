@@ -28,46 +28,46 @@ export async function POST(req: Request) {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <meta name="color-scheme" content="light dark">
-          <meta name="supported-color-schemes" content="light dark">
         </head>
-        <body style="margin: 0; padding: 0; background-color: #111827;">
-          <div style="background-color: #111827; padding: 30px 15px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; text-align: center;">
+        <body style="margin: 0; padding: 0; background-color: #020617;">
+          <div style="background-color: #020617; padding: 40px 15px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; text-align: center;">
             
-            <div style="margin-bottom: 25px; padding: 20px 0; background: radial-gradient(circle, #422006 0%, #111827 60%); text-align: center;">
+            <div style="margin-bottom: 30px; text-align: center;">
               <style>@import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');</style>
-              <div style="font-family: 'Song Myung', 'Batang', 'Myungjo', serif; color: #f9fafb; font-size: 38px; line-height: 1.1; letter-spacing: 4px; text-shadow: 0 0 8px #eab308, 0 0 15px #ca8a04; font-weight: normal;">
-                <div style="margin-bottom: 5px;">영화</div>
-                <div>대교</div>
+              <div style="font-family: 'Song Myung', serif; color: #f8fafc; font-size: 42px; line-height: 1.2; letter-spacing: 5px; text-shadow: 0 0 20px rgba(245,158,11,0.5); font-weight: normal;">
+                영화대교
               </div>
-              <p style="color: #60a5fa; font-size: 13px; font-weight: bold; letter-spacing: 2px; margin: 15px 0 0 0;">
-                이달의 상영작 오픈
+              <p style="color: #d97706; font-size: 12px; font-weight: bold; letter-spacing: 4px; margin: 10px 0 0 0; text-transform: uppercase;">
+                VIP Invitation
               </p>
             </div>
             
-            <div style="width: 100%; max-width: 400px; margin: 0 auto; background-color: #1f2937; border-radius: 16px; overflow: hidden; box-shadow: 0 15px 30px rgba(0,0,0,0.5); text-align: left; border: 1px solid #374151;">
+            <div style="width: 100%; max-width: 420px; margin: 0 auto; background-color: #0f172a; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.8); text-align: left; border: 1px solid #1e293b;">
               
-              <img src="${movieInfo.poster_url}" alt="영화 포스터" style="width: 100%; max-width: 100%; height: auto; display: block; border-bottom: 3px solid #3b82f6; margin: 0; padding: 0;" />
-              
-              <div style="padding: 25px 20px;">
-                <h1 style="color: white; font-size: 22px; margin: 0 0 10px 0; line-height: 1.3;">${movieInfo.title}</h1>
-                <p style="color: #9ca3af; font-size: 14px; margin: 0 0 20px 0;">📍 ${movieInfo.venue}<br/>⏰ ${movieInfo.date_string}</p>
+              <div style="padding: 30px 25px;">
+                <p style="color: #f59e0b; font-size: 14px; font-weight: bold; margin: 0 0 15px 0;">특별 초청장</p>
+                <h1 style="color: #f8fafc; font-size: 26px; margin: 0 0 20px 0; line-height: 1.4; word-break: keep-all;">${user.name}님을 이달의 명작 상영회에 초대합니다.</h1>
                 
-                <div style="background-color: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; padding: 12px; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
-                  <p style="color: #fca5a5; font-size: 13px; margin: 0;">🚨 <strong>예매 마감:</strong> ${formattedDeadline}까지</p>
-                </div>
-
-                <p style="color: #e5e7eb; font-size: 15px; line-height: 1.6; margin-bottom: 30px; word-break: keep-all;">
-                  안녕하세요, <strong>${user.name}</strong>님!<br/>
-                  이번 달에도 어김없이 명작 영화와 함께 돌아왔습니다. 즐거운 관람을 원하신다면 지금 바로 예매해 주세요!
+                <p style="color: #94a3b8; font-size: 15px; line-height: 1.7; margin: 0 0 30px 0; word-break: keep-all;">
+                  귀하를 모시게 되어 영광입니다.<br/>
+                  최고의 좌석과 감동적인 영화가 준비되어 있습니다.<br/>
+                  함께하셔서 특별한 추억을 만들어보시길 바랍니다.
                 </p>
 
-                <a href="${baseUrl}" style="display: block; background-color: #3b82f6; color: white; text-align: center; text-decoration: none; padding: 16px; border-radius: 10px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(59,130,246,0.3);">🎟️ 영화 예매하러 가기</a>
+                <div style="background-color: #020617; border-left: 3px solid #d97706; padding: 15px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
+                  <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 8px 0;"><strong>🎬 영화:</strong> ${movieInfo.title}</p>
+                  <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 8px 0;"><strong>📍 장소:</strong> ${movieInfo.venue}</p>
+                  <p style="color: #cbd5e1; font-size: 14px; margin: 0;"><strong>⏰ 일시:</strong> ${movieInfo.date_string}</p>
+                </div>
+
+                <a href="${baseUrl}?invite=true&id=${user.studentId}&name=${encodeURIComponent(user.name)}" style="display: block; background-color: #d97706; color: #020617; text-align: center; text-decoration: none; padding: 18px; border-radius: 12px; font-weight: 900; font-size: 16px; box-shadow: 0 0 20px rgba(217,119,6,0.4); letter-spacing: 1px;">🎫 초청 수락 및 좌석 예매하기</a>
+                
+                <p style="color: #ef4444; font-size: 12px; text-align: center; margin-top: 15px;">※ 예매 기한: ${formattedDeadline}까지</p>
               </div>
             </div>
             
-            <p style="color: #4b5563; font-size: 10px; margin-top: 30px; letter-spacing: 1px;">
-              CRAFTED BY SHIN MINGYU | POWERED BY GOOGLE AI STUDIO
+            <p style="color: #334155; font-size: 10px; margin-top: 40px; letter-spacing: 2px;">
+              Powered by Google AI Studio
             </p>
           </div>
         </body>
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
       return transporter.sendMail({
         from: `"영화대교" <${process.env.GMAIL_USER}>`,
         to: user.email,
-        subject: `[영화대교] 🎬 '${movieInfo.title}' 예매가 오픈되었습니다!`,
+        subject: `[영화대교] 💌 ${user.name}님을 위한 특별 초청장이 도착했습니다.`,
         html: htmlContent
       });
     }));

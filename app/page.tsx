@@ -130,9 +130,28 @@ export default function Home() {
     return vips;
   }, [movieInfo, isGrandHall, rows, cols]);
 
+  const [inviteName, setInviteName] = useState("");
+
   useEffect(() => {
     fetchInitialData();
   },[]);
+
+  // 🌟 [추가됨] VIP 초청 링크를 통한 접근 시 데이터 자동 채우기
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('invite') === 'true') {
+        const paramId = params.get('id') || '';
+        const paramName = params.get('name') || '';
+        if (paramId || paramName) {
+          setFormData(prev => ({ ...prev, studentId: paramId, name: paramName }));
+          if (paramName) setInviteName(paramName);
+        }
+        // 주소창에서 파라미터 숨기기 (깔끔한 UI 유지)
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, []);
 
   const fetchInitialData = async () => {
     try {
@@ -339,6 +358,15 @@ export default function Home() {
           Cinema Bridge Ticket System
         </p>
       </div>
+
+      {inviteName && (
+        <div className="w-full max-w-4xl bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 border border-amber-500/30 rounded-2xl p-5 mb-6 text-center transform shadow-[0_0_30px_rgba(245,158,11,0.15)] animate-in fade-in slide-in-from-top-4 duration-700">
+          <p className="text-amber-400 font-bold text-lg md:text-xl tracking-wide flex items-center justify-center gap-2">
+            ✨ <span className="text-white">{inviteName}</span>님, VIP 특별 초청을 환영합니다! ✨
+          </p>
+          <p className="text-slate-400 text-sm mt-2 font-light">예매 시 귀하의 학번과 이름이 자동으로 입력되어 있습니다.</p>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row items-center gap-6 mb-12 bg-white/5 backdrop-blur-xl p-6 rounded-2xl w-full max-w-4xl shadow-2xl border border-white/10 transition-all duration-500 hover:border-white/20 hover:bg-white/10">
         <img src={movieInfo.poster_url} alt="영화 포스터" className="w-32 h-48 object-cover rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10 bg-slate-800" />

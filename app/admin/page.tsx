@@ -218,12 +218,12 @@ export default function AdminPage() {
     const recipientMap = new Map();
     if (promoTargets.club) {
       CLUB_MEMBERS.forEach(id => {
-        if (USER_EMAILS[id]) recipientMap.set(id, { email: USER_EMAILS[id], name: STUDENT_LIST[id] || "학생" });
+        if (USER_EMAILS[id]) recipientMap.set(id, { studentId: id, email: USER_EMAILS[id], name: STUDENT_LIST[id] || "학생" });
       });
     }
     if (singleTarget && USER_EMAILS[singleTarget]) {
       const name = isNaN(Number(singleTarget)) ? singleTarget : STUDENT_LIST[singleTarget] || "학생";
-      recipientMap.set(singleTarget, { email: USER_EMAILS[singleTarget], name });
+      recipientMap.set(singleTarget, { studentId: singleTarget, email: USER_EMAILS[singleTarget], name });
     }
     Object.keys(USER_EMAILS).forEach(key => {
       let shouldAdd = false;
@@ -231,7 +231,7 @@ export default function AdminPage() {
       if (promoTargets.grade2 && key.startsWith('2') && key.length === 4) shouldAdd = true;
       if (promoTargets.grade3 && key.startsWith('3') && key.length === 4) shouldAdd = true;
       if (promoTargets.staff && isNaN(Number(key))) shouldAdd = true;
-      if (shouldAdd) recipientMap.set(key, { email: USER_EMAILS[key], name: isNaN(Number(key)) ? key : STUDENT_LIST[key] || "학생" });
+      if (shouldAdd) recipientMap.set(key, { studentId: key, email: USER_EMAILS[key], name: isNaN(Number(key)) ? key : STUDENT_LIST[key] || "학생" });
     });
 
     const recipients = Array.from(recipientMap.values());
