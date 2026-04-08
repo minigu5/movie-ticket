@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { USER_EMAILS } from '../lib/emails';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
@@ -38,6 +38,40 @@ interface SeatData {
   name: string;
   ticketId: string;
 }
+
+interface SeatButtonProps {
+  seatId: string;
+  isClosed: boolean;
+  btnSize: string;
+  textSize: string;
+  isConfirmed: boolean;
+  isSelected: boolean;
+  isVipSeat: boolean;
+  displayText: string;
+  onSeatClick: (seatId: string) => void;
+}
+
+const SeatButton = memo(({
+  seatId, isClosed, btnSize, textSize, isConfirmed, isSelected, isVipSeat, displayText, onSeatClick
+}: SeatButtonProps) => {
+  const handleClick = useCallback(() => onSeatClick(seatId), [seatId, onSeatClick]);
+  
+  return (
+    <button
+      onClick={handleClick}
+      disabled={isClosed} 
+      className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold px-0 transition-all duration-300 overflow-hidden
+        ${isConfirmed ? 'bg-slate-800/80 text-slate-500 border border-white/5 cursor-not-allowed opacity-80' 
+          : isSelected ? 'bg-amber-500 text-slate-900 shadow-[0_0_20px_rgba(245,158,11,0.6)] transform -translate-y-2 z-10 scale-110 font-black border border-amber-300' 
+          : isVipSeat ? 'bg-indigo-900/60 border border-indigo-500/50 text-indigo-300 hover:bg-indigo-600/80 hover:-translate-y-1 hover:shadow-[0_0_15px_rgba(79,70,229,0.5)]'
+          : 'bg-white/10 hover:bg-white/20 text-slate-300 border border-white/5 hover:border-white/20 hover:-translate-y-1 shadow-lg'}
+      `}
+    >
+      {displayText}
+    </button>
+  );
+});
+SeatButton.displayName = 'SeatButton';
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
@@ -158,7 +192,7 @@ export default function Home() {
     }
   };
 
-  const handleSeatClick = (seatId: string) => {
+  const handleSeatClick = useCallback((seatId: string) => {
     if (isClosed) return;
     if (seatStatuses[seatId]) {
       setClickedSeatInfo({
@@ -169,7 +203,7 @@ export default function Home() {
       return;
     }
     setSelectedSeat(seatId);
-  };
+  }, [isClosed, seatStatuses]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -333,13 +367,15 @@ export default function Home() {
         <img src={movieInfo.poster_url} alt="영화 포스터" className="w-32 h-48 object-cover rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10 bg-slate-800" />
         <div className="flex flex-col text-center md:text-left w-full">
           <span className="text-indigo-400 font-bold mb-1 text-sm tracking-wide">이달의 명작 상영작</span>
-          <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">{movieInfo.title}</h2>
+          <div className="flex flex-col md:flex-row md:items-end gap-2 mb-2 justify-center md:justify-start">
+            <h2 className="text-2xl md:text-3xl font-bold text-white">{movieInfo.title}</h2>
+            <span className="text-slate-400 border border-slate-600/50 bg-slate-800/50 text-[10px] md:text-xs px-2 py-0.5 rounded-sm whitespace-nowrap w-fit mx-auto md:mx-0 mb-1">
+              관람가: {movieInfo.age_rating}
+            </span>
+          </div>
           <p className="text-slate-300 mt-2 text-sm md:text-base font-light">📍 장소: {movieInfo.venue}</p>
           <p className="text-slate-300 text-sm md:text-base font-light">⏰ 일시: {movieInfo.date_string}</p>
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/10">
-            <span className="flex items-center justify-center bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs px-2 py-1 rounded-md font-bold">
-              관람가: {movieInfo.age_rating}
-            </span>
             <span className="text-rose-400 font-bold text-xs md:text-sm bg-rose-500/10 px-2 py-1 rounded-md">
               🚨 마감: {new Date(movieInfo.deadline_date).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </span>
@@ -349,8 +385,8 @@ export default function Home() {
 
       <div className="relative w-full overflow-x-auto pb-8">
         {isClosed && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm rounded-xl">
-            <span className="text-4xl font-black text-rose-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.6)] transform -rotate-12 border-4 border-rose-500 p-4 rounded-xl backdrop-blur-md">예매가 마감되었습니다</span>
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/80 rounded-xl">
+            <span className="text-4xl font-black text-rose-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.6)] transform -rotate-12 border-4 border-rose-500 p-4 rounded-xl">예매가 마감되었습니다</span>
           </div>
         )}
 
@@ -397,18 +433,17 @@ export default function Home() {
 
                   return (
                     <div key={seatId} className={`flex ${isAisle ? aisleMargin : ''}`}>
-                      <button
-                        onClick={() => handleSeatClick(seatId)}
-                        disabled={isClosed} 
-                        className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold px-0 transition-all duration-300 overflow-hidden
-                          ${isConfirmed ? 'bg-slate-800/80 text-slate-500 border border-white/5 cursor-not-allowed opacity-80' 
-                            : isSelected ? 'bg-amber-500 text-slate-900 shadow-[0_0_20px_rgba(245,158,11,0.6)] transform -translate-y-2 z-10 scale-110 font-black border border-amber-300' 
-                            : isVipSeat ? 'bg-indigo-900/60 border border-indigo-500/50 text-indigo-300 hover:bg-indigo-600/80 hover:-translate-y-1 hover:shadow-[0_0_15px_rgba(79,70,229,0.5)]'
-                            : 'bg-white/10 hover:bg-white/20 text-slate-300 border border-white/5 hover:border-white/20 hover:-translate-y-1 shadow-lg'}
-                        `}
-                      >
-                        {displayText}
-                      </button>
+                      <SeatButton
+                        seatId={seatId}
+                        isClosed={isClosed}
+                        btnSize={btnSize}
+                        textSize={textSize}
+                        isConfirmed={isConfirmed}
+                        isSelected={isSelected}
+                        isVipSeat={isVipSeat}
+                        displayText={displayText}
+                        onSeatClick={handleSeatClick}
+                      />
                     </div>
                   );
                 })}
@@ -437,7 +472,7 @@ export default function Home() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto duration-300">
+        <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-50 overflow-y-auto duration-300">
           <div className="bg-slate-900/90 backdrop-blur-xl p-6 rounded-2xl w-full max-w-md border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] my-8">
             <h2 className="text-2xl font-bold text-white mb-6">예매 정보 입력</h2>
             <div className="space-y-4 text-left">
@@ -470,7 +505,7 @@ export default function Home() {
       )}
 
       {clickedSeatInfo && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-[70]">
+        <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-[70]">
           <div className="bg-slate-900/90 backdrop-blur-xl p-8 rounded-2xl max-w-sm w-full border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center">
             <h2 className="text-2xl font-bold text-white mb-4">
               좌석 정보 <span className="text-indigo-400">[{clickedSeatInfo.seatId}]</span>
