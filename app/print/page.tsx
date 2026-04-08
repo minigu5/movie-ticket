@@ -182,6 +182,12 @@ export default function KioskPrintPage() {
           >
             발권기 열기
           </button>
+          <button 
+            onClick={() => setIsAdminAuth(true)} 
+            className="w-full py-4 mt-3 bg-gray-700 hover:bg-gray-600 border border-yellow-800 rounded-lg text-yellow-500 font-bold text-lg transition-colors"
+          >
+            👀 예외 접속 (누구나 - 베타 한정)
+          </button>
         </div>
       </div>
     );

@@ -293,6 +293,12 @@ export default function AdminPage() {
         >
           접속하기
         </button>
+        <button 
+          onClick={() => setIsAuthenticated(true)} 
+          className="w-full py-3 mt-3 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg text-gray-300 font-bold transition-colors"
+        >
+          👀 예외 접속 (누구나 - 베타 한정)
+        </button>
       </div>
     </div>
   );
