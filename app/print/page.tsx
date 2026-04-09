@@ -273,18 +273,47 @@ export default function KioskPrintPage() {
               * 원활한 관람을 위해 시작 전 입장 바랍니다.
             </div>
 
+            {/* 🌟 [수정됨] 외부 API 접속 차단(CORS/Adblock) 환경을 대비해 순수 React CSS 바코드 렌더러로 완전 대체 */}
             {(() => {
+              const CODE39_MAP: Record<string, string> = {
+                '0': 'bwbWBwBwb', '1': 'BwbWbwbwB', '2': 'bwBWbwbwB', '3': 'BwBWbwbwb',
+                '4': 'bwbWBwbwB', '5': 'BwbWBwbwb', '6': 'bwBWBwbwb', '7': 'bwbWbwBwB',
+                '8': 'BwbWbwBwb', '9': 'bwBWbwBwb', 'A': 'BwbwbWbwB', 'B': 'bwBwbWbwB',
+                'C': 'BwBwbWbwb', 'D': 'bwbwBWbwB', 'E': 'BwbwBWbwb', 'F': 'bwBwBWbwb',
+                'G': 'bwbwbWBwB', 'H': 'BwbwbWBwb', 'I': 'bwBwbWBwb', 'J': 'bwbwBWBwb',
+                'K': 'BwbwbwbWB', 'L': 'bwBwbwbWB', 'M': 'BwBwbwbWb', 'N': 'bwbwBwbWB',
+                'O': 'BwbwBwbWb', 'P': 'bwBwBwbWb', 'Q': 'bwbwbwBWB', 'R': 'BwbwbwBWb',
+                'S': 'bwBwbwBWb', 'T': 'bwbwBwBWb', 'U': 'BWbwbwbwB', 'V': 'bWBwbwbwB',
+                'W': 'BWBwbwbwb', 'X': 'bWbwBwbwB', 'Y': 'BWbwBwbwb', 'Z': 'bWBwBwbwb',
+                '-': 'bWbwbwBwB', '.': 'BWbwbwBwb', ' ': 'bWBwbwBwb', '*': 'bWbwBwBwb'
+              };
               const cleanId = ticketData.id.toString().replace(/-/g, '').toUpperCase();
               const displayId = cleanId.length > 16 ? cleanId.substring(0, 16) : cleanId.padStart(16, '0');
               const formattedId = displayId.match(/.{1,4}/g)?.join(' ') || displayId;
               
+              const upper = `*${displayId}*`;
+              const bars: string[] = [];
+              for (let i = 0; i < upper.length; i++) {
+                const char = upper[i];
+                const pattern = CODE39_MAP[char] || CODE39_MAP['-'];
+                for (let p=0; p<pattern.length; p++) bars.push(pattern[p]);
+                if (i < upper.length - 1) bars.push('w');
+              }
+              
               return (
                 <div className="flex flex-col items-center mt-2 mb-4 w-full">
-                  <img 
-                    src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${displayId}&scale=3&height=12`} 
-                    alt="Barcode" 
-                    className="w-[90%] h-[45px] object-fill grayscale opacity-90 mix-blend-multiply"
-                  />
+                  <div className="flex justify-center h-[50px] w-full overflow-hidden">
+                    {bars.map((v, i) => (
+                      <div 
+                        key={i} 
+                        className="h-full flex-shrink-0"
+                        style={{ 
+                          backgroundColor: v.toLowerCase() === 'b' ? '#000' : 'transparent', 
+                          width: v === v.toLowerCase() ? '1.5px' : '3.5px' 
+                        }} 
+                      />
+                    ))}
+                  </div>
                   <div className="text-center font-mono text-[13px] font-bold tracking-[0.2em] mt-1 text-gray-800">
                     {formattedId}
                   </div>
