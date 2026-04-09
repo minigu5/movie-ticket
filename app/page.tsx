@@ -131,6 +131,7 @@ export default function Home() {
   }, [movieInfo, isGrandHall, rows, cols]);
 
   const [inviteName, setInviteName] = useState("");
+  const [isManualOpen, setIsManualOpen] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -343,6 +344,9 @@ export default function Home() {
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 flex flex-col items-center select-none overflow-x-hidden">
       
       <div className="w-full max-w-4xl flex justify-end gap-3 z-20 mt-2 md:mt-0">
+        <button onClick={() => setIsManualOpen(true)} className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/50 rounded-lg text-xs md:text-sm text-indigo-300 font-bold transition-all shadow-lg">
+          📖 이용 안내
+        </button>
         <Link href="/admin" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-slate-300 font-bold transition-all shadow-lg hover:shadow-white/5">
           ⚙️ 관리자
         </Link>
@@ -358,9 +362,6 @@ export default function Home() {
           <span className="text-[40px] md:text-[50px] tracking-[0.1em] drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">영화</span>
           <span className="text-[40px] md:text-[50px] tracking-[0.1em] drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">대교</span>
         </div>
-        <p className="mt-4 text-slate-400 text-[10px] md:text-xs tracking-[0.3em] font-light z-10 uppercase font-sans">
-          Cinema Bridge Ticket System
-        </p>
       </div>
 
       {inviteName && (
@@ -375,7 +376,7 @@ export default function Home() {
       )}
 
       <div className="flex flex-col md:flex-row items-center gap-6 mb-12 bg-white/5 backdrop-blur-xl p-6 rounded-2xl w-full max-w-4xl shadow-2xl border border-white/10 transition-all duration-500 hover:border-white/20 hover:bg-white/10">
-        <img src={movieInfo.poster_url} alt="영화 포스터" className="w-32 h-48 object-cover rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] border border-white/10 bg-slate-800" />
+        <img src={movieInfo.poster_url} alt="영화 포스터" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-slate-800" />
         <div className="flex flex-col text-center md:text-left w-full">
           <span className="text-indigo-400 font-bold mb-1 text-sm tracking-wide">이달의 명작 상영작</span>
           <div className="flex flex-col md:flex-row md:items-end gap-2 mb-2 justify-center md:justify-start">
@@ -512,6 +513,44 @@ export default function Home() {
               <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all">취소</button>
               <button onClick={handleSubmit} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)]">확인</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isManualOpen && (
+        <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center p-4 z-50 animate-in fade-in zoom-in duration-200">
+          <div className="bg-slate-900 border border-slate-700 p-6 md:p-8 rounded-2xl w-full max-w-lg shadow-[0_0_40px_rgba(0,0,0,0.8)] max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold text-indigo-400 mb-6 flex items-center gap-2">📖 영화대교 예매 가이드</h2>
+            
+            <div className="space-y-6 text-slate-300 text-sm md:text-base">
+              <div>
+                <h3 className="font-bold text-white text-lg mb-1">1. 좌석 선택 및 예매</h3>
+                <p>배치도에서 원하는 좌석을 누른 후, 화면 하단의 <span className="text-indigo-400">예매하기</span> 버튼을 클릭하세요. 본인의 학번, 이름, 그리고 예매 확인용 4자리 비밀번호를 입력하면 예약이 확정됩니다.</p>
+              </div>
+              
+              <div>
+                <h3 className="font-bold text-white text-lg mb-1">2. 모바일 티켓 (이메일 수신)</h3>
+                <p>성공적으로 예매가 완료되면, 입력하신 학교 메일이나 외부 이메일로 <b>모바일 티켓(예매 내역)</b>이 자동으로 발송됩니다. 행사 당일 해당 이메일에 기재된 내역을 보여주시거나 현장 발권기로 출력물을 받을 수 있습니다.</p>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-white text-lg mb-1">3. 좌석 범례 안내</h3>
+                <ul className="list-disc list-inside mt-2 space-y-1 ml-2 text-sm text-slate-400">
+                  <li><span className="text-white">예매 가능:</span> 투명한 흰색 테두리석</li>
+                  <li><span className="text-indigo-300">동아리 전용:</span> 파란색 띠 및 보랏빛 배경 (부원 전용석)</li>
+                  <li><span className="text-slate-500">예매 완료:</span> 진한 회색 (선택 불가)</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-white text-lg mb-1">4. 비밀번호를 잊으셨을 경우</h3>
+                <p>예매하기 창 하단의 <span className="text-rose-400">🚨 비밀번호 찾기</span>를 누르면 가입된 이메일로 즉시 재설정 링크가 전송됩니다.</p>
+              </div>
+            </div>
+
+            <button onClick={() => setIsManualOpen(false)} className="w-full mt-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all border border-slate-600 shadow-md">
+              닫기
+            </button>
           </div>
         </div>
       )}
