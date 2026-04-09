@@ -28,8 +28,16 @@ export async function POST(req: Request) {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta name="color-scheme" content="dark">
+          <meta name="supported-color-schemes" content="dark">
+          <style>
+            :root {
+              color-scheme: dark;
+              supported-color-schemes: dark;
+            }
+          </style>
         </head>
-        <body style="margin: 0; padding: 0; background-color: #020617;">
+        <body style="margin: 0; padding: 0; background-color: #020617; -webkit-font-smoothing: antialiased;">
           <div style="background-color: #020617; padding: 40px 15px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; text-align: center;">
             
             <div style="margin-bottom: 30px; text-align: center;">
@@ -38,7 +46,7 @@ export async function POST(req: Request) {
                 영화대교
               </div>
               <p style="color: #d97706; font-size: 12px; font-weight: bold; letter-spacing: 4px; margin: 10px 0 0 0; text-transform: uppercase;">
-                VIP Invitation
+                Special Invitation
               </p>
             </div>
             

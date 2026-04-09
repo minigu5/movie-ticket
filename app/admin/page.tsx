@@ -71,6 +71,14 @@ export default function AdminPage() {
   }, [isAuthenticated]);
 
   const toggleSkipAuth = () => {
+    if (!skipAuth) {
+      const pass = prompt("자동 로그인을 켜기 위해 관리자 비밀번호를 입력해주세요:");
+      if (pass !== ADMIN_PASSWORD) {
+        alert("비밀번호가 틀렸습니다. 설정을 변경할 수 없습니다.");
+        return;
+      }
+    }
+    
     const newVal = !skipAuth;
     setSkipAuth(newVal);
     if (typeof window !== 'undefined') {

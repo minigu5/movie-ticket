@@ -367,7 +367,7 @@ export default function Home() {
         <div className="w-full max-w-4xl bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 border border-amber-500/30 rounded-2xl p-5 mb-6 text-center transform shadow-[0_0_30px_rgba(245,158,11,0.15)] animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="text-amber-400 font-bold text-lg md:text-xl tracking-wide flex items-center justify-center gap-2">
             <span>✨</span>
-            <span><span className="text-white">{inviteName}</span>님, VIP 특별 초청을 환영합니다!</span>
+            <span><span className="text-white">{inviteName}</span>님, 특별 초청을 환영합니다!</span>
             <span>✨</span>
           </div>
           <p className="text-slate-400 text-sm mt-2 font-light">예매 시 귀하의 학번과 이름이 자동으로 입력되어 있습니다.</p>
