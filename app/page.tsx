@@ -525,26 +525,33 @@ export default function Home() {
             <div className="space-y-6 text-slate-300 text-sm md:text-base">
               <div>
                 <h3 className="font-bold text-white text-lg mb-1">1. 좌석 선택 및 예매</h3>
-                <p>배치도에서 원하는 좌석을 누른 후, 화면 하단의 <span className="text-indigo-400">예매하기</span> 버튼을 클릭하세요. 본인의 학번, 이름, 그리고 예매 확인용 4자리 비밀번호를 입력하면 예약이 확정됩니다.</p>
+                <p>배치도에서 원하는 좌석을 누른 후, 화면 하단의 <span className="text-indigo-400 font-bold">예매하기</span> 버튼을 클릭하세요. 본인의 학번, 이름, 그리고 예매 확인용 4자리 비밀번호를 입력하면 예약이 확정됩니다.</p>
+                <div className="mt-2 bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-lg text-sm text-indigo-200">
+                  <span className="font-bold text-indigo-300">💡 4자리 비밀번호는 영구적으로 유지되며,</span> 티켓 출력 및 좌석 변경에 필수적입니다.<br/>
+                  <div className="mt-1 flex gap-1">
+                    <span className="text-indigo-400 font-bold">• 좌석 변경:</span>
+                    <span>예매되지 않은 빈 좌석을 클릭해 예매를 다시 진행하면, 기존 자리는 자동으로 취소되고 즉시 좌석 변경이 진행됩니다.</span>
+                  </div>
+                </div>
               </div>
               
               <div>
                 <h3 className="font-bold text-white text-lg mb-1">2. 모바일 티켓 (이메일 수신)</h3>
-                <p>성공적으로 예매가 완료되면, 입력하신 학교 메일이나 외부 이메일로 <b>모바일 티켓(예매 내역)</b>이 자동으로 발송됩니다. 행사 당일 해당 이메일에 기재된 내역을 보여주시거나 현장 발권기로 출력물을 받을 수 있습니다.</p>
+                <p>성공적으로 예매가 완료되면, 입력하신 인적 사항에 해당하는 <span className="text-amber-400 font-bold">학교 이메일</span>로 모바일 티켓(예매 내역)이 자동으로 발송됩니다.</p>
               </div>
 
               <div>
                 <h3 className="font-bold text-white text-lg mb-1">3. 좌석 범례 안내</h3>
-                <ul className="list-disc list-inside mt-2 space-y-1 ml-2 text-sm text-slate-400">
-                  <li><span className="text-white">예매 가능:</span> 투명한 흰색 테두리석</li>
-                  <li><span className="text-indigo-300">동아리 전용:</span> 파란색 띠 및 보랏빛 배경 (부원 전용석)</li>
-                  <li><span className="text-slate-500">예매 완료:</span> 진한 회색 (선택 불가)</li>
+                <ul className="list-disc list-inside mt-2 space-y-1.5 ml-2 text-sm text-slate-400">
+                  <li><span className="text-white font-semibold">예매 가능:</span> 투명한 흰색 테두리석</li>
+                  <li><span className="text-indigo-300 font-semibold">동아리 전용:</span> 파란색 띠 및 보랏빛 배경 (부원 전용석)</li>
+                  <li><span className="text-slate-500 font-semibold">예매 완료:</span> 진한 회색 (선택 불가)</li>
                 </ul>
               </div>
 
               <div>
                 <h3 className="font-bold text-white text-lg mb-1">4. 비밀번호를 잊으셨을 경우</h3>
-                <p>예매하기 창 하단의 <span className="text-rose-400">🚨 비밀번호 찾기</span>를 누르면 가입된 이메일로 즉시 재설정 링크가 전송됩니다.</p>
+                <p>예매하기 창 하단의 <span className="text-rose-400 font-bold">비밀번호 찾기</span>를 누르면 가입된 이메일로 즉시 재설정 링크가 전송됩니다.</p>
               </div>
             </div>
 
