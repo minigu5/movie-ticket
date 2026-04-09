@@ -28,7 +28,7 @@ const STUDENT_LIST: Record<string, string> = {
   "3601": "권윤재", "3602": "김시준", "3603": "김율", "3604": "김태우", "3605": "박성준", "3606": "박시원", "3607": "안혜우", "3608": "양다희", "3609": "유지원", "3610": "이상민", "3611": "이수연", "3612": "이지헌", "3613": "장유승", "3614": "전재형", "3615": "조준서", "3616": "채재현"
 };
 
-const STAFF_LIST =[
+const STAFF_LIST = [
   "강윤석", "권순정", "김가은", "김동우", "김미정", "김민정", "김상용", "김선옥", "김성진", "김수정", "김승철", "김윤주", "김정석", "김제훈", "김종수", "김종하", "김현심", "도동현", "류상욱", "마예리", "문우현", "박나연", "박소영", "박순덕", "박영희", "박정수", "박준홍", "박진환", "박현숙", "박홍", "배태윤", "백은희", "서미경", "서승은", "손영호", "손중록", "송미희", "송석준", "전리해", "엄경애", "옥창규", "우태성", "우희정", "윤소영", "윤수진", "윤정호", "이계화", "이민아", "이상규", "이승재", "이용호", "이윤아", "이재용", "이재욱", "이재웅", "이주열", "이준구", "이준열", "이지영", "이태현", "이형준", "전경희", "정재환", "정진실", "정휘정", "조우주", "조유경", "주혜령", "채대철", "최유리", "최재선", "추재석", "추철우", "허완규", "홍현주", "황영순"
 ];
 
@@ -37,14 +37,14 @@ export default function KioskPrintPage() {
   const [isAdminAuth, setIsAdminAuth] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
 
-  const[formData, setFormData] = useState({ studentId: '', name: '', password: '' });
-  const[movieInfo, setMovieInfo] = useState<any>(null);
-  
+  const [formData, setFormData] = useState({ studentId: '', name: '', password: '' });
+  const [movieInfo, setMovieInfo] = useState<any>(null);
+
   const [ticketData, setTicketData] = useState<any>(null);
   const [isPrinting, setIsPrinting] = useState(false);
-  
+
   const [showResetButton, setShowResetButton] = useState(false);
-  const[isResetting, setIsResetting] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('skip_auth') === 'true') {
@@ -59,7 +59,7 @@ export default function KioskPrintPage() {
       if (data) setMovieInfo(data);
     };
     fetchMovie();
-  },[]);
+  }, []);
 
   useEffect(() => {
     if (ticketData) {
@@ -77,7 +77,7 @@ export default function KioskPrintPage() {
     };
     window.addEventListener('afterprint', handleAfterPrint);
     return () => window.removeEventListener('afterprint', handleAfterPrint);
-  },[]);
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -128,7 +128,7 @@ export default function KioskPrintPage() {
     try {
       const authKey = cleanId === "교직원" ? formData.name : cleanId;
       const { data: authData } = await supabase.from('student_auth').select('password').eq('student_id', authKey).single();
-      
+
       if (!authData || authData.password !== formData.password) {
         setShowResetButton(true);
         return alert("❌ 비밀번호가 일치하지 않습니다.");
@@ -167,23 +167,23 @@ export default function KioskPrintPage() {
       <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
         <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-yellow-600 shadow-2xl">
           <h1 className="text-2xl font-bold text-yellow-500 mb-6">🖨️ KIOSK 발권기 접속</h1>
-          <p className="text-gray-400 text-sm mb-6">원활한 현장 발권 준비를 위해<br/>관리자 비밀번호를 입력해주세요.</p>
-          <input 
-            type="password" 
-            value={adminPasswordInput} 
-            onChange={(e) => setAdminPasswordInput(e.target.value)} 
+          <p className="text-gray-400 text-sm mb-6">원활한 현장 발권 준비를 위해<br />관리자 비밀번호를 입력해주세요.</p>
+          <input
+            type="password"
+            value={adminPasswordInput}
+            onChange={(e) => setAdminPasswordInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-            className="w-full p-4 rounded-lg bg-gray-700 text-white border border-gray-600 mb-6 text-center outline-none focus:border-yellow-500" 
-            placeholder="비밀번호 입력" 
+            className="w-full p-4 rounded-lg bg-gray-700 text-white border border-gray-600 mb-6 text-center outline-none focus:border-yellow-500"
+            placeholder="비밀번호 입력"
           />
-          <button 
-            onClick={handleAdminLogin} 
+          <button
+            onClick={handleAdminLogin}
             className="w-full py-4 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-black font-bold text-lg"
           >
             발권기 열기
           </button>
-          <button 
-            onClick={() => setIsAdminAuth(true)} 
+          <button
+            onClick={() => setIsAdminAuth(true)}
             className="w-full py-4 mt-3 bg-gray-700 hover:bg-gray-600 border border-yellow-800 rounded-lg text-yellow-500 font-bold text-lg transition-colors"
           >
             👀 예외 접속 (누구나 - 베타 한정)
@@ -195,7 +195,8 @@ export default function KioskPrintPage() {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @media print {
           @page { margin: 5mm; size: auto; }
           body { background-color: #fff !important; color: #000 !important; }
@@ -203,7 +204,7 @@ export default function KioskPrintPage() {
       `}} />
 
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4 print:bg-white print:text-black print:min-h-0 print:p-0 print:block select-none">
-        
+
         {!ticketData ? (
           <>
             <div className="w-full max-w-md bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-600 print:hidden">
@@ -215,15 +216,15 @@ export default function KioskPrintPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-gray-300 mb-1 text-sm font-bold">학번</label>
-                  <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-lg" placeholder="예: 2703"/>
+                  <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-lg" placeholder="예: 2703" />
                 </div>
                 <div>
                   <label className="block text-gray-300 mb-1 text-sm font-bold">이름</label>
-                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-lg" placeholder="본명 입력"/>
+                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-lg" placeholder="본명 입력" />
                 </div>
                 <div>
                   <label className="block text-gray-300 mb-1 text-sm font-bold">예매 비밀번호 (숫자 4자리)</label>
-                  <input type="password" name="password" maxLength={4} value={formData.password} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-center text-2xl tracking-widest" placeholder="****"/>
+                  <input type="password" name="password" maxLength={4} value={formData.password} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-center text-2xl tracking-widest" placeholder="****" />
                   {showResetButton && (
                     <button onClick={handleRequestReset} disabled={isResetting} className="mt-3 text-sm text-red-400 hover:text-red-300 underline font-bold block w-full text-left">
                       {isResetting ? "메일 발송 중..." : "🚨 비밀번호를 잊으셨나요? (폰으로 재설정 링크 받기)"}
@@ -239,19 +240,19 @@ export default function KioskPrintPage() {
           </>
         ) : (
           <div className="w-[80mm] mx-auto bg-white text-black font-mono print:w-full print:m-0 print:px-4">
-            
+
             <div className="text-center text-2xl font-black mb-1 tracking-widest pt-2">영화대교 입장권</div>
             <div className="text-[11px] text-center text-gray-700 mb-2">{new Date().toLocaleString()} (현장_KIOSK_1)</div>
-            
+
             <div className="border-b-2 border-dashed border-black my-2"></div>
-            
+
             {/* 🌟 [수정됨] DB에 저장된 관람가(age_rating)를 동적으로 반영합니다. 기본값은 전체관람가 */}
             <div className="text-[13px] font-bold">2D, {movieInfo?.age_rating || '전체관람가'}</div>
             <div className="text-3xl font-black leading-tight tracking-tighter my-1">{movieInfo?.title}</div>
-            
+
             {/* 🌟 [수정됨] 배경 반전을 지우고 검은색 두꺼운 테두리와 굵은 글씨로 흐려짐(연하게 찍힘) 문제 해결 */}
             <div className="text-[15px] font-extrabold border-[3px] border-black inline-block px-2 py-1 mb-2 mt-1">상영일시: {movieInfo?.date_string}</div>
-            
+
             <div className="flex justify-between items-end mt-4 mb-4">
               <div>
                 <div className="text-sm font-bold">{movieInfo?.venue}</div>
@@ -262,20 +263,34 @@ export default function KioskPrintPage() {
                 <div className="text-4xl font-black">{ticketData.seat_number}</div>
               </div>
             </div>
-            
+
             <div className="border-b-2 border-dashed border-black my-3"></div>
-            
+
             <div className="text-center font-bold text-sm mb-2 mt-4">대구과학고등학교 영화대교</div>
             <div className="text-[11px] leading-relaxed mb-6 text-left font-bold">
-              * 본 티켓은 1인 1매 한정으로 1회만 출력됩니다.<br/>
-              * 티켓 분실 시 재발권 및 입장이 불가합니다.<br/>
+              * 본 티켓은 1인 1매 한정으로 1회만 출력됩니다.<br />
+              * 티켓 분실 시 재발권 및 입장이 불가합니다.<br />
               * 원활한 관람을 위해 시작 전 입장 바랍니다.
             </div>
-            
-            {/* 🌟 [수정됨] whitespace-nowrap 추가로 무조건 1줄로 고정하고, 한 줄에 맞게 크기 축소 */}
-            <div className="text-center text-3xl font-light tracking-[0.2em] whitespace-nowrap overflow-hidden mt-2 mb-4">
-              ||| ||| || |||| || ||| |||
-            </div>
+
+            {(() => {
+              const cleanId = ticketData.id.toString().replace(/-/g, '').toUpperCase();
+              const displayId = cleanId.length > 16 ? cleanId.substring(0, 16) : cleanId.padStart(16, '0');
+              const formattedId = displayId.match(/.{1,4}/g)?.join(' ') || displayId;
+              
+              return (
+                <div className="flex flex-col items-center mt-2 mb-4 w-full">
+                  <img 
+                    src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${displayId}&scale=3&height=12`} 
+                    alt="Barcode" 
+                    className="w-[90%] h-[45px] object-fill grayscale opacity-90 mix-blend-multiply"
+                  />
+                  <div className="text-center font-mono text-[13px] font-bold tracking-[0.2em] mt-1 text-gray-800">
+                    {formattedId}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
