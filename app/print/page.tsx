@@ -300,19 +300,26 @@ export default function KioskPrintPage() {
                 if (i < upper.length - 1) bars.push('w');
               }
               
+              let currentX = 0;
+              const svgElements = bars.map((v, i) => {
+                const isBlack = v.toLowerCase() === 'b';
+                const isWide = v === 'B' || v === 'W';
+                const width = isWide ? 3.5 : 1.5;
+                
+                const rect = isBlack ? (
+                  <rect key={i} x={currentX} y="0" width={width} height="50" fill="#000" />
+                ) : null;
+                
+                currentX += width;
+                return rect;
+              });
+
               return (
                 <div className="flex flex-col items-center mt-2 mb-4 w-full">
                   <div className="flex justify-center h-[50px] w-full overflow-hidden">
-                    {bars.map((v, i) => (
-                      <div 
-                        key={i} 
-                        className="h-full flex-shrink-0"
-                        style={{ 
-                          backgroundColor: v.toLowerCase() === 'b' ? '#000' : 'transparent', 
-                          width: v === v.toLowerCase() ? '1.5px' : '3.5px' 
-                        }} 
-                      />
-                    ))}
+                    <svg width={currentX} height="50" viewBox={`0 0 ${currentX} 50`} style={{ maxWidth: '100%' }}>
+                      {svgElements}
+                    </svg>
                   </div>
                   <div className="text-center font-mono text-[13px] font-bold tracking-[0.2em] mt-1 text-gray-800">
                     {formattedId}
