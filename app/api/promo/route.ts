@@ -65,7 +65,7 @@ export async function POST(req: Request) {
                 <div style="background-color: #020617; border-left: 3px solid #d97706; padding: 15px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
                   <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 8px 0;"><strong>🎬 영화:</strong> ${movieInfo.title}</p>
                   <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 8px 0;"><strong>📍 장소:</strong> ${movieInfo.venue}</p>
-                  <p style="color: #cbd5e1; font-size: 14px; margin: 0;"><strong>⏰ 일시:</strong> ${movieInfo.date_string}</p>
+                  <p style="color: #cbd5e1; font-size: 14px; margin: 0;"><strong>⏰ 일시:</strong> ${movieInfo.date_string} (시험 다음날 토요일 2차 자습)</p>
                 </div>
 
                 <a href="${baseUrl}?invite=true&id=${user.studentId}&name=${encodeURIComponent(user.name)}" style="display: block; background-color: #d97706; color: #020617; text-align: center; text-decoration: none; padding: 18px; border-radius: 12px; font-weight: 900; font-size: 16px; box-shadow: 0 0 20px rgba(217,119,6,0.4); letter-spacing: 1px;">🎫 초청 수락 및 좌석 예매하기</a>

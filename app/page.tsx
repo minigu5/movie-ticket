@@ -388,7 +388,7 @@ export default function Home() {
             </span>
           </div>
           <p className="text-slate-300 mt-2 text-sm md:text-base font-light">📍 장소: {movieInfo.venue}</p>
-          <p className="text-slate-300 text-sm md:text-base font-light">⏰ 일시: {movieInfo.date_string}</p>
+          <p className="text-slate-300 text-sm md:text-base font-light">⏰ 일시: {movieInfo.date_string} (시험 다음날 토요일 2차 자습)</p>
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/10">
             <span className="text-rose-400 font-bold text-xs md:text-sm bg-rose-500/10 px-2 py-1 rounded-md">
               🚨 마감: {new Date(movieInfo.deadline_date).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
