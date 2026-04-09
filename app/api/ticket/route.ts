@@ -40,7 +40,7 @@ export async function POST(req: Request) {
               
               <div style="margin-bottom: 15px;">
                 <div style="color: #E85D04; font-size: 11px; font-weight: bold; margin-bottom: 4px;">DATE</div>
-                <div style="color: white; font-size: 14px; font-weight: 500;">${movieDate} (시험 다음날 토요일 2차 자습)</div>
+                <div style="color: white; font-size: 14px; font-weight: 500;">${movieDate}</div>
               </div>
 
               <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 1px solid #555; margin-top: 25px; padding-top: 15px;">

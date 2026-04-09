@@ -58,14 +58,14 @@ export async function POST(req: Request) {
                 
                 <p style="color: #94a3b8; font-size: 15px; line-height: 1.7; margin: 0 0 30px 0; word-break: keep-all;">
                   귀하를 모시게 되어 영광입니다.<br/>
-                  최고의 좌석과 감동적인 영화가 준비되어 있습니다.<br/>
-                  함께하셔서 특별한 추억을 만들어보시길 바랍니다.
+                  이번 상영은 <strong style="color: #f8fafc;">시험 바로 다음날 토요일 2차 자습</strong> 시간에 진행됩니다.<br/>
+                  최고의 좌석과 감동적인 영화가 준비되어 있으니 함께하셔서 특별한 추억을 만들어보시길 바랍니다.
                 </p>
 
                 <div style="background-color: #020617; border-left: 3px solid #d97706; padding: 15px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
                   <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 8px 0;"><strong>🎬 영화:</strong> ${movieInfo.title}</p>
                   <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 8px 0;"><strong>📍 장소:</strong> ${movieInfo.venue}</p>
-                  <p style="color: #cbd5e1; font-size: 14px; margin: 0;"><strong>⏰ 일시:</strong> ${movieInfo.date_string} (시험 다음날 토요일 2차 자습)</p>
+                  <p style="color: #cbd5e1; font-size: 14px; margin: 0;"><strong>⏰ 일시:</strong> ${movieInfo.date_string}</p>
                 </div>
 
                 <a href="${baseUrl}?invite=true&id=${user.studentId}&name=${encodeURIComponent(user.name)}" style="display: block; background-color: #d97706; color: #020617; text-align: center; text-decoration: none; padding: 18px; border-radius: 12px; font-weight: 900; font-size: 16px; box-shadow: 0 0 20px rgba(217,119,6,0.4); letter-spacing: 1px;">🎫 초청 수락 및 좌석 예매하기</a>

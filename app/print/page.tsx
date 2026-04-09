@@ -251,7 +251,7 @@ export default function KioskPrintPage() {
             <div className="text-3xl font-black leading-tight tracking-tighter my-1">{movieInfo?.title}</div>
 
             {/* 🌟 [수정됨] 배경 반전을 지우고 검은색 두꺼운 테두리와 굵은 글씨로 흐려짐(연하게 찍힘) 문제 해결 */}
-            <div className="text-[15px] font-extrabold border-[3px] border-black inline-block px-2 py-1 mb-2 mt-1">상영일시: {movieInfo?.date_string} (시험 다음날 토요일 2차 자습)</div>
+            <div className="text-[15px] font-extrabold border-[3px] border-black inline-block px-2 py-1 mb-2 mt-1">상영일시: {movieInfo?.date_string}</div>
 
             <div className="flex justify-between items-end mt-4 mb-4">
               <div>

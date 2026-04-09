@@ -116,7 +116,6 @@ function CancelForm() {
         <h1 className="text-2xl font-bold text-red-500 mb-2">예매 취소</h1>
         <p className="text-gray-300 text-sm mb-6 bg-gray-700 p-3 rounded-lg">
           좌석: <span className="font-bold text-white">{ticket.seat_number}</span><br/>
-          일시: <span className="font-bold text-white">{ticket.movie_date} (시험 다음날 토요일 2차 자습)</span><br/>
           예매자: <span className="font-bold text-white">{ticket.student_id} {ticket.student_name}</span>
         </p>
         
