@@ -149,7 +149,9 @@ export default function Home() {
         if (paramName === 'undefined' || paramName === 'null') paramName = '';
 
         if (paramId || paramName) {
-          setFormData(prev => ({ ...prev, studentId: paramId, name: paramName }));
+          // 🍎 [추가됨] 숫자가 아닌 학번(교직원/관리자 등)은 '교직원'으로 표시합니다.
+          const finalId = (paramId && isNaN(Number(paramId))) ? '교직원' : paramId;
+          setFormData(prev => ({ ...prev, studentId: finalId, name: paramName }));
           if (paramName) setInviteName(paramName);
         }
         // 주소창에서 파라미터 숨기기 (깔끔한 UI 유지)
@@ -577,7 +579,7 @@ export default function Home() {
               <button onClick={() => window.location.href = `/cancel?ticketId=${clickedSeatInfo.ticketId}`} className="w-full py-3 bg-rose-600/90 hover:bg-rose-500 border border-rose-500 rounded-lg text-white font-bold transition-all shadow-lg hover:shadow-[0_0_15px_rgba(225,29,72,0.4)]">
                 🚨 예매 취소하기
               </button>
-              <button onClick={() => showAlert(`🔄 [자리 변경 안내]\n\n자리를 변경하시려면 현재 창을 닫고, 원하시는[새로운 빈 좌석]을 클릭하세요.\n기존과 동일한 학번, 이름, 비밀번호를 입력하여 예매하시면\n기존 자리가 자동으로 취소되고 새 자리로 이동됩니다!`, false)} className="w-full py-3 bg-indigo-600/90 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-lg hover:shadow-[0_0_15px_rgba(79,70,229,0.4)]">
+              <button onClick={() => { setClickedSeatInfo(null); setIsManualOpen(true); }} className="w-full py-3 bg-indigo-600/90 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-lg hover:shadow-[0_0_15px_rgba(79,70,229,0.4)]">
                 🔄 자리 변경 방법 보기
               </button>
               <button onClick={() => setClickedSeatInfo(null)} className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all">
