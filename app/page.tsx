@@ -133,6 +133,15 @@ export default function Home() {
   const [inviteName, setInviteName] = useState("");
   const [isManualOpen, setIsManualOpen] = useState(false);
 
+  // 🌟 [단체 예매] Group Mode 상태 관리
+  const [isGroupMode, setIsGroupMode] = useState(false);
+  const [groupLeader, setGroupLeader] = useState<{studentId: string, name: string, password: string, seat: string} | null>(null);
+  const [groupMembers, setGroupMembers] = useState<{studentId: string, name: string, seat: string}[]>([]);
+  const [isGroupMemberModal, setIsGroupMemberModal] = useState(false);
+  const [memberFormData, setMemberFormData] = useState({studentId: '', name: ''});
+  const [isGroupSummaryOpen, setIsGroupSummaryOpen] = useState(false);
+  const [groupSendingProgress, setGroupSendingProgress] = useState({current: 0, total: 0, sending: false});
+
   useEffect(() => {
     fetchInitialData();
   },[]);
@@ -160,6 +169,15 @@ export default function Home() {
     }
   }, []);
 
+  // 🌟 [단체 예매] 이메일 발송 중 페이지 이탈 방지
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (groupSendingProgress.sending) { e.preventDefault(); }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [groupSendingProgress.sending]);
+
   const fetchInitialData = async () => {
     try {
       const { data: settingsData } = await supabase.from('movie_settings').select('*').eq('id', 1).single();
@@ -178,7 +196,7 @@ export default function Home() {
       if (resData) {
         const newStatuses: Record<string, SeatData> = {};
         resData.forEach((res) => {
-          if (res.payment_status === 'pending' || res.payment_status === 'confirmed') {
+          if (res.payment_status === 'pending' || res.payment_status === 'confirmed' || res.payment_status === 'group_pending') {
             newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id };
           }
         });
@@ -187,6 +205,9 @@ export default function Home() {
 
       const { data: bgData } = await supabase.from('blacklist').select('student_id');
       if (bgData) setBlacklistedUsers(bgData.map(b => b.student_id));
+
+      // 🌟 [단체 예매] 만료된 단체 예매 정리 (백그라운드)
+      fetch('/api/cron/group-check').catch(() => {});
     } catch (err) {
       console.error("데이터 불러오기 오류:", err);
     } finally {
@@ -196,7 +217,30 @@ export default function Home() {
 
   const handleSeatClick = (seatId: string) => {
     if (isClosed) return;
+
+    // 🌟 [단체 예매] Group Mode에서의 좌석 클릭
+    if (isGroupMode) {
+      if (seatStatuses[seatId]) return;
+      if (groupLeader?.seat === seatId) return;
+      const existingMember = groupMembers.find(m => m.seat === seatId);
+      if (existingMember) {
+        showConfirm(`${existingMember.name}님을 단체에서 제거하시겠습니까?`, () => {
+          setGroupMembers(prev => prev.filter(m => m.seat !== seatId));
+        });
+        return;
+      }
+      if (groupMembers.length >= 9) return showAlert("단체 예매는 리더를 포함하여 최대 10명까지 가능합니다.");
+      if (vipSeats.has(seatId) && groupLeader && !CLUB_MEMBERS.includes(groupLeader.studentId)) {
+        return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.");
+      }
+      setSelectedSeat(seatId);
+      setMemberFormData({studentId: '', name: ''});
+      setIsGroupMemberModal(true);
+      return;
+    }
+
     if (seatStatuses[seatId]) {
+      if (seatStatuses[seatId].status === 'group_pending') return;
       setClickedSeatInfo({
         seatId,
         status: seatStatuses[seatId].status,
@@ -326,6 +370,152 @@ export default function Home() {
     showConfirm(`[${selectedSeat}] 좌석 예매를 확정하시겠습니까?\n확정 시 즉시 학교 이메일로 티켓이 발송됩니다.`, processReservation);
   };
 
+  // ===== 🌟 [단체 예매] Handler Functions =====
+
+  const handleGroupStart = async () => {
+    if (!formData.studentId || !formData.name || !formData.password) return showAlert("정보를 모두 입력해주세요!");
+    if (!/^[0-9]{4}$/.test(formData.password)) return showAlert("❌ 비밀번호는 4자리 '숫자'만 입력해주세요!");
+    const cleanStudentId = formData.studentId.replace(/['\"]/g, '').trim();
+    if (cleanStudentId === "교직원") {
+      if (!STAFF_LIST.includes(formData.name)) return showAlert("❌ 등록된 교직원 이름이 아닙니다.");
+    } else {
+      if (cleanStudentId.length !== 4) return showAlert("학번은 4자리 숫자로 입력해주세요.");
+      if (STUDENT_LIST[cleanStudentId] !== formData.name) return showAlert(`❌ 학번과 이름이 일치하지 않습니다.`);
+    }
+    if (blacklistedUsers.includes(cleanStudentId)) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
+    if (selectedSeat && vipSeats.has(selectedSeat) && !CLUB_MEMBERS.includes(cleanStudentId)) {
+      return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
+    }
+    const authKey = cleanStudentId === "교직원" ? formData.name : cleanStudentId;
+    const { data: authData } = await supabase.from('student_auth').select('password').eq('student_id', authKey).single();
+    if (!authData) {
+      await supabase.from('student_auth').insert({ student_id: authKey, password: formData.password });
+    } else {
+      if (authData.password !== formData.password) {
+        setShowResetButton(true);
+        return showAlert("❌ 비밀번호가 일치하지 않습니다.");
+      }
+    }
+    const { data: existingTickets } = await supabase.from('reservations')
+      .select('id').eq('movie_date', movieInfo.db_date).eq('student_id', cleanStudentId);
+    if (existingTickets && existingTickets.length > 0) {
+      return showAlert("이미 예매 내역이 존재하는 학생은 단체 예매 리더가 될 수 없습니다.\n기존 예매를 취소한 뒤 다시 시도해주세요.");
+    }
+    setGroupLeader({ studentId: cleanStudentId, name: formData.name, password: formData.password, seat: selectedSeat! });
+    setGroupMembers([]);
+    setIsGroupMode(true);
+    setIsModalOpen(false);
+    setShowResetButton(false);
+  };
+
+  const handleAddGroupMember = async (andFinalize: boolean) => {
+    if (!memberFormData.studentId || !memberFormData.name) return showAlert("학번과 이름을 모두 입력해주세요!");
+    const cleanId = memberFormData.studentId.replace(/['\"]/g, '').trim();
+    if (cleanId === "교직원") {
+      if (!STAFF_LIST.includes(memberFormData.name)) return showAlert("❌ 등록된 교직원 이름이 아닙니다.");
+    } else {
+      if (cleanId.length !== 4) return showAlert("학번은 4자리 숫자로 입력해주세요.");
+      if (STUDENT_LIST[cleanId] !== memberFormData.name) return showAlert(`❌ 학번과 이름이 일치하지 않습니다.`);
+    }
+    if (blacklistedUsers.includes(cleanId)) return showAlert("🚫 블랙리스트에 등록되어 추가할 수 없습니다.");
+    if (groupLeader?.studentId === cleanId) return showAlert("리더 본인은 추가할 수 없습니다.");
+    if (groupMembers.some(m => m.studentId === cleanId)) return showAlert("이미 단체에 추가된 학생입니다.");
+    const { data: existing } = await supabase.from('reservations')
+      .select('id').eq('movie_date', movieInfo.db_date).eq('student_id', cleanId);
+    if (existing && existing.length > 0) return showAlert("이미 예매가 완료된 학생입니다.");
+    const newMembers = [...groupMembers, { studentId: cleanId, name: memberFormData.name, seat: selectedSeat! }];
+    setGroupMembers(newMembers);
+    setIsGroupMemberModal(false);
+    setSelectedSeat(null);
+    if (andFinalize) {
+      setTimeout(() => setIsGroupSummaryOpen(true), 100);
+    }
+  };
+
+  const handleGroupFinalize = async () => {
+    setIsGroupSummaryOpen(false);
+    const leaderName = groupLeader!.name;
+    const leaderSeat = groupLeader!.seat;
+    const leaderStudentId = groupLeader!.studentId;
+    const memberCount = groupMembers.length;
+    const groupId = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const baseUrl = window.location.origin;
+
+    const { data: leaderTicket, error: leaderError } = await supabase.from('reservations')
+      .insert([{
+        movie_date: movieInfo.db_date, student_id: leaderStudentId, student_name: leaderName,
+        password: groupLeader!.password, seat_number: leaderSeat, popcorn_order: 'none',
+        payment_status: 'confirmed', group_id: groupId, is_group_leader: true, group_expires_at: expiresAt
+      }]).select('id').single();
+    if (leaderError) {
+      return showAlert("리더 좌석 예매 중 오류가 발생했습니다.\n(이미 선점된 좌석일 수 있습니다.)");
+    }
+
+    const memberInserts = groupMembers.map(m => ({
+      movie_date: movieInfo.db_date, student_id: m.studentId, student_name: m.name,
+      password: '', seat_number: m.seat, popcorn_order: 'none',
+      payment_status: 'group_pending', group_id: groupId, is_group_leader: false, group_expires_at: expiresAt
+    }));
+    const { data: memberTickets, error: memberError } = await supabase.from('reservations')
+      .insert(memberInserts).select('id, student_id, student_name, seat_number');
+    if (memberError) {
+      await supabase.from('reservations').delete().eq('id', leaderTicket.id);
+      return showAlert("멤버 좌석 예매 중 오류가 발생했습니다.\n(이미 선점된 좌석이 포함되어 있을 수 있습니다.)");
+    }
+
+    await supabase.from('activity_logs').insert([{
+      student_id: leaderStudentId, student_name: leaderName,
+      description: `단체 예매 생성 (리더: ${leaderSeat}, 멤버 ${memberCount}명)`
+    }]);
+
+    const leaderEmail = leaderStudentId === "교직원" ? USER_EMAILS[leaderName] : USER_EMAILS[leaderStudentId];
+    if (leaderEmail) {
+      fetch('/api/ticket', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: leaderEmail, name: leaderName, seat: leaderSeat,
+          movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
+          statusType: 'confirmed', popcorn: 'none', ticketId: leaderTicket.id, baseUrl
+        })
+      });
+    }
+
+    setGroupSendingProgress({ current: 0, total: memberTickets!.length, sending: true });
+    const emailPayloads = memberTickets!.map(t => ({
+      email: t.student_id === "교직원" ? USER_EMAILS[t.student_name] : USER_EMAILS[t.student_id],
+      name: t.student_name, seat: t.seat_number, studentId: t.student_id, memberId: t.id
+    }));
+    const CHUNK_SIZE = 5;
+    for (let i = 0; i < emailPayloads.length; i += CHUNK_SIZE) {
+      const chunk = emailPayloads.slice(i, i + CHUNK_SIZE);
+      try {
+        await fetch('/api/group-invite', {
+          method: 'POST',
+          body: JSON.stringify({ members: chunk, leaderName, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, groupId, baseUrl })
+        });
+      } catch (err) { console.error(err); }
+      setGroupSendingProgress({ current: Math.min(i + CHUNK_SIZE, emailPayloads.length), total: emailPayloads.length, sending: true });
+      if (i + CHUNK_SIZE < emailPayloads.length) await new Promise(r => setTimeout(r, 1000));
+    }
+
+    setGroupSendingProgress(prev => ({ ...prev, sending: false }));
+    setIsGroupMode(false);
+    setGroupLeader(null);
+    setGroupMembers([]);
+    fetchInitialData();
+    showSuccess("🎉 단체 예매 완료!", `${leaderName}님의 단체 예매가 등록되었습니다!\n\n리더의 예매는 즉시 확정되었습니다.\n멤버 ${memberCount}명에게 초대 이메일이 발송되었습니다.\n\n⏰ 멤버들은 1시간 이내에 이메일을 통해 예매를 확정해야 합니다.`);
+  };
+
+  const handleCancelGroupMode = () => {
+    showConfirm("단체 예매를 취소하시겠습니까?\n추가된 멤버 정보가 모두 삭제됩니다.", () => {
+      setIsGroupMode(false);
+      setGroupLeader(null);
+      setGroupMembers([]);
+      setSelectedSeat(null);
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center select-none overflow-hidden">
@@ -406,8 +596,10 @@ export default function Home() {
 
         <div className="flex flex-col items-center gap-1 md:gap-2 min-w-max px-4 pt-6 w-fit mx-auto relative">
           
-          <div className="w-[70%] h-8 md:h-10 bg-slate-200/90 rounded-t-3xl flex items-center justify-center mb-8 md:mb-12 shadow-[0_-10px_30px_rgba(255,255,255,0.15)] border-t border-white/40">
-            <span className="text-slate-800 font-black tracking-[1em] text-xs md:text-base ml-2">SCREEN</span>
+          <div className={`w-[70%] h-8 md:h-10 rounded-t-3xl flex items-center justify-center mb-8 md:mb-12 border-t border-white/40 ${isGroupMode ? 'bg-emerald-400/90 shadow-[0_-10px_30px_rgba(16,185,129,0.3)]' : 'bg-slate-200/90 shadow-[0_-10px_30px_rgba(255,255,255,0.15)]'}`}>
+            <span className={`font-black text-xs md:text-base ml-2 ${isGroupMode ? 'text-emerald-900 tracking-[0.3em] animate-pulse' : 'text-slate-800 tracking-[1em]'}`}>
+              {isGroupMode ? '단체 예매 중' : 'SCREEN'}
+            </span>
           </div>
 
           <div className="md:hidden absolute top-0 left-6 animate-bounce text-amber-400 font-bold text-xs flex items-center gap-1 z-10 pointer-events-none drop-shadow-md">
@@ -435,13 +627,20 @@ export default function Home() {
                   const isSelected = selectedSeat === seatId;
                   const seatData = seatStatuses[seatId];
                   const isConfirmed = seatData?.status === 'confirmed';
-                  const isReserved = isConfirmed; // 🌟 팝콘 삭제로 대기 상태 없음
+                  const isGroupPending = seatData?.status === 'group_pending';
+                  const isReserved = isConfirmed || isGroupPending;
                   
                   const isVipSeat = vipSeats.has(seatId);
 
-                  const displayText = isReserved ? seatData.name : seatId;
+                  // 🌟 [단체 예매] 로컬 그룹 좌석 확인
+                  const isGroupLeaderSeat = isGroupMode && groupLeader?.seat === seatId;
+                  const isGroupMemberSeat = isGroupMode && groupMembers.some(m => m.seat === seatId);
 
-                  const textSize = isReserved 
+                  const displayText = isGroupLeaderSeat ? groupLeader!.name
+                    : isGroupMemberSeat ? groupMembers.find(m => m.seat === seatId)!.name
+                    : isReserved ? seatData.name : seatId;
+
+                  const textSize = (isReserved || isGroupLeaderSeat || isGroupMemberSeat)
                     ? (isGrandHall ? 'text-[10px] md:text-[11px] tracking-tighter whitespace-nowrap' : 'text-[12px] md:text-[14px] tracking-tighter whitespace-nowrap') 
                     : (isGrandHall ? 'text-[11px] md:text-[12px] tracking-tighter whitespace-nowrap' : 'text-[13px] md:text-[15px] tracking-tighter whitespace-nowrap');
 
@@ -451,7 +650,10 @@ export default function Home() {
                         onClick={() => handleSeatClick(seatId)}
                         disabled={isClosed} 
                         className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold px-0 transition-colors overflow-hidden
-                          ${isConfirmed ? 'bg-slate-800/80 text-slate-500 cursor-not-allowed opacity-80' 
+                          ${isGroupLeaderSeat ? 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] transform -translate-y-1 z-10 font-black ring-2 ring-emerald-400'
+                            : isGroupMemberSeat ? 'bg-sky-600 text-white shadow-[0_0_10px_rgba(14,165,233,0.4)] transform -translate-y-0.5 z-10 font-bold ring-1 ring-sky-400'
+                            : isGroupPending ? 'bg-teal-900/40 text-teal-300 cursor-not-allowed opacity-70'
+                            : isConfirmed ? 'bg-slate-800/80 text-slate-500 cursor-not-allowed opacity-80' 
                             : isSelected ? 'bg-amber-500 text-slate-900 shadow-[0_0_15px_rgba(245,158,11,0.6)] transform -translate-y-1 z-10 font-black' 
                             : isVipSeat ? 'bg-indigo-900/60 text-indigo-300 hover:bg-indigo-600/80'
                             : 'bg-white/10 hover:bg-white/20 text-slate-300'}
@@ -473,10 +675,40 @@ export default function Home() {
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-white/10 border border-white/5 rounded-sm"></div>예매 가능</div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 border border-indigo-500/50 bg-indigo-900/60 rounded-sm"></div>동아리 전용</div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-800/80 border border-white/5 rounded-sm"></div>예매 완료</div>
+        {(isGroupMode || Object.values(seatStatuses).some(s => s.status === 'group_pending')) && (
+          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-teal-900/40 border border-teal-500/50 rounded-sm"></div>단체 대기 중</div>
+        )}
+        {isGroupMode && (
+          <>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-emerald-600 rounded-sm"></div>리더 (나)</div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-sky-600 rounded-sm"></div>단체 멤버</div>
+          </>
+        )}
       </div>
 
       <div className="mt-8 p-6 bg-white/5 backdrop-blur-xl rounded-2xl w-full max-w-xl text-center shadow-2xl border border-white/10">
-        {isClosed ? (
+        {isGroupMode ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-emerald-400 font-bold">👑 리더: {groupLeader?.name} ({groupLeader?.seat})</span>
+              <span className="text-slate-400">멤버: {groupMembers.length}명 / 9명</span>
+            </div>
+            {groupMembers.length > 0 && (
+              <div className="flex flex-wrap gap-2 justify-center">
+                {groupMembers.map(m => (
+                  <span key={m.seat} className="bg-sky-600/20 text-sky-300 px-3 py-1 rounded-full text-sm border border-sky-500/30">
+                    {m.name} ({m.seat})
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="text-slate-400 text-xs">빈 좌석을 클릭하여 멤버를 추가하세요 (최대 10명)</p>
+            <div className="flex gap-3">
+              <button onClick={handleCancelGroupMode} className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all">단체 예매 취소</button>
+              <button onClick={() => { if (groupMembers.length === 0) return showAlert("최소 1명의 멤버를 추가해주세요."); setIsGroupSummaryOpen(true); }} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]">완료하기 →</button>
+            </div>
+          </div>
+        ) : isClosed ? (
            <div className="py-4 px-8 rounded-xl w-full bg-rose-900/40 border border-rose-800 text-rose-400 font-bold text-lg cursor-not-allowed">예매가 모두 마감되었습니다</div>
         ) : selectedSeat ? (
           <>
@@ -511,9 +743,10 @@ export default function Home() {
               </div>
             </div>
             
-            <div className="flex gap-4 mt-8">
-              <button onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all">취소</button>
-              <button onClick={handleSubmit} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)]">확인</button>
+            <div className="flex gap-3 mt-8">
+              <button onClick={() => setIsModalOpen(false)} className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all text-sm">취소</button>
+              <button onClick={handleSubmit} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] text-sm">예매 확정하기</button>
+              <button onClick={handleGroupStart} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] text-sm">단체 예매하기</button>
             </div>
           </div>
         </div>
@@ -560,6 +793,79 @@ export default function Home() {
             <button onClick={() => setIsManualOpen(false)} className="w-full mt-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all border border-slate-600 shadow-md">
               닫기
             </button>
+          </div>
+        </div>
+      )}
+
+      {isGroupMemberModal && selectedSeat && (
+        <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-900/90 backdrop-blur-xl p-6 rounded-2xl w-full max-w-md border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+            <h2 className="text-2xl font-bold text-white mb-2">단체 멤버 추가</h2>
+            <p className="text-slate-400 text-sm mb-6">좌석 <span className="text-sky-400 font-bold">{selectedSeat}</span>에 앉을 학생 정보를 입력하세요.</p>
+            <div className="space-y-4 text-left">
+              <div>
+                <label className="block text-slate-300 mb-1 text-sm">학번</label>
+                <input type="text" value={memberFormData.studentId} onChange={e => setMemberFormData(prev => ({...prev, studentId: e.target.value}))} className="w-full p-3 rounded-lg bg-slate-800/80 text-white border border-white/10 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all" placeholder="예: 2703 (교직원은 '교직원')"/>
+              </div>
+              <div>
+                <label className="block text-slate-300 mb-1 text-sm">이름 (본명)</label>
+                <input type="text" value={memberFormData.name} onChange={e => setMemberFormData(prev => ({...prev, name: e.target.value}))} className="w-full p-3 rounded-lg bg-slate-800/80 text-white border border-white/10 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all" placeholder="이름을 정확히 입력하세요"/>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-8">
+              <button onClick={() => { setIsGroupMemberModal(false); setSelectedSeat(null); }} className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all text-sm">취소</button>
+              <button onClick={() => handleAddGroupMember(false)} className="flex-1 py-3 bg-sky-600 hover:bg-sky-500 border border-sky-500 rounded-lg text-white font-bold transition-all text-sm">계속하기</button>
+              <button onClick={() => handleAddGroupMember(true)} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all text-sm">완료하기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isGroupSummaryOpen && groupLeader && (
+        <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-slate-900 border border-emerald-500/30 p-6 md:p-8 rounded-2xl w-full max-w-lg shadow-[0_0_40px_rgba(16,185,129,0.2)] my-8">
+            <h2 className="text-2xl font-bold text-emerald-400 mb-6">📋 단체 예매 최종 확인</h2>
+            <div className="space-y-3 mb-6">
+              <div className="bg-emerald-900/30 border border-emerald-500/30 p-4 rounded-xl flex items-center gap-3">
+                <span className="text-emerald-400 font-bold text-lg">👑</span>
+                <div>
+                  <p className="text-emerald-300 font-bold">{groupLeader.name} <span className="text-emerald-500 text-xs">(리더)</span></p>
+                  <p className="text-slate-400 text-sm">좌석: {groupLeader.seat} · {groupLeader.studentId}</p>
+                </div>
+              </div>
+              {groupMembers.map((m, i) => (
+                <div key={m.seat} className="bg-sky-900/20 border border-sky-500/20 p-4 rounded-xl flex items-center gap-3">
+                  <span className="text-sky-400 font-bold text-lg">{i + 1}</span>
+                  <div>
+                    <p className="text-sky-300 font-bold">{m.name}</p>
+                    <p className="text-slate-400 text-sm">좌석: {m.seat} · {m.studentId}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="bg-amber-900/20 border border-amber-500/30 p-4 rounded-xl mb-6">
+              <p className="text-amber-300 text-sm font-bold">⏰ 1시간 안에 초대 이메일에 응답한 사람만 예매가 확정됩니다.</p>
+              <p className="text-slate-400 text-xs mt-1">미응답 시 해당 좌석은 자동으로 해제됩니다.</p>
+            </div>
+            <p className="text-slate-300 text-sm text-center mb-6">단체의 모든 사람에게 초대 이메일을 발송하시겠습니까?</p>
+            <div className="flex gap-3">
+              <button onClick={() => setIsGroupSummaryOpen(false)} className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all">돌아가기</button>
+              <button onClick={handleGroupFinalize} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]">확정 및 이메일 발송</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {groupSendingProgress.sending && (
+        <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-[100]">
+          <div className="bg-slate-900 border border-emerald-500/30 p-8 rounded-2xl w-full max-w-md text-center shadow-2xl">
+            <div className="text-4xl mb-4 animate-bounce">📧</div>
+            <h3 className="text-xl font-bold text-white mb-4">초대 이메일 발송 중...</h3>
+            <div className="w-full bg-slate-800 rounded-full h-4 mb-4 overflow-hidden">
+              <div className="bg-emerald-500 h-4 rounded-full transition-all duration-500" style={{ width: `${(groupSendingProgress.current / groupSendingProgress.total) * 100}%` }}></div>
+            </div>
+            <p className="text-emerald-400 font-bold">{groupSendingProgress.current} / {groupSendingProgress.total}명 완료</p>
+            <p className="text-slate-500 text-xs mt-2">창을 닫지 마세요. 이메일 발송이 완료될 때까지 기다려주세요.</p>
           </div>
         </div>
       )}

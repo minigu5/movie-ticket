@@ -508,7 +508,14 @@ export default function AdminPage() {
             {reservations.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-gray-500">예매 내역이 없습니다.</td></tr>}
             {reservations.map((ticket) => (
               <tr key={ticket.id} className="border-b border-gray-700 hover:bg-gray-750">
-                <td className="p-4"><span className="bg-green-600/20 text-green-500 px-2 py-1 rounded border border-green-600 font-bold">확정됨</span></td>
+                <td className="p-4">
+                  {ticket.payment_status === 'group_pending' ? (
+                    <span className="bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded border border-yellow-600 font-bold text-xs">⏳ 단체 대기</span>
+                  ) : (
+                    <span className="bg-green-600/20 text-green-500 px-2 py-1 rounded border border-green-600 font-bold">확정됨</span>
+                  )}
+                  {ticket.is_group_leader && <span className="ml-1 text-emerald-400 text-xs font-bold">👑</span>}
+                </td>
                 <td className="p-4 font-bold text-lg">{ticket.seat_number}</td>
                 <td className="p-4">{ticket.student_id} <span className="text-blue-300 font-bold">{ticket.student_name}</span></td>
                 
