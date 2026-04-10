@@ -553,12 +553,6 @@ export default function Home() {
         <button onClick={() => setIsManualOpen(true)} className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/50 rounded-lg text-xs md:text-sm text-indigo-300 font-bold transition-all shadow-lg">
           📖 이용 안내
         </button>
-        <Link href="/admin" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-slate-300 font-bold transition-all shadow-lg hover:shadow-white/5">
-          ⚙️ 관리자
-        </Link>
-        <Link href="/print" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-slate-300 font-bold transition-all shadow-lg hover:shadow-white/5">
-          🖨️ 발권기
-        </Link>
       </div>
 
       <div className="relative flex flex-col items-center justify-center mb-10 mt-4 select-none group">
@@ -775,32 +769,66 @@ export default function Home() {
               <div>
                 <h3 className="font-bold text-white text-lg mb-1">1. 좌석 선택 및 예매</h3>
                 <p>배치도에서 원하는 좌석을 누른 후, 화면 하단의 <span className="text-indigo-400 font-bold">예매하기</span> 버튼을 클릭하세요. 본인의 학번, 이름, 그리고 예매 확인용 4자리 비밀번호를 입력하면 예약이 확정됩니다.</p>
-                <div className="mt-2 bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-lg text-sm text-indigo-200">
-                  <span className="font-bold text-indigo-300">💡 4자리 비밀번호는 영구적으로 유지되며,</span> 티켓 출력 및 좌석 변경에 필수적입니다.<br/>
-                  <div className="mt-1 flex gap-1">
-                    <span className="text-indigo-400 font-bold">• 좌석 변경:</span>
-                    <span>예매되지 않은 빈 좌석을 클릭해 예매를 다시 진행하면, 기존 자리는 자동으로 취소되고 즉시 좌석 변경이 진행됩니다.</span>
+                <div className="mt-3 bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-xl text-sm">
+                  <div className="flex items-start gap-3">
+                    <span className="text-xl">💡</span>
+                    <p className="text-indigo-200 leading-relaxed">
+                      <span className="font-bold text-indigo-300">4자리 비밀번호는 영구적으로 유지되며,</span><br/>
+                      티켓 출력 및 좌석 변경 시 반드시 필요하니 꼭 기억해 주세요!
+                    </p>
                   </div>
+                </div>
+
+                {/* 🌟 [디자인 개선] 좌석 변경 안내 섹션 */}
+                <div className="mt-3 bg-slate-800/50 border border-slate-700 p-4 rounded-xl text-sm group transition-all hover:border-indigo-500/50">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-8 h-8 rounded-full bg-indigo-600/20 flex items-center justify-center text-indigo-400 font-bold">🔄</div>
+                    <span className="font-bold text-indigo-300 text-base">좌석 변경 방법</span>
+                  </div>
+                  <p className="text-slate-400 leading-relaxed ml-11">
+                    예매되지 않은 빈 좌석을 선택하여 예매를 다시 진행하면, <span className="text-white">기존 좌석은 자동으로 취소</span>되고 즉시 새로운 좌석으로 변경됩니다.
+                  </p>
                 </div>
               </div>
               
               <div>
                 <h3 className="font-bold text-white text-lg mb-1">2. 모바일 티켓 (이메일 수신)</h3>
-                <p>성공적으로 예매가 완료되면, 입력하신 인적 사항에 해당하는 <span className="text-amber-400 font-bold">학교 이메일</span>로 모바일 티켓(예매 내역)이 자동으로 발송됩니다.</p>
+                <p>성공적으로 예매가 완료되면, 입력하신 인적 사항에 해당하는 <span className="text-amber-400 font-bold">학교 이메일</span>로 모바일 티켓(예매 내역)이 즉시 발송됩니다.</p>
               </div>
 
               <div>
                 <h3 className="font-bold text-white text-lg mb-1">3. 좌석 범례 안내</h3>
-                <ul className="list-disc list-inside mt-2 space-y-1.5 ml-2 text-sm text-slate-400">
-                  <li><span className="text-white font-semibold">예매 가능:</span> 투명한 흰색 테두리석</li>
-                  <li><span className="text-indigo-300 font-semibold">동아리 전용:</span> 파란색 띠 및 보랏빛 배경 (부원 전용석)</li>
-                  <li><span className="text-slate-500 font-semibold">예매 완료:</span> 진한 회색 (선택 불가)</li>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div className="flex items-center gap-2 text-xs bg-slate-800/30 p-2 rounded-lg border border-white/5">
+                    <div className="w-3 h-3 border border-white/30 rounded-full"></div>
+                    <span className="text-slate-400">예매 가능</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs bg-indigo-900/40 p-2 rounded-lg border border-indigo-500/30">
+                    <div className="w-3 h-3 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.6)]"></div>
+                    <span className="text-indigo-300">동아리 전용</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs bg-slate-800 p-2 rounded-lg border border-slate-700">
+                    <div className="w-3 h-3 bg-slate-600 rounded-full"></div>
+                    <span className="text-slate-500">예매 완료</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 🌟 [신규 추가] 단체 예매 안내 */}
+              <div>
+                <h3 className="font-bold text-emerald-400 text-lg mb-1">4. 단체 예매 안내 (최대 10명)</h3>
+                <p className="text-slate-300">리더는 본인을 포함해 <span className="text-white font-bold">최대 10명</span>까지 한 번에 예매할 수 있습니다.</p>
+                <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-slate-400 ml-2 leading-relaxed">
+                  <li>리더가 멤버들의 좌석을 지정하여 예매</li>
+                  <li>멤버들에게 즉시 <span className="text-emerald-400">초대 이메일</span>이 발송됨</li>
+                  <li>멤버는 <span className="text-amber-400 font-bold underline underline-offset-4">1시간 이내</span>에 수락 및 확정 필수</li>
+                  <li>미확정 시 해당 좌석은 자동으로 취소됨</li>
                 </ul>
               </div>
 
               <div>
-                <h3 className="font-bold text-white text-lg mb-1">4. 비밀번호를 잊으셨을 경우</h3>
-                <p>예매하기 창 하단의 <span className="text-rose-400 font-bold">비밀번호 찾기</span>를 누르면 가입된 이메일로 즉시 재설정 링크가 전송됩니다.</p>
+                <h3 className="font-bold text-white text-lg mb-1">5. 비밀번호를 잊으셨을 경우</h3>
+                <p>예매창 하단의 <span className="text-rose-400 font-bold">비밀번호 찾기</span>를 누르면 학교 이메일로 비밀번호 재설정 링크가 즉시 전송됩니다.</p>
               </div>
             </div>
 
