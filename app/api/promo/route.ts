@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { getTransporter } from '@/lib/mailer';
 
 export async function POST(req: Request) {
   try {
     const { chunk, movieInfo, baseUrl } = await req.json();
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-    });
+    const { transporter, user: senderUser } = getTransporter();
 
     await Promise.all(chunk.map(async (user: any) => {
       
@@ -83,7 +80,7 @@ export async function POST(req: Request) {
       `;
 
       return transporter.sendMail({
-        from: `"영화대교" <${process.env.GMAIL_USER}>`,
+        from: `"영화대교" <${senderUser}>`,
         to: user.email,
         subject: `[영화대교] 💌 ${user.name}님을 위한 특별 초청장이 도착했습니다.`,
         html: htmlContent

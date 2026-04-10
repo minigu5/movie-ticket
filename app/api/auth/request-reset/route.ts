@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { getTransporter } from '@/lib/mailer';
 import { supabase } from '@/lib/supabase';
 import { USER_EMAILS } from '@/lib/emails';
 import crypto from 'crypto';
@@ -25,10 +25,7 @@ export async function POST(req: Request) {
     if (error) throw error;
 
     // 4. 이메일 발송
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-    });
+    const { transporter, user: senderUser } = getTransporter();
 
     const resetLink = `${baseUrl}/reset-password?token=${resetToken}&id=${encodeURIComponent(authKey)}${returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''}`;
     
@@ -46,7 +43,7 @@ export async function POST(req: Request) {
     `;
 
     await transporter.sendMail({
-      from: `"영화대교 예매시스템" <${process.env.GMAIL_USER}>`,
+      from: `"영화대교 예매시스템" <${senderUser}>`,
       to: userEmail,
       subject: `[영화대교] ${studentName}님, 비밀번호 재설정 안내`,
       html: htmlContent

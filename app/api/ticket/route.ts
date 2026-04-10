@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { getTransporter } from '@/lib/mailer';
 
 export async function POST(req: Request) {
   try {
     const { email, name, seat, movieTitle, movieDate, statusType, ticketId, baseUrl } = await req.json();
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-    });
+    const { transporter, user } = getTransporter();
 
     let badgeBg = '#D1FAE5'; let badgeColor = '#065F46'; let badgeText = '예매 완료';
     let subject = `[영화대교] ${name}님의 티켓 예매 안내 - ${seat} 좌석`;
@@ -84,7 +81,7 @@ export async function POST(req: Request) {
       </html>
     `;
 
-    await transporter.sendMail({ from: `"영화대교 예매시스템" <${process.env.GMAIL_USER}>`, to: email, subject, html: ticketHTML });
+    await transporter.sendMail({ from: `"영화대교 예매시스템" <${user}>`, to: email, subject, html: ticketHTML });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Mail Failed' }, { status: 500 });

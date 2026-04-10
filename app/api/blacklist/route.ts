@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { getTransporter } from '@/lib/mailer';
 
 export async function POST(req: Request) {
   try {
     const { email, name, action } = await req.json();
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-    });
+    const { transporter, user: senderUser } = getTransporter();
 
     const isAdded = action === 'added';
     const subject = isAdded ? `[영화대교] ${name}님, 블랙리스트 등록 안내` : `[영화대교] ${name}님, 블랙리스트 해제 안내`;
@@ -27,7 +24,7 @@ export async function POST(req: Request) {
       </div>
     `;
 
-    await transporter.sendMail({ from: `"영화대교 예매시스템" <${process.env.GMAIL_USER}>`, to: email, subject, html: htmlContent });
+    await transporter.sendMail({ from: `"영화대교 예매시스템" <${senderUser}>`, to: email, subject, html: htmlContent });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Mail Failed' }, { status: 500 });

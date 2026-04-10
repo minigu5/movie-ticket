@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import nodemailer from 'nodemailer';
+import { getTransporter } from '@/lib/mailer';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,10 +32,7 @@ export async function GET() {
       groupMap.get(gid)!.push(r);
     });
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-    });
+    const { transporter, user: senderUser } = getTransporter();
 
     let processedCount = 0;
 
@@ -59,7 +56,7 @@ export async function GET() {
         if (email) {
           try {
             await transporter.sendMail({
-              from: `"영화대교 예매시스템" <${process.env.GMAIL_USER}>`,
+              from: `"영화대교 예매시스템" <${senderUser}>`,
               to: email,
               subject: `[영화대교] ${expired.student_name}님의 단체 예매가 시간 초과로 취소되었습니다`,
               html: buildCancelEmail(expired.student_name, expired.seat_number, leaderRes?.student_name || '알 수 없음')
@@ -74,7 +71,7 @@ export async function GET() {
         if (leaderEmail) {
           try {
             await transporter.sendMail({
-              from: `"영화대교 예매시스템" <${process.env.GMAIL_USER}>`,
+              from: `"영화대교 예매시스템" <${senderUser}>`,
               to: leaderEmail,
               subject: `[영화대교] 단체 예매 결과 안내 - ${confirmedMembers.length}명 확정`,
               html: buildResultEmail(leaderRes.student_name, confirmedMembers, expiredMembers)

@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { getTransporter } from '@/lib/mailer';
 
 export async function POST(req: Request) {
   try {
     const { members, leaderName, movieTitle, movieDate, groupId, baseUrl } = await req.json();
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-    });
+    const { transporter, user: senderUser } = getTransporter();
 
     const sendPromises = members.map((member: { email: string, name: string, seat: string, studentId: string, memberId: string }) => {
       if (!member.email) return Promise.resolve();
@@ -60,7 +57,7 @@ export async function POST(req: Request) {
       `;
 
       return transporter.sendMail({
-        from: `"영화대교 예매시스템" <${process.env.GMAIL_USER}>`,
+        from: `"영화대교 예매시스템" <${senderUser}>`,
         to: member.email,
         subject: `[영화대교] 🎬 ${member.name}님, 단체 관람에 초대되었습니다 - ${member.seat} 좌석`,
         html: htmlContent
