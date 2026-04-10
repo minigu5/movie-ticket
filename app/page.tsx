@@ -429,6 +429,14 @@ export default function Home() {
     const { data: existing } = await supabase.from('reservations')
       .select('id').eq('movie_date', movieInfo.db_date).eq('student_id', cleanId);
     if (existing && existing.length > 0) return showAlert("이미 예매가 완료된 학생입니다.");
+
+    // 🌟 [추가] 동아리 전용 좌석 검증 (멤버 추가 시)
+    if (selectedSeat && vipSeats.has(selectedSeat)) {
+      if (!CLUB_MEMBERS.includes(cleanId)) {
+        return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n이 좌석에는 동아리 부원만 추가할 수 있습니다.");
+      }
+    }
+
     const newMembers = [...groupMembers, { studentId: cleanId, name: memberFormData.name, seat: selectedSeat! }];
     setGroupMembers(newMembers);
     setIsGroupMemberModal(false);
