@@ -190,14 +190,20 @@ export default function Home() {
       }
 
       const { data: resData } = await supabase.from('reservations')
-        .select('id, seat_number, payment_status, student_name, student_id')
+        .select('id, seat_number, payment_status, student_name, student_id, group_expires_at')
         .eq('movie_date', currentDbDate);
         
       if (resData) {
         const newStatuses: Record<string, SeatData> = {};
+        const now = new Date();
         resData.forEach((res) => {
-          if (res.payment_status === 'pending' || res.payment_status === 'confirmed' || res.payment_status === 'group_pending') {
+          if (res.payment_status === 'pending' || res.payment_status === 'confirmed') {
             newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id };
+          } else if (res.payment_status === 'group_pending') {
+            // 🌟 [단체 예매] 만료 시간이 지나지 않은 경우만 표시 (JIT 필터링)
+            if (res.group_expires_at && new Date(res.group_expires_at) > now) {
+              newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id };
+            }
           }
         });
         setSeatStatuses(newStatuses);
