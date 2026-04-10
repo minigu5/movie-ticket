@@ -553,6 +553,12 @@ export default function Home() {
         <button onClick={() => setIsManualOpen(true)} className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/50 rounded-lg text-xs md:text-sm text-indigo-300 font-bold transition-all shadow-lg">
           📖 이용 안내
         </button>
+        <Link href="/admin" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-slate-300 font-bold transition-all shadow-lg hover:shadow-white/5">
+          ⚙️ 관리자
+        </Link>
+        <Link href="/print" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-slate-300 font-bold transition-all shadow-lg hover:shadow-white/5">
+          🖨️ 발권기
+        </Link>
       </div>
 
       <div className="relative flex flex-col items-center justify-center mb-10 mt-4 select-none group">
