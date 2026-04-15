@@ -55,7 +55,6 @@ export async function POST(req: Request) {
                 
                 <p style="color: #94a3b8; font-size: 15px; line-height: 1.7; margin: 0 0 30px 0; word-break: keep-all;">
                   귀하를 모시게 되어 영광입니다.<br/>
-                  이번 상영은 <strong style="color: #f8fafc;">시험 바로 다음날 토요일 2차 자습</strong> 시간에 진행됩니다.<br/>
                   최고의 좌석과 감동적인 영화가 준비되어 있으니 함께하셔서 특별한 추억을 만들어보시길 바랍니다.
                 </p>
 
