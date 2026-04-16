@@ -246,32 +246,19 @@ export default function AdminPage() {
     
     const res = await fetch('/api/admin/action', {
       method: 'POST',
-      body: JSON.stringify({ action: 'ADD_BLACKLIST', adminPassword: password, payload: { studentId: newBlackId, studentName } })
+      body: JSON.stringify({ action: 'ADD_BLACKLIST', adminPassword: password, payload: { studentId: newBlackId, studentName, movieDate: movieInfo.db_date } })
     });
     const data = await res.json();
     if (!data.success) return alert("추가 실패 (이미 등록된 학생일 수 있습니다.)");
 
     const userEmail = USER_EMAILS[newBlackId];
-    const { data: existingTickets } = await supabase.from('reservations').select('*').eq('student_id', newBlackId).eq('movie_date', movieInfo.db_date);
-
-    if (existingTickets && existingTickets.length > 0) {
-      const ticket = existingTickets[0];
-      await fetch('/api/admin/action', {
-        method: 'POST',
-        body: JSON.stringify({ 
-          action: 'CANCEL_RESERVATION', 
-          adminPassword: password, 
-          payload: { id: ticket.id, studentId: newBlackId, studentName, seatNumber: ticket.seat_number, description: `블랙리스트 등록 및 예매 강제 취소 (${ticket.seat_number})` }
-        })
+    if (data.canceledTicket && userEmail) {
+      const ticket = data.canceledTicket;
+      const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
+      await fetch('/api/ticket', { 
+        method: 'POST', 
+        body: JSON.stringify({ email: userEmail, name: studentName, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded }) 
       });
-      
-      if (userEmail) {
-        const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
-        await fetch('/api/ticket', { 
-          method: 'POST', 
-          body: JSON.stringify({ email: userEmail, name: studentName, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded }) 
-        });
-      }
     }
 
     if (userEmail) {

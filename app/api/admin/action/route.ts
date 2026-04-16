@@ -77,10 +77,31 @@ export async function POST(req: Request) {
       }
 
       case 'ADD_BLACKLIST': {
-        const { studentId, studentName } = payload;
-        const { error } = await supabaseAdmin.from('blacklist').insert([{ student_id: studentId, student_name: studentName }]);
-        if (error) throw error;
-        return NextResponse.json({ success: true });
+        const { studentId, studentName, movieDate } = payload;
+        
+        // 1. 블랙리스트 추가
+        const { error: blError } = await supabaseAdmin.from('blacklist').insert([{ student_id: studentId, student_name: studentName }]);
+        if (blError) throw blError;
+
+        // 2. 해당 학생의 기존 예매 내역 조회 (Service Role 활용)
+        const { data: existingTickets } = await supabaseAdmin.from('reservations')
+          .select('*')
+          .eq('student_id', studentId)
+          .eq('movie_date', movieDate);
+
+        let canceledTicket = null;
+        if (existingTickets && existingTickets.length > 0) {
+          canceledTicket = existingTickets[0];
+          // 예매 취소 처리
+          await supabaseAdmin.from('reservations').delete().eq('id', canceledTicket.id);
+          // 로그 기록
+          await supabaseAdmin.from('activity_logs').insert([{ 
+            student_id: studentId, student_name: studentName, 
+            description: `블랙리스트 등록 및 예매 자동 취소 (${canceledTicket.seat_number})` 
+          }]);
+        }
+
+        return NextResponse.json({ success: true, canceledTicket });
       }
 
       case 'REMOVE_BLACKLIST': {
