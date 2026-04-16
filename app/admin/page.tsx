@@ -331,6 +331,19 @@ export default function AdminPage() {
     setIsSendingPromo(false); alert("✅ 홍보 메일 발송 완료!"); fetchAdminData();
   };
 
+  const handleAdminLogin = async () => {
+    const res = await fetch('/api/admin/action', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'LOGIN', adminPassword: password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      setIsAuthenticated(true);
+    } else {
+      alert('비밀번호가 틀렸습니다.');
+    }
+  };
+
   if (!isAuthenticated) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-gray-700 shadow-2xl">
@@ -339,23 +352,12 @@ export default function AdminPage() {
           type="password" 
           value={password} 
           onChange={(e) => setPassword(e.target.value)} 
-          onKeyDown={(e) => e.key === 'Enter' && password === ADMIN_PASSWORD && setIsAuthenticated(true)} 
+          onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} 
           className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 mb-4 text-center outline-none focus:border-blue-500" 
           placeholder="비밀번호 입력" 
         />
         <button 
-          onClick={async () => {
-            const res = await fetch('/api/admin/action', {
-              method: 'POST',
-              body: JSON.stringify({ action: 'LOGIN', adminPassword: password })
-            });
-            const data = await res.json();
-            if (data.success) {
-              setIsAuthenticated(true);
-            } else {
-              alert('비밀번호가 틀렸습니다.');
-            }
-          }} 
+          onClick={handleAdminLogin} 
           className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold transition-colors"
         >
           접속하기
