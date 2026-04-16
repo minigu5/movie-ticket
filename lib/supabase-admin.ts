@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
 // ⚠️ WARNING: Never expose this key in client-side code!
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string
+const supabaseServiceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 
 if (!supabaseServiceRoleKey) {
   console.warn('SUPABASE_SERVICE_ROLE_KEY is missing in environment variables.')

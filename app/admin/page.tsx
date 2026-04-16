@@ -91,6 +91,7 @@ export default function AdminPage() {
       
       if (!success) {
         if (res.status === 401) setIsAuthenticated(false);
+        alert(`데이터 불어오기 실패: ${error}`);
         return console.error("데이터 로드 실패:", error);
       }
 
