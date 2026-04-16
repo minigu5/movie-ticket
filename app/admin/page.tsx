@@ -12,6 +12,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [reservations, setReservations] = useState<any[]>([]);
   const [movieInfo, setMovieInfo] = useState<any>(null);
+  const [isLoadingUI, setIsLoadingUI] = useState(true); // 🌟 [추가됨] 로딩 상태 관리
   
   const [isEditingSettings, setIsEditingSettings] = useState(false);
   const[editForm, setEditForm] = useState<any>({});
@@ -82,6 +83,7 @@ export default function AdminPage() {
   };
 
   const fetchAdminData = async () => {
+    setIsLoadingUI(true);
     try {
       const res = await fetch('/api/admin/action', {
         method: 'POST',
@@ -91,7 +93,7 @@ export default function AdminPage() {
       
       if (!success) {
         if (res.status === 401) setIsAuthenticated(false);
-        alert(`데이터 불어오기 실패: ${error}`);
+        alert(`데이터 불러오기 실패: ${error}`);
         return console.error("데이터 로드 실패:", error);
       }
 
@@ -116,6 +118,8 @@ export default function AdminPage() {
       if (logData) setLogs(logData);
     } catch (err) {
       console.error("데이터 불러오기 오류:", err);
+    } finally {
+      setIsLoadingUI(false);
     }
   };
 
@@ -412,6 +416,17 @@ export default function AdminPage() {
               <button onClick={() => setShowPromoWarning(false)} className="flex-1 py-4 bg-gray-700 hover:bg-gray-600 rounded-xl text-white font-bold text-lg transition-colors">돌아가기</button>
               <button onClick={executeSendPromo} className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold text-lg shadow-[0_0_15px_rgba(59,130,246,0.8)] transition-colors">발송 시작 🚀</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 [추가됨] 전체 화면 로딩 스피너 (UX 개선) */}
+      {isLoadingUI && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="flex flex-col items-center bg-gray-900/80 p-8 rounded-2xl shadow-2xl border border-gray-700 w-80">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-6 shadow-[0_0_15px_rgba(59,130,246,0.6)]"></div>
+            <p className="text-white font-bold text-xl tracking-wider mb-2">서버 동기화 중...</p>
+            <p className="text-gray-400 text-sm">최신 데이터를 로드 중입니다.</p>
           </div>
         </div>
       )}
