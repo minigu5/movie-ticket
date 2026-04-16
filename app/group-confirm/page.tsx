@@ -63,25 +63,33 @@ function GroupConfirmForm() {
     if (!/^\d{4}$/.test(password)) return alert("비밀번호 숫자 4자리를 입력해주세요.");
 
     const authKey = myReservation.student_id === "교직원" ? myReservation.student_name : myReservation.student_id;
-    const { data: authData } = await supabase.from('student_auth')
-      .select('password').eq('student_id', authKey).single();
+    
+    // 1. 비밀번호 검증 (RPC 적용)
+    const { data: authResult, error: authError } = await supabase.rpc('verify_student_password', { 
+      p_student_id: authKey, 
+      p_password: password 
+    });
 
-    if (!authData) {
-      // 처음 설정하는 비밀번호
+    if (authError) return alert("인증 대조 중 오류가 발생했습니다.");
+
+    if (!authResult.exists) {
+      // 처음 설정하는 비밀번호 (RLS anon INSERT 허용됨)
       await supabase.from('student_auth').insert({ student_id: authKey, password });
     } else {
-      if (authData.password !== password) {
+      if (!authResult.success) {
         setShowResetButton(true);
         return alert("❌ 비밀번호가 일치하지 않습니다.");
       }
     }
 
-    // 상태를 confirmed로 변경
-    const { error } = await supabase.from('reservations')
-      .update({ payment_status: 'confirmed', password })
-      .eq('id', memberId);
+    // 2. 단체 예매 확정 (RPC 적용 - RLS UPDATE 제한 우회)
+    const { data: confirmSuccess, error: confirmError } = await supabase.rpc('confirm_group_reservation', {
+      p_reservation_id: memberId,
+      p_password: password
+    });
 
-    if (error) return alert("확정 중 오류가 발생했습니다.");
+    if (confirmError || !confirmSuccess) return alert("확정 중 오류가 발생했습니다.");
+
 
     await supabase.from('activity_logs').insert([{
       student_id: myReservation.student_id,

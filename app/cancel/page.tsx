@@ -33,24 +33,16 @@ function CancelForm() {
     // 🌟 [수정됨] 교직원은 이름으로 비밀번호를 찾도록 수정
     const authKey = ticket.student_id === "교직원" ? ticket.student_name : ticket.student_id;
 
-    // 1. student_auth 테이블에서 영구 비밀번호 확인
-    const { data: authData } = await supabase
-      .from('student_auth')
-      .select('password')
-      .eq('student_id', authKey)
-      .single();
+    // 1. RPC 호출로 비밀번호 검증 및 삭제 통합 처리 (보안 강화)
+    const { data: cancelSuccess, error: cancelError } = await supabase.rpc('cancel_reservation_secure', {
+      p_reservation_id: ticketId,
+      p_password: password
+    });
 
-    if (!authData || authData.password !== password) {
+    if (cancelError || !cancelSuccess) {
       setShowResetButton(true);
-      return alert("❌ 비밀번호가 일치하지 않습니다.");
+      return alert("❌ 비밀번호가 일치하지 않거나 취소 중 오류가 발생했습니다.");
     }
-
-
-    // 2. 비밀번호가 맞으면 취소 진행 여부 확인
-    if (!confirm(`정말[${ticket.seat_number}] 좌석 예매를 취소하시겠습니까?`)) return;
-
-    // 3. 예매 내역 삭제
-    await supabase.from('reservations').delete().eq('id', ticketId);
 
     // 🌟 4. 로그 중복 방지: 여기에만 '본인 예매 취소' 기록을 남깁니다.
     await supabase.from('activity_logs').insert([{ 

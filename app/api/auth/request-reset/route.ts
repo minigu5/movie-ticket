@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
 import { getTransporter } from '@/lib/mailer';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { USER_EMAILS } from '@/lib/emails';
 import crypto from 'crypto';
 
@@ -17,7 +16,7 @@ export async function POST(req: Request) {
     // 🌟 [수정됨] 교직원은 이름(studentName)을 ID 키값으로 업데이트
     const authKey = studentId === "교직원" ? studentName : studentId;
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('student_auth')
       .update({ reset_token: resetToken, token_expires_at: expiresAt })
       .eq('student_id', authKey);

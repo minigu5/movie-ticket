@@ -299,16 +299,24 @@ export default function Home() {
     }
 
     const authKey = cleanStudentId === "교직원" ? formData.name : cleanStudentId;
-    const { data: authData } = await supabase.from('student_auth').select('password').eq('student_id', authKey).single();
+    const { data: authResult, error: authError } = await supabase.rpc('verify_student_password', { 
+      p_student_id: authKey, 
+      p_password: formData.password 
+    });
 
-    if (!authData) {
+    if (authError) return showAlert("네트워크 오류가 발생했습니다.");
+
+    if (!authResult.exists) {
+      // 신규 사용자: INSERT (RLS anon INSERT 허용됨)
       await supabase.from('student_auth').insert({ student_id: authKey, password: formData.password });
       setShowResetButton(false);
     } else {
-      if (authData.password !== formData.password) {
+      if (!authResult.success) {
         setShowResetButton(true);
         return showAlert("❌ 비밀번호가 일치하지 않습니다.");
-      } else setShowResetButton(false); 
+      } else {
+        setShowResetButton(false);
+      }
     }
 
     const processReservation = async () => {
@@ -324,7 +332,7 @@ export default function Home() {
 
         if (existingTickets && existingTickets.length > 0) {
           const myOldTicket = existingTickets[0];
-          if (myOldTicket.password !== formData.password) return showAlert("❌ 비밀번호가 일치하지 않습니다.");
+          // 💡 이미 위에서 student_auth를 통해 비밀번호 검증이 완료되었으므로 추가 체크를 생략합니다.
           
           showConfirm(`이미 예약된 좌석(${myOldTicket.seat_number})을 새로운 좌석(${selectedSeat})으로 변경하시겠습니까?`, async () => {
             const { data: updatedTicket, error: updateError } = await supabase.from('reservations')
@@ -393,13 +401,22 @@ export default function Home() {
       return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
     }
     const authKey = cleanStudentId === "교직원" ? formData.name : cleanStudentId;
-    const { data: authData } = await supabase.from('student_auth').select('password').eq('student_id', authKey).single();
-    if (!authData) {
+    const { data: authResult, error: authError } = await supabase.rpc('verify_student_password', { 
+      p_student_id: authKey, 
+      p_password: formData.password 
+    });
+
+    if (authError) return showAlert("네트워크 오류가 발생했습니다.");
+
+    if (!authResult.exists) {
       await supabase.from('student_auth').insert({ student_id: authKey, password: formData.password });
+      setShowResetButton(false);
     } else {
-      if (authData.password !== formData.password) {
+      if (!authResult.success) {
         setShowResetButton(true);
         return showAlert("❌ 비밀번호가 일치하지 않습니다.");
+      } else {
+        setShowResetButton(false);
       }
     }
     const { data: existingTickets } = await supabase.from('reservations')

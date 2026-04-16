@@ -17,33 +17,16 @@ function ResetPasswordForm() {
     if (!/^\d{4}$/.test(newPassword)) return alert("비밀번호는 숫자 4자리여야 합니다.");
     setStatus('loading');
 
-    // 1. 토큰 및 유효시간 검증
-    const { data: authData, error: fetchError } = await supabase
-      .from('student_auth')
-      .select('*')
-      .eq('student_id', studentId)
-      .eq('reset_token', token)
-      .single();
+    // 1. RPC 호출로 토큰 및 비밀번호 업데이트 통합 처리 (보안 강화)
+    const { data: updateSuccess, error: updateError } = await supabase.rpc('update_password_secure', {
+      p_student_id: studentId,
+      p_new_password: newPassword,
+      p_reset_token: token
+    });
 
-    if (fetchError || !authData) {
+    if (updateError || !updateSuccess) {
       setStatus('error');
-      return alert("유효하지 않거나 만료된 링크입니다.");
-    }
-
-    if (new Date(authData.token_expires_at) < new Date()) {
-      setStatus('error');
-      return alert("토큰 유효시간(30분)이 만료되었습니다. 다시 요청해주세요.");
-    }
-
-    // 2. 비밀번호 업데이트 및 토큰 초기화
-    const { error: updateError } = await supabase
-      .from('student_auth')
-      .update({ password: newPassword, reset_token: null, token_expires_at: null })
-      .eq('student_id', studentId);
-
-    if (updateError) {
-      setStatus('error');
-      return alert("변경 중 오류가 발생했습니다.");
+      return alert("유효하지 않거나 만료된 링크입니다. 다시 요청해주세요.");
     }
 
     await supabase.from('activity_logs').insert([{ 

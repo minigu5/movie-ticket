@@ -51,12 +51,7 @@ export default function AdminPage() {
   const [blacklist, setBlacklist] = useState<any[]>([]);
   const[newBlackId, setNewBlackId] = useState('');
 
-  // 🌟 [추가됨] 관리자용 팝콘 이름 매핑
-  const POPCORN_NAMES: Record<string, string> = { original: '오리지널', consomme: '콘소메', caramel: '카라멜' };
-  
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-  const ADMIN_PASSWORD = "영화대교최고"; 
-
   const [skipAuth, setSkipAuth] = useState(false);
 
   useEffect(() => {
@@ -70,10 +65,15 @@ export default function AdminPage() {
     if (isAuthenticated) fetchAdminData();
   }, [isAuthenticated]);
 
-  const toggleSkipAuth = () => {
+  const toggleSkipAuth = async () => {
     if (!skipAuth) {
       const pass = prompt("자동 로그인을 켜기 위해 관리자 비밀번호를 입력해주세요:");
-      if (pass !== ADMIN_PASSWORD) {
+      const res = await fetch('/api/admin/action', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'LOGIN', adminPassword: pass })
+      });
+      const data = await res.json();
+      if (!data.success) {
         alert("비밀번호가 틀렸습니다. 설정을 변경할 수 없습니다.");
         return;
       }
@@ -88,29 +88,40 @@ export default function AdminPage() {
   };
 
   const fetchAdminData = async () => {
-    const { data: movieData } = await supabase.from('movie_settings').select('*').eq('id', 1).single();
-    if (movieData) {
-      setMovieInfo(movieData);
-      setEditForm({
-        ...movieData,
-        age_rating: movieData.age_rating || '전체관람가',
-        mid_vip_start_row: movieData.mid_vip_start_row || 'A',
-        mid_vip_end_row: movieData.mid_vip_end_row || 'C',
-        mid_vip_start_col: movieData.mid_vip_start_col || 5,
-        mid_vip_end_col: movieData.mid_vip_end_col || 10,
-        grand_vip_start_row: movieData.grand_vip_start_row || 'A',
-        grand_vip_end_row: movieData.grand_vip_end_row || 'C',
-        grand_vip_start_col: movieData.grand_vip_start_col || 10,
-        grand_vip_end_col: movieData.grand_vip_end_col || 18,
+    try {
+      const res = await fetch('/api/admin/action', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'FETCH_INITIAL_DATA', adminPassword: password })
       });
-      const { data: resData } = await supabase.from('reservations').select('*').eq('movie_date', movieData.db_date).order('created_at', { ascending: false });
-      if (resData) setReservations(resData);
-    }
-    const { data: blData } = await supabase.from('blacklist').select('*').order('created_at', { ascending: false });
-    if (blData) setBlacklist(blData);
+      const { data, success, error } = await res.json();
+      
+      if (!success) {
+        if (res.status === 401) setIsAuthenticated(false);
+        return console.error("데이터 로드 실패:", error);
+      }
 
-    const { data: logData } = await supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(100);
-    if (logData) setLogs(logData);
+      const { movieData, resData, blData, logData } = data;
+      if (movieData) {
+        setMovieInfo(movieData);
+        setEditForm({
+          ...movieData,
+          age_rating: movieData.age_rating || '전체관람가',
+          mid_vip_start_row: movieData.mid_vip_start_row || 'A',
+          mid_vip_end_row: movieData.mid_vip_end_row || 'C',
+          mid_vip_start_col: movieData.mid_vip_start_col || 5,
+          mid_vip_end_col: movieData.mid_vip_end_col || 10,
+          grand_vip_start_row: movieData.grand_vip_start_row || 'A',
+          grand_vip_end_row: movieData.grand_vip_end_row || 'C',
+          grand_vip_start_col: movieData.grand_vip_start_col || 10,
+          grand_vip_end_col: movieData.grand_vip_end_col || 18,
+        });
+      }
+      if (resData) setReservations(resData);
+      if (blData) setBlacklist(blData);
+      if (logData) setLogs(logData);
+    } catch (err) {
+      console.error("데이터 불러오기 오류:", err);
+    }
   };
 
   const handleSaveSettingsClick = () => {
@@ -122,20 +133,29 @@ export default function AdminPage() {
   };
 
   const proceedSave = async (isVenueChanged: boolean) => {
-    const { error } = await supabase.from('movie_settings').update({
+    const payload = {
       title: editForm.title, date_string: editForm.date_string, db_date: editForm.db_date,
       venue: editForm.venue, poster_url: editForm.poster_url, deadline_date: editForm.deadline_date, age_rating: editForm.age_rating,
       mid_vip_start_row: editForm.mid_vip_start_row, mid_vip_end_row: editForm.mid_vip_end_row,
       mid_vip_start_col: editForm.mid_vip_start_col, mid_vip_end_col: editForm.mid_vip_end_col,
       grand_vip_start_row: editForm.grand_vip_start_row, grand_vip_end_row: editForm.grand_vip_end_row,
       grand_vip_start_col: editForm.grand_vip_start_col, grand_vip_end_col: editForm.grand_vip_end_col
-    }).eq('id', 1);
+    };
 
-    if (error) {
-      alert("설정 저장 실패: " + error.message);
+    const res = await fetch('/api/admin/action', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'UPDATE_SETTINGS', adminPassword: password, payload })
+    });
+
+    const data = await res.json();
+    if (!data.success) {
+      alert("설정 저장 실패: " + data.error);
     } else {
       if (isVenueChanged) {
-        await supabase.from('reservations').delete().eq('movie_date', movieInfo.db_date);
+        await fetch('/api/admin/action', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'CLEAR_RESERVATIONS', adminPassword: password, payload: { movieDate: movieInfo.db_date } })
+        });
         alert("🚨 상영관 변경 및 예매 내역 초기화가 완료되었습니다.");
       } else {
         alert("✅ 설정이 성공적으로 저장되었습니다!");
@@ -145,14 +165,22 @@ export default function AdminPage() {
   };
 
   const handleApprove = async (ticket: any) => {
-    // 🌟 [추가됨] 관리자가 승인할 때 총 금액을 확인할 수 있도록 계산
     const popcorns = ticket.popcorn_order !== 'none' ? ticket.popcorn_order.split(',') :[];
     const totalPrice = popcorns.length * 2500;
 
     if (!confirm(`${ticket.student_name}님의 예매를 확정하시겠습니까?\n(입금 확인 금액: ${totalPrice.toLocaleString()}원)`)) return;
     
-    await supabase.from('reservations').update({ payment_status: 'confirmed' }).eq('id', ticket.id);
-    await supabase.from('activity_logs').insert([{ student_id: ticket.student_id, student_name: ticket.student_name, description: `관리자 승인 (${ticket.seat_number})` }]);
+    const res = await fetch('/api/admin/action', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        action: 'APPROVE_RESERVATION', 
+        adminPassword: password, 
+        payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
+      })
+    });
+
+    const data = await res.json();
+    if (!data.success) return alert("승인 실패: " + data.error);
 
     const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
     if (userEmail) {
@@ -164,8 +192,17 @@ export default function AdminPage() {
   const handleCancel = async (ticket: any) => {
     if (!confirm(`정말 ${ticket.student_name}님의 예매를 취소하시겠습니까?`)) return;
     
-    await supabase.from('reservations').delete().eq('id', ticket.id);
-    await supabase.from('activity_logs').insert([{ student_id: ticket.student_id, student_name: ticket.student_name, description: `관리자 강제 취소 (${ticket.seat_number})` }]);
+    const res = await fetch('/api/admin/action', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        action: 'CANCEL_RESERVATION', 
+        adminPassword: password, 
+        payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
+      })
+    });
+
+    const data = await res.json();
+    if (!data.success) return alert("취소 실패: " + data.error);
 
     const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
     if (userEmail) {
@@ -181,18 +218,20 @@ export default function AdminPage() {
   const handleResetPrint = async (ticket: any) => {
     if (!confirm(`${ticket.student_name}님의 티켓 발권 상태를 '미발권'으로 초기화하시겠습니까?\n(학생이 현장 키오스크에서 다시 티켓을 출력할 수 있게 됩니다.)`)) return;
 
-    const { error } = await supabase.from('reservations').update({ is_printed: false }).eq('id', ticket.id);
-    
-    if (error) {
-      alert("초기화 실패: " + error.message);
+    const res = await fetch('/api/admin/action', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        action: 'RESET_PRINT', 
+        adminPassword: password, 
+        payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
+      })
+    });
+
+    const data = await res.json();
+    if (!data.success) {
+      alert("초기화 실패: " + data.error);
       return;
     }
-
-    await supabase.from('activity_logs').insert([{ 
-      student_id: ticket.student_id, 
-      student_name: ticket.student_name, 
-      description: `관리자 티켓 발권 상태 초기화 (${ticket.seat_number})` 
-    }]);
 
     alert("✅ 발권 상태가 초기화되었습니다.");
     fetchAdminData();
@@ -205,16 +244,26 @@ export default function AdminPage() {
     
     if(!confirm(`${studentName}(${newBlackId}) 학생을 블랙리스트에 추가하시겠습니까?\n(⚠️ 주의: 현재 진행 중이거나 완료된 예매 내역이 있다면 자동으로 취소됩니다.)`)) return;
     
-    const { error } = await supabase.from('blacklist').insert([{ student_id: newBlackId, student_name: studentName }]);
-    if (error) return alert("추가 실패 (이미 등록된 학생일 수 있습니다.)");
+    const res = await fetch('/api/admin/action', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'ADD_BLACKLIST', adminPassword: password, payload: { studentId: newBlackId, studentName } })
+    });
+    const data = await res.json();
+    if (!data.success) return alert("추가 실패 (이미 등록된 학생일 수 있습니다.)");
 
     const userEmail = USER_EMAILS[newBlackId];
     const { data: existingTickets } = await supabase.from('reservations').select('*').eq('student_id', newBlackId).eq('movie_date', movieInfo.db_date);
 
     if (existingTickets && existingTickets.length > 0) {
       const ticket = existingTickets[0];
-      await supabase.from('reservations').delete().eq('id', ticket.id);
-      await supabase.from('activity_logs').insert([{ student_id: newBlackId, student_name: studentName, description: `블랙리스트 등록 및 예매 강제 취소 (${ticket.seat_number})` }]);
+      await fetch('/api/admin/action', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          action: 'CANCEL_RESERVATION', 
+          adminPassword: password, 
+          payload: { id: ticket.id, studentId: newBlackId, studentName, seatNumber: ticket.seat_number, description: `블랙리스트 등록 및 예매 강제 취소 (${ticket.seat_number})` }
+        })
+      });
       
       if (userEmail) {
         const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
@@ -234,7 +283,10 @@ export default function AdminPage() {
 
   const handleRemoveBlacklist = async (studentId: string, studentName: string) => {
     if(!confirm(`${studentName}(${studentId}) 학생의 블랙리스트를 해제하시겠습니까?`)) return;
-    await supabase.from('blacklist').delete().eq('student_id', studentId);
+    await fetch('/api/admin/action', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'REMOVE_BLACKLIST', adminPassword: password, payload: { studentId } })
+    });
     const userEmail = USER_EMAILS[studentId];
     if (userEmail) await fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: userEmail, name: studentName, action: 'removed' }) });
     alert("해제 완료 및 안내 메일 발송!"); fetchAdminData();
@@ -279,7 +331,16 @@ export default function AdminPage() {
       setPromoProgress({ current: Math.min(i + CHUNK_SIZE, recipients.length), total: recipients.length });
       await new Promise(res => setTimeout(res, 1000)); 
     }
-    await supabase.from('activity_logs').insert([{ student_id: "관리자", student_name: "-", description: `홍보 이메일 발송 완료 (${recipients.length}명)` }]);
+    
+    await fetch('/api/admin/action', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        action: 'LOG_ACTION', 
+        adminPassword: password, 
+        payload: { studentId: "관리자", studentName: "-", description: `홍보 이메일 발송 완료 (${recipients.length}명)` }
+      })
+    });
+
     setIsSendingPromo(false); alert("✅ 홍보 메일 발송 완료!"); fetchAdminData();
   };
 
@@ -296,7 +357,18 @@ export default function AdminPage() {
           placeholder="비밀번호 입력" 
         />
         <button 
-          onClick={() => password === ADMIN_PASSWORD ? setIsAuthenticated(true) : alert('비밀번호가 틀렸습니다.')} 
+          onClick={async () => {
+            const res = await fetch('/api/admin/action', {
+              method: 'POST',
+              body: JSON.stringify({ action: 'LOGIN', adminPassword: password })
+            });
+            const data = await res.json();
+            if (data.success) {
+              setIsAuthenticated(true);
+            } else {
+              alert('비밀번호가 틀렸습니다.');
+            }
+          }} 
           className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold transition-colors"
         >
           접속하기

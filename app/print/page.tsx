@@ -127,9 +127,12 @@ export default function KioskPrintPage() {
 
     try {
       const authKey = cleanId === "교직원" ? formData.name : cleanId;
-      const { data: authData } = await supabase.from('student_auth').select('password').eq('student_id', authKey).single();
+      const { data: authResult, error: authError } = await supabase.rpc('verify_student_password', { 
+        p_student_id: authKey, 
+        p_password: formData.password 
+      });
 
-      if (!authData || authData.password !== formData.password) {
+      if (authError || !authResult.success) {
         setShowResetButton(true);
         return alert("❌ 비밀번호가 일치하지 않습니다.");
       } else {
