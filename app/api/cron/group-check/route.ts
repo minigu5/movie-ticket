@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getTransporter } from '@/lib/mailer';
 
