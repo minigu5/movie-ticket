@@ -36,16 +36,23 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('skip_auth') === 'true') {
-      setSkipAuth(true);
-      setIsAuthenticated(true);
+      const savedPass = localStorage.getItem('admin_token');
+      if (savedPass) {
+        setPassword(savedPass);
+        setSkipAuth(true);
+        setIsAuthenticated(true);
+      } else {
+        localStorage.setItem('skip_auth', 'false');
+      }
     }
   }, []);
 
   useEffect(() => {
     if (isAuthenticated) fetchAdminData();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, password]);
 
   const toggleSkipAuth = async () => {
+    let currentPass = password;
     if (!skipAuth) {
       const pass = prompt("자동 로그인을 켜기 위해 관리자 비밀번호를 입력해주세요:");
       const res = await fetch('/api/admin/action', {
@@ -57,13 +64,20 @@ export default function AdminPage() {
         alert("비밀번호가 틀렸습니다. 설정을 변경할 수 없습니다.");
         return;
       }
+      currentPass = pass || '';
     }
     
     const newVal = !skipAuth;
-    setSkipAuth(newVal);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('skip_auth', newVal ? 'true' : 'false');
+      if (newVal) {
+        localStorage.setItem('skip_auth', 'true');
+        localStorage.setItem('admin_token', currentPass);
+      } else {
+        localStorage.setItem('skip_auth', 'false');
+        localStorage.removeItem('admin_token');
+      }
     }
+    setSkipAuth(newVal);
     alert(newVal ? "현재 브라우저에서 관리자/발권기 접속 시 비밀번호가 생략됩니다! (베타용)" : "비밀번호 생략이 해제되었습니다.");
   };
 
