@@ -129,9 +129,23 @@ export default function KioskPrintPage() {
         return alert("⚠️ 이미 현장에서 발권이 완료된 티켓입니다! (1인 1매 원칙)\n오류인 경우 관리자에게 문의하세요.");
       }
 
-      await supabase.from('reservations').update({ is_printed: true }).eq('id', ticket.id);
-      await supabase.from('activity_logs').insert([{ student_id: cleanId, student_name: formData.name, description: `현장 KIOSK 티켓 발권 완료 (${ticket.seat_number})` }]);
+      // 🌟 [수정됨] RLS(보안) 정책에 의해 클라이언트 직접 수정이 막히는 문제를 해결하기 위해 안전한 서버 API 호출로 업데이트
+      const apiRes = await fetch('/api/kiosk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'PRINT_TICKET',
+          payload: { ticketId: ticket.id, studentId: cleanId, studentName: formData.name, password: formData.password, seatNumber: ticket.seat_number }
+        })
+      });
+      const apiData = await apiRes.json();
+      
+      if (!apiData.success) {
+        alert("⚠️ 서버 오류로 발권 기록 업데이트에 실패했습니다. 관리자에게 문의하세요.");
+        return;
+      }
 
+      ticket.is_printed = true; // 화면 반영을 위한 상태 업데이트
       setTicketData(ticket);
 
     } catch (err) {

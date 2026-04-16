@@ -18,14 +18,21 @@ export async function POST(req: Request) {
       case 'FETCH_INITIAL_DATA': {
         const { data: movieData, error: e1 } = await supabaseAdmin.from('movie_settings').select('*').eq('id', 1).single();
         if (e1) throw e1;
-        const { data: resData, error: e2 } = await supabaseAdmin.from('reservations').select('*').eq('movie_date', movieData?.db_date).order('created_at', { ascending: false });
-        if (e2) throw e2;
-        const { data: blData, error: e3 } = await supabaseAdmin.from('blacklist').select('*').order('created_at', { ascending: false });
-        if (e3) throw e3;
-        const { data: logData, error: e4 } = await supabaseAdmin.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(100);
-        if (e4) throw e4;
         
-        return NextResponse.json({ success: true, data: { movieData, resData, blData, logData } });
+        const [resQ, blQ, logQ] = await Promise.all([
+          supabaseAdmin.from('reservations').select('*').eq('movie_date', movieData?.db_date).order('created_at', { ascending: false }),
+          supabaseAdmin.from('blacklist').select('*').order('created_at', { ascending: false }),
+          supabaseAdmin.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(100)
+        ]);
+
+        if (resQ.error) throw resQ.error;
+        if (blQ.error) throw blQ.error;
+        if (logQ.error) throw logQ.error;
+
+        return NextResponse.json({ 
+          success: true, 
+          data: { movieData, resData: resQ.data, blData: blQ.data, logData: logQ.data } 
+        });
       }
 
       case 'UPDATE_SETTINGS': {
