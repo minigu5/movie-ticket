@@ -118,6 +118,7 @@ export default function Home() {
   const [isGroupMemberModal, setIsGroupMemberModal] = useState(false);
   const [memberFormData, setMemberFormData] = useState({studentId: '', name: ''});
   const [isGroupSummaryOpen, setIsGroupSummaryOpen] = useState(false);
+  const [isGroupSoloConfirmOpen, setIsGroupSoloConfirmOpen] = useState(false); // 🌟 [추가] 혼자 예매 선택 모달
   const [groupSendingProgress, setGroupSendingProgress] = useState({current: 0, total: 0, sending: false});
 
   useEffect(() => {
@@ -691,8 +692,8 @@ export default function Home() {
                             : isPending ? 'bg-yellow-600/20 border-yellow-600 text-yellow-500 cursor-not-allowed animate-pulse ring-1 ring-yellow-500'
                             : isConfirmed ? 'bg-slate-800/80 text-slate-500 cursor-not-allowed opacity-80' 
                             : isSelected ? 'bg-amber-500 text-slate-900 shadow-[0_0_15px_rgba(245,158,11,0.6)] transform -translate-y-1 z-10 font-black' 
-                            : isVipSeat ? 'bg-indigo-900/60 text-indigo-300 hover:bg-indigo-600/80'
-                            : 'bg-slate-200 text-slate-800 hover:bg-slate-300 font-extrabold shadow-[inset_0_1px_3px_rgba(255,255,255,0.4)]'}
+                            : isVipSeat ? 'bg-indigo-800/50 text-indigo-300 hover:bg-indigo-700/60 ring-1 ring-indigo-600/40'
+                            : 'bg-slate-300/80 text-slate-700 hover:bg-slate-300 font-extrabold'}
                         `}
                       >
                         {displayText}
@@ -745,7 +746,7 @@ export default function Home() {
             <p className="text-slate-400 text-xs">빈 좌석을 클릭하여 멤버를 추가하세요 (최대 10명)</p>
             <div className="flex gap-3">
               <button onClick={handleCancelGroupMode} className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all">단체 예매 취소</button>
-              <button onClick={() => { if (groupMembers.length === 0) return showAlert("최소 1명의 멤버를 추가해주세요."); setIsGroupSummaryOpen(true); }} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]">완료하기 →</button>
+              <button onClick={() => { if (groupMembers.length === 0) { setIsGroupSoloConfirmOpen(true); } else { setIsGroupSummaryOpen(true); } }} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]">완료하기 →</button>
             </div>
           </div>
         ) : isClosed ? (
@@ -834,6 +835,51 @@ export default function Home() {
               <p className="text-sm text-slate-300">입금자명: <span className="text-indigo-400 font-bold">{formData.studentId} {formData.name}</span></p>
             </div>
             <button onClick={() => { setIsPaymentModalOpen(false); setSelectedSeat(null); }} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold transition-all text-sm">닫기</button>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 [신규] 단체 멤버 없이 완료 시 선택 모달 */}
+      {isGroupSoloConfirmOpen && groupLeader && (
+        <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-900 border border-slate-700 p-8 rounded-2xl w-full max-w-sm shadow-[0_0_40px_rgba(0,0,0,0.8)] text-center">
+            <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">🤔</span>
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">어떻게 하시겠습니까?</h2>
+            <p className="text-slate-400 text-sm mb-6">
+              추가된 멤버가 없습니다.<br/>
+              <span className="text-white font-bold">{groupLeader.name}</span>님의 좌석({groupLeader.seat})만 혼자 예매하거나,<br/>
+              계속해서 단체 멤버를 추가할 수 있습니다.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  // 혼자 예매: 그룹 모드 해제 후 일반 예매 흐름으로
+                  setIsGroupSoloConfirmOpen(false);
+                  setIsGroupMode(false);
+                  setSelectedSeat(groupLeader.seat);
+                  setGroupLeader(null);
+                  setGroupMembers([]);
+                  setIsModalOpen(true);
+                }}
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)]"
+              >
+                👤 혼자 예매하기
+              </button>
+              <button
+                onClick={() => setIsGroupSoloConfirmOpen(false)}
+                className="w-full py-4 bg-emerald-700 hover:bg-emerald-600 rounded-xl text-white font-bold transition-all"
+              >
+                👥 계속 단체 추가하기
+              </button>
+              <button
+                onClick={() => { setIsGroupSoloConfirmOpen(false); setIsGroupMode(false); setGroupLeader(null); setGroupMembers([]); setSelectedSeat(null); }}
+                className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl text-slate-400 font-bold transition-all text-sm"
+              >
+                단체 예매 전체 취소
+              </button>
+            </div>
           </div>
         </div>
       )}
