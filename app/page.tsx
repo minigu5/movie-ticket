@@ -692,8 +692,8 @@ export default function Home() {
                             : isPending ? 'bg-yellow-600/20 border-yellow-600 text-yellow-500 cursor-not-allowed animate-pulse ring-1 ring-yellow-500'
                             : isConfirmed ? 'bg-slate-800/80 text-slate-500 cursor-not-allowed opacity-80' 
                             : isSelected ? 'bg-amber-500 text-slate-900 shadow-[0_0_15px_rgba(245,158,11,0.6)] transform -translate-y-1 z-10 font-black' 
-                            : isVipSeat ? 'bg-indigo-800/50 text-indigo-300 hover:bg-indigo-700/60 ring-1 ring-indigo-600/40'
-                            : 'bg-slate-300/80 text-slate-700 hover:bg-slate-300 font-extrabold'}
+                            : isVipSeat ? 'bg-indigo-900/60 text-indigo-300 hover:bg-indigo-600/80'
+                            : 'bg-white/10 hover:bg-white/20 text-slate-300'}
                         `}
                       >
                         {displayText}
@@ -709,7 +709,7 @@ export default function Home() {
       </div>
 
       <div className="mt-4 flex flex-wrap justify-center gap-6 text-sm text-slate-400">
-        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-200 border border-slate-300 rounded-sm"></div>예매 가능</div>
+        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-white/10 border border-white/5 rounded-sm"></div>예매 가능</div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 border border-indigo-500/50 bg-indigo-900/60 rounded-sm"></div>동아리 전용</div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-800/80 border border-white/5 rounded-sm"></div>예매 완료</div>
         {(isGroupMode || Object.values(seatStatuses).some(s => s.status === 'group_pending')) && (
@@ -923,9 +923,9 @@ export default function Home() {
               <div>
                 <h3 className="font-bold text-white text-lg mb-1">3. 좌석 범례 안내</h3>
                 <div className="grid grid-cols-2 gap-2 mt-2">
-                  <div className="flex items-center gap-2 text-xs bg-slate-200/10 p-2 rounded-lg border border-slate-200/20">
-                    <div className="w-5 h-6 bg-slate-200 rounded-t-md rounded-b-sm flex-shrink-0"></div>
-                    <span className="text-slate-300">예매 가능</span>
+                  <div className="flex items-center gap-2 text-xs bg-slate-800/30 p-2 rounded-lg border border-white/5">
+                    <div className="w-5 h-6 bg-white/10 rounded-t-md rounded-b-sm flex-shrink-0"></div>
+                    <span className="text-slate-400">예매 가능</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs bg-indigo-900/40 p-2 rounded-lg border border-indigo-500/30">
                     <div className="w-5 h-6 bg-indigo-900/60 border border-indigo-500/50 rounded-t-md rounded-b-sm flex-shrink-0"></div>

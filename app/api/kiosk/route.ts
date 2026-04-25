@@ -31,6 +31,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'UPDATE_GROUP_POPCORN') {
+      const { reservationId, popcornOrder, paymentStatus } = payload;
+      
+      const { error } = await supabaseAdmin.from('reservations').update({ 
+        popcorn_order: popcornOrder, 
+        payment_status: paymentStatus 
+      }).eq('id', reservationId);
+      
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
     return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });
   } catch (error: any) {
     console.error('Kiosk API Error:', error);
