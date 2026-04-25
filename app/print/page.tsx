@@ -155,6 +155,17 @@ export default function KioskPrintPage() {
     }
   };
 
+  const getPopcornReceiptText = (popcornString: string) => {
+    if (!popcornString || popcornString === 'none') return "❌ 팝콘 배부 대상이 아님\n(무료 관람권 예매자)";
+    
+    const popcornArray = popcornString.split(',');
+    const POPCORN_NAMES: Record<string, string> = { original: '오리지널 버터 팝콘', consomme: '콘소메맛 팝콘', caramel: '카라멜맛 팝콘' };
+    const counts: Record<string, number> = {};
+    
+    popcornArray.forEach((p: string) => { counts[p] = (counts[p] || 0) + 1; });
+    return Object.entries(counts).map(([k, c]) => `[ ${POPCORN_NAMES[k]} ]  x  ${c}개`).join('\n');
+  };
+
   if (!isAdminAuth) {
     // ... (기존 로그인 UI 화면 동일하므로 생략하지 않고 그대로 포함합니다.)
     return (
@@ -255,10 +266,18 @@ export default function KioskPrintPage() {
 
             <div className="border-b-2 border-dashed border-black my-3"></div>
 
+            <div className="text-lg font-black mb-1">🍿 팝콘 수령 정보</div>
+            <div className="text-sm font-bold whitespace-pre-wrap leading-relaxed">
+              {getPopcornReceiptText(ticketData.popcorn_order)}
+            </div>
+
+            <div className="border-b-2 border-dashed border-black my-3"></div>
+
             <div className="text-center font-bold text-sm mb-2 mt-4">대구과학고등학교 영화대교</div>
             <div className="text-[11px] leading-relaxed mb-6 text-left font-bold">
               * 본 티켓은 1인 1매 한정으로 1회만 출력됩니다.<br />
-              * 티켓 분실 시 재발권 및 입장이 불가합니다.<br />
+              * 티켓 분실 시 재발권 및 팝콘 수령이 불가합니다.<br />
+              * 팝콘 배부처에 본 티켓을 반드시 제시해 주세요.<br />
               * 원활한 관람을 위해 시작 전 입장 바랍니다.
             </div>
 

@@ -20,6 +20,8 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const[selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const[isModalOpen, setIsModalOpen] = useState(false);
+  const [popcornList, setPopcornList] = useState<string[]>(['none']); // 🍿 팝콘 선택 리스트 복구
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false); // 💸 송금 모달 복구
   
   const [seatStatuses, setSeatStatuses] = useState<Record<string, SeatData>>({});
   const [blacklistedUsers, setBlacklistedUsers] = useState<string[]>([]);
@@ -38,7 +40,7 @@ export default function Home() {
   
   const[showResetButton, setShowResetButton] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-  const [clickedSeatInfo, setClickedSeatInfo] = useState<{seatId: string, status: string, ticketId: string} | null>(null);
+  const [clickedSeatInfo, setClickedSeatInfo] = useState<{seatId: string, status: string, ticketId: string, popcorn?: string} | null>(null);
 
   const [alertInfo, setAlertInfo] = useState<{message: string, isError: boolean} | null>(null);
   const [confirmInfo, setConfirmInfo] = useState<{message: string, onConfirm: () => void} | null>(null);
@@ -173,11 +175,11 @@ export default function Home() {
         const now = new Date();
         resData.forEach((res) => {
           if (res.payment_status === 'pending' || res.payment_status === 'confirmed') {
-            newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id };
+            newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id, popcorn: res.popcorn_order };
           } else if (res.payment_status === 'group_pending') {
             // 🌟 [단체 예매] 만료 시간이 지나지 않은 경우만 표시 (JIT 필터링)
             if (res.group_expires_at && new Date(res.group_expires_at) > now) {
-              newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id };
+              newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id, popcorn: res.popcorn_order };
             }
           }
         });
@@ -225,7 +227,8 @@ export default function Home() {
       setClickedSeatInfo({
         seatId,
         status: seatStatuses[seatId].status,
-        ticketId: seatStatuses[seatId].ticketId
+        ticketId: seatStatuses[seatId].ticketId,
+        popcorn: seatStatuses[seatId].popcorn
       });
       return;
     }
@@ -235,6 +238,14 @@ export default function Home() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePopcornChange = (index: number, value: string) => {
+    let newList = [...popcornList];
+    newList[index] = value;
+    const filtered = newList.filter(p => p !== 'none');
+    filtered.push('none');
+    setPopcornList(filtered);
   };
 
   const handleRequestReset = async () => {
@@ -304,24 +315,37 @@ export default function Home() {
 
         const baseUrl = window.location.origin;
         const userEmail = cleanStudentId === "교직원" ? USER_EMAILS[formData.name] : USER_EMAILS[cleanStudentId];
+        const finalPopcornString = popcornList.filter(p => p !== 'none').join(',') || 'none';
 
         if (existingTickets && existingTickets.length > 0) {
           const myOldTicket = existingTickets[0];
-          // 💡 이미 위에서 student_auth를 통해 비밀번호 검증이 완료되었으므로 추가 체크를 생략합니다.
           
-          showConfirm(`이미 예약된 좌석(${myOldTicket.seat_number})을 새로운 좌석(${selectedSeat})으로 변경하시겠습니까?`, async () => {
+          // 기존 팝콘 삭제 불가 로직
+          const oldPopcorns = myOldTicket.popcorn_order && myOldTicket.popcorn_order !== 'none' ? myOldTicket.popcorn_order.split(',') : [];
+          const newPopcorns = finalPopcornString !== 'none' ? finalPopcornString.split(',') : [];
+          
+          if (newPopcorns.length < oldPopcorns.length) {
+            return showAlert("🚫 결제 혼선 방지를 위해 기존에 주문한 팝콘 수량을 취소/삭제할 수 없습니다. (맛 변경 및 추가만 가능)");
+          }
+
+          let confirmMsg = `이미 예약된 좌석(${myOldTicket.seat_number})을 새로운 좌석(${selectedSeat})으로 변경하시겠습니까?`;
+          if (myOldTicket.popcorn_order !== finalPopcornString) {
+            confirmMsg = `팝콘 주문 내역이 변경되었습니다.\n(추가 결제/수령 시 현장에서 문의해주세요.)\n\n` + confirmMsg;
+          }
+          
+          showConfirm(confirmMsg, async () => {
             const { data: updatedTicket, error: updateError } = await supabase.from('reservations')
-              .update({ seat_number: selectedSeat })
+              .update({ seat_number: selectedSeat, popcorn_order: finalPopcornString })
               .eq('id', myOldTicket.id)
               .select('id')
               .single();
 
             if (updateError) return showAlert("변경 중 오류 발생 (이미 선점된 좌석일 수 있습니다).");
 
-            await supabase.from('activity_logs').insert([{ student_id: cleanStudentId, student_name: formData.name, description: `좌석 변경 (${myOldTicket.seat_number} ➡️ ${selectedSeat})` }]);
+            await supabase.from('activity_logs').insert([{ student_id: cleanStudentId, student_name: formData.name, description: `좌석 변경 (${myOldTicket.seat_number} ➡️ ${selectedSeat}) 및 팝콘 갱신` }]);
 
             if (userEmail && updatedTicket) {
-              fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: formData.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'changed', popcorn: 'none', ticketId: updatedTicket.id, baseUrl }) });
+              fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: formData.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'changed', popcorn: finalPopcornString, ticketId: updatedTicket.id, baseUrl }) });
             }
             showSuccess("예매 변경 완료!", "✨ 좌석이 성공적으로 변경되었습니다.\n새로운 티켓이 학교 메일로 발송되었습니다.");
             fetchInitialData(); setIsModalOpen(false); setSelectedSeat(null);
@@ -329,9 +353,9 @@ export default function Home() {
           return;
         }
 
-        // 🌟 이제 모든 예매는 무료이므로 무조건 confirmed 처리
+        const finalStatus = finalPopcornString === 'none' ? 'confirmed' : 'pending';
         const { data: newTicket, error: insertError } = await supabase.from('reservations')
-          .insert([{ movie_date: movieInfo.db_date, student_id: cleanStudentId, student_name: formData.name, password: formData.password, seat_number: selectedSeat, popcorn_order: 'none', payment_status: 'confirmed' }])
+          .insert([{ movie_date: movieInfo.db_date, student_id: cleanStudentId, student_name: formData.name, password: formData.password, seat_number: selectedSeat, popcorn_order: finalPopcornString, payment_status: finalStatus }])
           .select('id').single();
 
         if (insertError) {
@@ -339,24 +363,29 @@ export default function Home() {
           fetchInitialData(); return;
         }
 
-        await supabase.from('activity_logs').insert([{ student_id: cleanStudentId, student_name: formData.name, description: `무료 관람 예매 (${selectedSeat})` }]);
+        const logDesc = finalStatus === 'confirmed' ? `무료 예매 (${selectedSeat})` : `팝콘 포함 예매 대기 (${selectedSeat})`;
+        await supabase.from('activity_logs').insert([{ student_id: cleanStudentId, student_name: formData.name, description: logDesc }]);
 
-        setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: 'confirmed', name: formData.name, ticketId: newTicket?.id || '' } }));
+        setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: finalStatus, name: formData.name, ticketId: newTicket?.id || '' } }));
         setIsModalOpen(false); 
 
         if (userEmail && newTicket) {
-          fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: formData.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'confirmed', popcorn: 'none', ticketId: newTicket.id, baseUrl }) });
+          fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: formData.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: finalStatus, popcorn: finalPopcornString, ticketId: newTicket.id, baseUrl }) });
         }
 
-        showSuccess("🎉 예매 성공!", `${formData.name}님 귀중한 예매 감사합니다! 📧\n입력하신 학교 이메일로 VIP 모바일 티켓이 발송되었습니다.`);
-        setSelectedSeat(null);
+        if (finalStatus === 'confirmed') {
+          showSuccess("🎉 예매 성공!", `${formData.name}님 귀중한 예매 감사합니다! 📧\n입력하신 학교 이메일로 VIP 모바일 티켓이 발송되었습니다.`);
+          setSelectedSeat(null);
+        } else {
+          setIsPaymentModalOpen(true);
+        }
         
       } catch (err) {
         showAlert("네트워크 오류가 발생했습니다.");
       }
     };
 
-    showConfirm(`[${selectedSeat}] 좌석 예매를 확정하시겠습니까?\n확정 시 즉시 학교 이메일로 티켓이 발송됩니다.`, processReservation);
+    showConfirm(`[${selectedSeat}] 좌석 예매를 확정하시겠습니까?`, processReservation);
   };
 
   // ===== 🌟 [단체 예매] Handler Functions =====
@@ -747,6 +776,38 @@ export default function Home() {
                   </button>
                 )}
               </div>
+
+              <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                <label className="block text-slate-300 mb-3 text-sm font-bold">🍿 팝콘 선택 (개당 2,500원)</label>
+                
+                {popcornList.map((pop, idx) => (
+                  <div key={idx} className="mb-3 flex items-center gap-2">
+                    <span className="text-slate-400 text-xs w-12 text-center">
+                      {pop === 'none' ? '추가' : `선택 ${idx + 1}`}
+                    </span>
+                    <select 
+                      value={pop} 
+                      onChange={(e) => handlePopcornChange(idx, e.target.value)}
+                      className="flex-1 p-2 rounded-lg bg-slate-900 border border-slate-600 outline-none text-sm text-slate-200"
+                    >
+                      <option value="none">{pop === 'none' ? '+ 팝콘 추가하기 (선택 시 결제 필요)' : '선택 취소'}</option>
+                      <option value="original">오리지널 버터 팝콘 (2,500원)</option>
+                      <option value="consomme">콘소메맛 팝콘 (2,500원)</option>
+                      <option value="caramel">카라멜맛 팝콘 (2,500원)</option>
+                    </select>
+                  </div>
+                ))}
+                
+                <p className="text-xs text-slate-400 mt-2">* 팝콘은 여러 개 추가할 수 있습니다. (음료는 배부하지 않습니다.)</p>
+                
+                {(popcornList.filter(p => p !== 'none').length * 2500) > 0 && (
+                  <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex justify-between items-center">
+                    <span className="text-amber-400 font-bold">총 결제 예정 금액</span>
+                    <span className="text-xl font-bold text-amber-400">{(popcornList.filter(p => p !== 'none').length * 2500).toLocaleString()}원</span>
+                  </div>
+                )}
+              </div>
+
             </div>
             
             <div className="flex gap-3 mt-8">
@@ -754,6 +815,19 @@ export default function Home() {
               <button onClick={handleSubmit} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] text-sm">예매 확정하기</button>
               <button onClick={handleGroupStart} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] text-sm">단체 예매하기</button>
             </div>
+          </div>
+        </div>
+      {isPaymentModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-slate-900/90 backdrop-blur-xl p-8 rounded-2xl max-w-sm border border-amber-500/30 text-center shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+            <h2 className="text-2xl font-bold text-amber-400 mb-2">결제 대기 중</h2>
+            <p className="text-slate-300 mb-6 text-sm">QR코드로 30분 내에 입금을 완료해주세요.</p>
+            <div className="bg-white p-4 rounded-xl mb-6 inline-block"><img src="/qr.jpeg" alt="QR" className="w-48 h-48 object-contain" /></div>
+            <div className="bg-slate-800 rounded-xl p-4 text-left mb-6 border border-slate-700">
+              <p className="text-sm text-slate-300 mb-1">결제 금액: <span className="text-amber-400 font-bold text-xl">{(popcornList.filter(p => p !== 'none').length * 2500).toLocaleString()}원</span></p>
+              <p className="text-sm text-slate-300">입금자명: <span className="text-indigo-400 font-bold">{formData.studentId} {formData.name}</span></p>
+            </div>
+            <button onClick={() => { setIsPaymentModalOpen(false); setSelectedSeat(null); }} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold transition-all text-sm">닫기</button>
           </div>
         </div>
       )}
@@ -917,14 +991,30 @@ export default function Home() {
               좌석 정보 <span className="text-indigo-400">[{clickedSeatInfo.seatId}]</span>
             </h2>
             
-            <div className="mb-6 border border-emerald-500/30 bg-emerald-900/20 p-4 rounded-xl">
-              <p className="text-emerald-400 font-bold">✅ 예매가 확정된 좌석입니다.</p>
-            </div>
+            {clickedSeatInfo.status === 'pending' ? (
+              <div className="mb-6 border border-amber-500/30 bg-amber-900/20 p-4 rounded-xl">
+                <p className="text-amber-400 font-bold mb-4">⏳ 결제 대기 중인 좌석입니다</p>
+                <div className="bg-white p-3 rounded-xl inline-block mb-3 shadow-lg">
+                  <img src="/qr.jpeg" alt="송금 QR" className="w-32 h-32 object-contain" />
+                </div>
+                <p className="text-sm text-amber-300/80 font-bold">입금 후 관리자가 확인 시<br/>예매가 최종 완료됩니다.</p>
+              </div>
+            ) : (
+              <div className="mb-6 border border-emerald-500/30 bg-emerald-900/20 p-4 rounded-xl">
+                <p className="text-emerald-400 font-bold">✅ 예매가 확정된 좌석입니다.</p>
+              </div>
+            )}
 
             <div className="space-y-3">
-              <button onClick={() => window.location.href = `/cancel?ticketId=${clickedSeatInfo.ticketId}`} className="w-full py-3 bg-rose-600/90 hover:bg-rose-500 border border-rose-500 rounded-lg text-white font-bold transition-all shadow-lg hover:shadow-[0_0_15px_rgba(225,29,72,0.4)]">
-                🚨 예매 취소하기
-              </button>
+              {clickedSeatInfo.popcorn && clickedSeatInfo.popcorn !== 'none' && clickedSeatInfo.status === 'confirmed' ? (
+                <button disabled className="w-full py-3 bg-slate-800/80 rounded-lg text-rose-300 font-bold shadow-lg cursor-not-allowed border border-slate-700">
+                  🚫 결제 완료된 팝콘 예매 취소 불가 (자리 변경만 가능)
+                </button>
+              ) : (
+                <button onClick={() => window.location.href = `/cancel?ticketId=${clickedSeatInfo.ticketId}`} className="w-full py-3 bg-rose-600/90 hover:bg-rose-500 border border-rose-500 rounded-lg text-white font-bold transition-all shadow-lg hover:shadow-[0_0_15px_rgba(225,29,72,0.4)]">
+                  🚨 예매 취소하기
+                </button>
+              )}
               <button onClick={() => { setClickedSeatInfo(null); setIsManualOpen(true); }} className="w-full py-3 bg-indigo-600/90 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-lg hover:shadow-[0_0_15px_rgba(79,70,229,0.4)]">
                 🔄 자리 변경 방법 보기
               </button>

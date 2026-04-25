@@ -110,6 +110,14 @@ function CancelForm() {
           좌석: <span className="font-bold text-white">{ticket.seat_number}</span><br/>
           예매자: <span className="font-bold text-white">{ticket.student_id} {ticket.student_name}</span>
         </p>
+
+        {isPaidPopcorn && (
+          <div className="mb-6 bg-yellow-900/30 border border-yellow-600 p-4 rounded-xl text-yellow-500 text-sm font-bold">
+            🚨 결제가 확정된 팝콘 예매가 포함되어 있습니다.<br/>
+            온라인상으로는 예매 내역이 즉시 취소되지만,<br/>
+            <span className="text-yellow-400">환불 금액은 영화 상영 당일 현장에서<br/>학생회 스태프를 찾아와 직접 수령하셔야 합니다.</span>
+          </div>
+        )}
         
         <input
           type="password" maxLength={4} placeholder="비밀번호 4자리"

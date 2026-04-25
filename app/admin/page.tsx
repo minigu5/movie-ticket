@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { USER_EMAILS } from '../../lib/emails';
-import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
+import Link from 'next/link';
 
 import { STUDENT_LIST, CLUB_MEMBERS } from '../../lib/constants';
+
+const POPCORN_NAMES: Record<string, string> = { "original": "오리지널", "consomme": "콘소메", "caramel": "카라멜" };
 
 export default function AdminPage() {
   const [password, setPassword] = useState('');
@@ -34,6 +36,21 @@ export default function AdminPage() {
   const [baseUrl, setBaseUrl] = useState('');
   useEffect(() => setBaseUrl(window.location.origin), []);
   const [skipAuth, setSkipAuth] = useState(false);
+
+  // 🌟 (신규) 팝콘 통계 계산을 위한 함수
+  const popcornStats = useMemo(() => {
+    let original = 0; let consomme = 0; let caramel = 0; let none = 0; let cash = 0;
+    reservations.filter(r => r.payment_status === 'confirmed').forEach(r => {
+      if (!r.popcorn_order || r.popcorn_order === 'none') { none++; return; }
+      r.popcorn_order.split(',').forEach((p: string) => {
+        if (p === 'original') original++;
+        else if (p === 'consomme') consomme++;
+        else if (p === 'caramel') caramel++;
+        cash += 2500;
+      });
+    });
+    return { original, consomme, caramel, none, cash };
+  }, [reservations]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('skip_auth') === 'true') {
@@ -446,6 +463,18 @@ export default function AdminPage() {
         </div>
       </div>
       
+      {/* 🌟 [추가됨] 관리자 팝콘 통계 대시보드 */}
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-yellow-600 mb-8 max-w-4xl mx-auto text-center">
+        <h2 className="text-xl font-bold text-yellow-500 mb-4 tracking-widest text-left">📊 예매 및 팝콘 현황 요약 (확정 기준)</h2>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="bg-gray-700/50 p-4 rounded-lg border border-gray-600"><span className="block text-gray-400 text-sm font-bold mb-1">총 확정 예매</span><span className="text-2xl font-black text-white">{reservations.filter(r => r.payment_status === 'confirmed').length}명</span></div>
+          <div className="bg-yellow-900/30 p-4 rounded-lg border border-yellow-600"><span className="block text-yellow-400 text-sm font-bold mb-1">🍿 오리지널</span><span className="text-2xl font-black text-yellow-400">{popcornStats.original}개</span></div>
+          <div className="bg-orange-900/30 p-4 rounded-lg border border-orange-600"><span className="block text-orange-400 text-sm font-bold mb-1">🧀 콘소메</span><span className="text-2xl font-black text-orange-400">{popcornStats.consomme}개</span></div>
+          <div className="bg-amber-900/30 p-4 rounded-lg border border-amber-600"><span className="block text-amber-500 text-sm font-bold mb-1">🍯 카라멜</span><span className="text-2xl font-black text-amber-500">{popcornStats.caramel}개</span></div>
+          <div className="bg-green-900/30 p-4 rounded-lg border border-green-600 col-span-2 md:col-span-1"><span className="block text-green-400 text-sm font-bold mb-1">💸 현금 매출금액</span><span className="text-xl md:text-2xl font-black text-green-400">{popcornStats.cash.toLocaleString()}원</span></div>
+        </div>
+      </div>
+
       {showLogs && (
         <div className="bg-gray-900 border border-gray-700 p-6 rounded-xl shadow-2xl mb-8 max-h-[500px] overflow-y-auto">
           <h2 className="text-xl font-bold text-blue-400 mb-4 sticky top-0 bg-gray-900 py-2 border-b border-gray-800">
@@ -566,13 +595,26 @@ export default function AdminPage() {
               <th className="p-4">상태</th>
               <th className="p-4">좌석</th>
               <th className="p-4">학번/이름</th>
+              <th className="p-4">결제/팝콘</th>
               <th className="p-4 text-center">발권 여부</th>
               <th className="p-4 text-right">관리 작업</th>
             </tr>
           </thead>
           <tbody>
-            {reservations.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-gray-500">예매 내역이 없습니다.</td></tr>}
-            {reservations.map((ticket) => (
+            {reservations.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-gray-500">예매 내역이 없습니다.</td></tr>}
+            {reservations.map((ticket) => {
+              
+              // 🌟 현재 티켓의 팝콘 데이터 분석
+              const popcornArray = ticket.popcorn_order && ticket.popcorn_order !== 'none' ? ticket.popcorn_order.split(',') :[];
+              const totalPrice = popcornArray.length * 2500;
+              
+              const counts: Record<string, number> = {};
+              popcornArray.forEach((p: string) => { counts[p] = (counts[p] || 0) + 1; });
+              const popcornSummary = popcornArray.length > 0 
+                ? Object.entries(counts).map(([k, c]) => `${POPCORN_NAMES[k]} ${c}개`).join(', ') 
+                : '무료 관람';
+
+              return (
               <tr key={ticket.id} className="border-b border-gray-700 hover:bg-gray-750">
                 <td className="p-4">
                   {ticket.payment_status === 'group_pending' ? (
@@ -585,6 +627,18 @@ export default function AdminPage() {
                 <td className="p-4 font-bold text-lg">{ticket.seat_number}</td>
                 <td className="p-4">{ticket.student_id} <span className="text-blue-300 font-bold">{ticket.student_name}</span></td>
                 
+                {/* 🌟 팝콘 결제 내역 및 뱃지 표시란 */}
+                <td className="p-4">
+                  {popcornArray.length > 0 ? (
+                    <div className="flex flex-col">
+                      <span className="text-yellow-400 font-bold text-sm tracking-widest">{totalPrice.toLocaleString()}원</span>
+                      <span className="text-gray-400 text-xs mt-1">🍿 {popcornSummary}</span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-500 text-sm">무료 관람 (0원)</span>
+                  )}
+                </td>
+
                 {/* 🌟 [추가됨] 발권 상태 표시 UI */}
                 <td className="p-4 text-center">
                   {ticket.is_printed ? (
@@ -596,6 +650,11 @@ export default function AdminPage() {
 
                 <td className="p-4 text-right flex justify-end gap-2">
                   {/* 🌟 [추가됨] 발권된 티켓만 '초기화' 버튼이 나타남 */}
+                  {ticket.payment_status === 'pending' && (
+                    <button onClick={() => handleApprove(ticket)} className="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded font-bold shadow-md transition-colors">
+                      ✅ 승인
+                    </button>
+                  )}
                   {ticket.is_printed && (
                     <button onClick={() => handleResetPrint(ticket)} className="bg-yellow-600 hover:bg-yellow-500 text-black px-3 py-1 rounded font-bold shadow-md transition-colors">
                       🔄 발권 초기화
@@ -606,7 +665,7 @@ export default function AdminPage() {
                   </button>
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>
