@@ -12,6 +12,7 @@ interface SeatData {
   status: string;
   name: string;
   ticketId: string;
+  popcorn?: string;
 }
 
 
@@ -167,7 +168,7 @@ export default function Home() {
       }
 
       const { data: resData } = await supabase.from('reservations')
-        .select('id, seat_number, payment_status, student_name, student_id, group_expires_at')
+        .select('id, seat_number, payment_status, student_name, student_id, group_expires_at, popcorn_order')
         .eq('movie_date', currentDbDate);
         
       if (resData) {
@@ -817,6 +818,7 @@ export default function Home() {
             </div>
           </div>
         </div>
+      )}
       {isPaymentModalOpen && (
         <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-[60]">
           <div className="bg-slate-900/90 backdrop-blur-xl p-8 rounded-2xl max-w-sm border border-amber-500/30 text-center shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
