@@ -208,9 +208,7 @@ export default function Home() {
       if (groupLeader?.seat === seatId) return;
       const existingMember = groupMembers.find(m => m.seat === seatId);
       if (existingMember) {
-        showConfirm(`${existingMember.name}님을 단체에서 제거하시겠습니까?`, () => {
-          setGroupMembers(prev => prev.filter(m => m.seat !== seatId));
-        });
+        setGroupMembers(prev => prev.filter(m => m.seat !== seatId));
         return;
       }
       if (groupMembers.length >= 9) return showAlert("단체 예매는 리더를 포함하여 최대 10명까지 가능합니다.");
@@ -694,7 +692,7 @@ export default function Home() {
                             : isConfirmed ? 'bg-slate-800/80 text-slate-500 cursor-not-allowed opacity-80' 
                             : isSelected ? 'bg-amber-500 text-slate-900 shadow-[0_0_15px_rgba(245,158,11,0.6)] transform -translate-y-1 z-10 font-black' 
                             : isVipSeat ? 'bg-indigo-900/60 text-indigo-300 hover:bg-indigo-600/80'
-                            : 'bg-sky-200 text-sky-900 hover:bg-sky-300 font-extrabold shadow-[inset_0_1px_3px_rgba(255,255,255,0.4)]'}
+                            : 'bg-slate-200 text-slate-800 hover:bg-slate-300 font-extrabold shadow-[inset_0_1px_3px_rgba(255,255,255,0.4)]'}
                         `}
                       >
                         {displayText}
@@ -710,7 +708,7 @@ export default function Home() {
       </div>
 
       <div className="mt-4 flex flex-wrap justify-center gap-6 text-sm text-slate-400">
-        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-sky-200 border border-sky-300 rounded-sm"></div>예매 가능</div>
+        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-200 border border-slate-300 rounded-sm"></div>예매 가능</div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 border border-indigo-500/50 bg-indigo-900/60 rounded-sm"></div>동아리 전용</div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-800/80 border border-white/5 rounded-sm"></div>예매 완료</div>
         {(isGroupMode || Object.values(seatStatuses).some(s => s.status === 'group_pending')) && (
@@ -737,8 +735,9 @@ export default function Home() {
             {groupMembers.length > 0 && (
               <div className="flex flex-wrap gap-2 justify-center">
                 {groupMembers.map(m => (
-                  <span key={m.seat} className="bg-sky-600/20 text-sky-300 px-3 py-1 rounded-full text-sm border border-sky-500/30">
+                  <span key={m.seat} className="bg-sky-600/20 text-sky-300 pl-3 pr-2 py-1 rounded-full text-sm border border-sky-500/30 flex items-center gap-1 transition-all">
                     {m.name} ({m.seat})
+                    <button onClick={() => setGroupMembers(prev => prev.filter(member => member.seat !== m.seat))} className="ml-1 text-sky-400 hover:text-rose-400 font-bold transition-colors w-5 h-5 flex items-center justify-center rounded-full hover:bg-rose-500/20">×</button>
                   </span>
                 ))}
               </div>
@@ -878,24 +877,40 @@ export default function Home() {
               <div>
                 <h3 className="font-bold text-white text-lg mb-1">3. 좌석 범례 안내</h3>
                 <div className="grid grid-cols-2 gap-2 mt-2">
-                  <div className="flex items-center gap-2 text-xs bg-slate-800/30 p-2 rounded-lg border border-white/5">
-                    <div className="w-3 h-3 border border-white/30 rounded-full"></div>
-                    <span className="text-slate-400">예매 가능</span>
+                  <div className="flex items-center gap-2 text-xs bg-slate-200/10 p-2 rounded-lg border border-slate-200/20">
+                    <div className="w-5 h-6 bg-slate-200 rounded-t-md rounded-b-sm flex-shrink-0"></div>
+                    <span className="text-slate-300">예매 가능</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs bg-indigo-900/40 p-2 rounded-lg border border-indigo-500/30">
-                    <div className="w-3 h-3 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.6)]"></div>
+                    <div className="w-5 h-6 bg-indigo-900/60 border border-indigo-500/50 rounded-t-md rounded-b-sm flex-shrink-0"></div>
                     <span className="text-indigo-300">동아리 전용</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs bg-slate-800 p-2 rounded-lg border border-slate-700">
-                    <div className="w-3 h-3 bg-slate-600 rounded-full"></div>
+                    <div className="w-5 h-6 bg-slate-800/80 rounded-t-md rounded-b-sm flex-shrink-0"></div>
                     <span className="text-slate-500">예매 완료</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs bg-yellow-600/10 p-2 rounded-lg border border-yellow-600/40">
+                    <div className="w-5 h-6 bg-yellow-600/20 border border-yellow-600 rounded-t-md rounded-b-sm animate-pulse flex-shrink-0"></div>
+                    <span className="text-yellow-400">팝콘 결제 대기</span>
                   </div>
                 </div>
               </div>
 
+              {/* 🌟 [신규 추가] 팝콘 선택 안내 */}
+              <div>
+                <h3 className="font-bold text-amber-400 text-lg mb-1">4. 팝콘 선택 안내 🍿</h3>
+                <p className="text-slate-300">예매 시 팝콘을 선택하면 현장에서 수령할 수 있습니다.</p>
+                <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-slate-400 ml-2 leading-relaxed">
+                  <li>팝콘 1개당 <span className="text-amber-400 font-bold">2,500원</span> (현장 결제)</li>
+                  <li>종류: 오리지널 버터, 콘소메맛, 카라멜맛</li>
+                  <li>팝콘 선택 시 좌석은 <span className="text-yellow-400 font-bold">결제 대기(노란색)</span>로 표시</li>
+                  <li>결제 확인 후 관리자가 <span className="text-white font-bold">예매 확정</span>으로 변경</li>
+                </ul>
+              </div>
+
               {/* 🌟 [신규 추가] 단체 예매 안내 */}
               <div>
-                <h3 className="font-bold text-emerald-400 text-lg mb-1">4. 단체 예매 안내 (최대 10명)</h3>
+                <h3 className="font-bold text-emerald-400 text-lg mb-1">5. 단체 예매 안내 (최대 10명)</h3>
                 <p className="text-slate-300">리더는 본인을 포함해 <span className="text-white font-bold">최대 10명</span>까지 한 번에 예매할 수 있습니다.</p>
                 <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-slate-400 ml-2 leading-relaxed">
                   <li>리더가 멤버들의 좌석을 지정하여 예매</li>
@@ -906,7 +921,7 @@ export default function Home() {
               </div>
 
               <div>
-                <h3 className="font-bold text-white text-lg mb-1">5. 비밀번호를 잊으셨을 경우</h3>
+                <h3 className="font-bold text-white text-lg mb-1">6. 비밀번호를 잊으셨을 경우</h3>
                 <p>예매창 하단의 <span className="text-rose-400 font-bold">비밀번호 찾기</span>를 누르면 학교 이메일로 비밀번호 재설정 링크가 즉시 전송됩니다.</p>
               </div>
             </div>
@@ -955,12 +970,17 @@ export default function Home() {
                 </div>
               </div>
               {groupMembers.map((m, i) => (
-                <div key={m.seat} className="bg-sky-900/20 border border-sky-500/20 p-4 rounded-xl flex items-center gap-3">
-                  <span className="text-sky-400 font-bold text-lg">{i + 1}</span>
-                  <div>
-                    <p className="text-sky-300 font-bold">{m.name}</p>
-                    <p className="text-slate-400 text-sm">좌석: {m.seat} · {m.studentId}</p>
+                <div key={m.seat} className="bg-sky-900/20 border border-sky-500/20 p-4 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sky-400 font-bold text-lg">{i + 1}</span>
+                    <div>
+                      <p className="text-sky-300 font-bold">{m.name}</p>
+                      <p className="text-slate-400 text-sm">좌석: {m.seat} · {m.studentId}</p>
+                    </div>
                   </div>
+                  <button onClick={() => setGroupMembers(prev => prev.filter(member => member.seat !== m.seat))} className="w-8 h-8 flex items-center justify-center rounded-full bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-colors" title="멤버 제거">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
                 </div>
               ))}
             </div>
