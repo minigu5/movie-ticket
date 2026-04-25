@@ -664,7 +664,8 @@ export default function Home() {
                   const seatData = seatStatuses[seatId];
                   const isConfirmed = seatData?.status === 'confirmed';
                   const isGroupPending = seatData?.status === 'group_pending';
-                  const isReserved = isConfirmed || isGroupPending;
+                  const isPending = seatData?.status === 'pending';
+                  const isReserved = isConfirmed || isGroupPending || isPending;
                   
                   const isVipSeat = vipSeats.has(seatId);
 
@@ -689,10 +690,11 @@ export default function Home() {
                           ${isGroupLeaderSeat ? 'bg-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] transform -translate-y-1 z-10 font-black ring-2 ring-emerald-400'
                             : isGroupMemberSeat ? 'bg-sky-600 text-white shadow-[0_0_10px_rgba(14,165,233,0.4)] transform -translate-y-0.5 z-10 font-bold ring-1 ring-sky-400'
                             : isGroupPending ? 'bg-teal-900/40 text-teal-300 cursor-not-allowed opacity-70'
+                            : isPending ? 'bg-yellow-600/20 border-yellow-600 text-yellow-500 cursor-not-allowed animate-pulse ring-1 ring-yellow-500'
                             : isConfirmed ? 'bg-slate-800/80 text-slate-500 cursor-not-allowed opacity-80' 
                             : isSelected ? 'bg-amber-500 text-slate-900 shadow-[0_0_15px_rgba(245,158,11,0.6)] transform -translate-y-1 z-10 font-black' 
                             : isVipSeat ? 'bg-indigo-900/60 text-indigo-300 hover:bg-indigo-600/80'
-                            : 'bg-white/10 hover:bg-white/20 text-slate-300'}
+                            : 'bg-sky-200 text-sky-900 hover:bg-sky-300 font-extrabold shadow-[inset_0_1px_3px_rgba(255,255,255,0.4)]'}
                         `}
                       >
                         {displayText}
@@ -708,11 +710,14 @@ export default function Home() {
       </div>
 
       <div className="mt-4 flex flex-wrap justify-center gap-6 text-sm text-slate-400">
-        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-white/10 border border-white/5 rounded-sm"></div>예매 가능</div>
+        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-sky-200 border border-sky-300 rounded-sm"></div>예매 가능</div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 border border-indigo-500/50 bg-indigo-900/60 rounded-sm"></div>동아리 전용</div>
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-800/80 border border-white/5 rounded-sm"></div>예매 완료</div>
         {(isGroupMode || Object.values(seatStatuses).some(s => s.status === 'group_pending')) && (
           <div className="flex items-center gap-2"><div className="w-4 h-4 bg-teal-900/40 border border-teal-500/50 rounded-sm"></div>단체 대기 중</div>
+        )}
+        {Object.values(seatStatuses).some(s => s.status === 'pending') && (
+          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-yellow-600/20 border border-yellow-600 rounded-sm animate-pulse"></div>결제 대기 중</div>
         )}
         {isGroupMode && (
           <>
