@@ -61,6 +61,12 @@ export async function POST(req: Request) {
                   오리지널 버터, 콘소메, 카라멜 등 다양한 팝콘 옵션이 이번 달에도 찾아왔습니다. 영화 관람의 즐거움을 더해줄 팝콘을 원하신다면, 예매 시 잊지 말고 미리 선택해 주세요!
                 </p>
 
+                ${movieInfo.poster_url ? `
+                <div style="text-align: center; margin-bottom: 25px;">
+                  <img src="${movieInfo.poster_url}" alt="${movieInfo.title} 포스터" style="max-width: 100%; width: 280px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #1e293b;" />
+                </div>
+                ` : ''}
+
                 <div style="background-color: #020617; border-left: 3px solid #d97706; padding: 15px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
                   <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 8px 0;"><strong>🎬 영화:</strong> ${movieInfo.title}</p>
                   <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 8px 0;"><strong>📍 장소:</strong> ${movieInfo.venue}</p>
