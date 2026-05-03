@@ -1,140 +1,168 @@
-import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import type { AdminAction } from "@/lib/api-types";
 
-export const runtime = 'edge';
+function unauthorized() {
+  return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+}
 
 export async function POST(req: Request) {
+  let body: AdminAction;
   try {
-    const { action, adminPassword, payload } = await req.json();
+    body = (await req.json()) as AdminAction;
+  } catch {
+    return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
+  }
 
-    // 1. 관리자 비밀번호 검증 (환경 변수 기준)
-    if (adminPassword !== process.env.ADMIN_PASSWORD) {
-      return NextResponse.json({ success: false, error: 'Unauthorized: Invalid admin password' }, { status: 401 });
-    }
+  const expected = (process.env.ADMIN_PASSWORD ?? "").trim();
+  if (!expected || body.adminPassword !== expected) return unauthorized();
 
-    switch (action) {
-      case 'LOGIN': {
+  try {
+    switch (body.action) {
+      case "LOGIN":
         return NextResponse.json({ success: true });
-      }
 
-      case 'FETCH_INITIAL_DATA': {
-        const { data: movieData, error: e1 } = await supabaseAdmin.from('movie_settings').select('*').eq('id', 1).single();
-        if (e1) throw e1;
-        
-        const [resQ, blQ, logQ] = await Promise.all([
-          supabaseAdmin.from('reservations').select('*').eq('movie_date', movieData?.db_date).order('created_at', { ascending: false }),
-          supabaseAdmin.from('blacklist').select('*').order('created_at', { ascending: false }),
-          supabaseAdmin.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(100)
+      case "FETCH_INITIAL_DATA": {
+        const [movie, blacklist, logs] = await Promise.all([
+          supabaseAdmin.from("movie_settings").select("*").eq("id", 1).single(),
+          supabaseAdmin.from("blacklist").select("*").order("created_at", { ascending: false }),
+          supabaseAdmin
+            .from("activity_logs")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .limit(100),
         ]);
-
-        if (resQ.error) throw resQ.error;
-        if (blQ.error) throw blQ.error;
-        if (logQ.error) throw logQ.error;
-
-        return NextResponse.json({ 
-          success: true, 
-          data: { movieData, resData: resQ.data, blData: blQ.data, logData: logQ.data } 
+        const dbDate = movie.data?.db_date;
+        const reservations = dbDate
+          ? await supabaseAdmin
+              .from("reservations")
+              .select("*")
+              .eq("movie_date", dbDate)
+              .order("created_at", { ascending: false })
+          : { data: [] as never[] };
+        return NextResponse.json({
+          success: true,
+          data: {
+            movieData: movie.data,
+            resData: reservations.data,
+            blData: blacklist.data,
+            logData: logs.data,
+          },
         });
       }
 
-      case 'UPDATE_SETTINGS': {
-        const { error } = await supabaseAdmin.from('movie_settings').update(payload).eq('id', 1);
+      case "UPDATE_SETTINGS": {
+        const { error } = await supabaseAdmin
+          .from("movie_settings")
+          .update(body.payload)
+          .eq("id", 1);
         if (error) throw error;
         return NextResponse.json({ success: true });
       }
 
-      case 'CLEAR_RESERVATIONS': {
-        const { movieDate } = payload;
-        const { error } = await supabaseAdmin.from('reservations').delete().eq('movie_date', movieDate);
+      case "CLEAR_RESERVATIONS": {
+        const { error } = await supabaseAdmin
+          .from("reservations")
+          .delete()
+          .eq("movie_date", body.payload.movieDate);
         if (error) throw error;
         return NextResponse.json({ success: true });
       }
 
-      case 'APPROVE_RESERVATION': {
-        const { id, studentId, studentName, seatNumber } = payload;
-        const { error: updateError } = await supabaseAdmin.from('reservations').update({ payment_status: 'confirmed' }).eq('id', id);
-        if (updateError) throw updateError;
-        
-        await supabaseAdmin.from('activity_logs').insert([{ 
-          student_id: studentId, student_name: studentName, 
-          description: `관리자 승인 (${seatNumber})` 
-        }]);
-        
-        return NextResponse.json({ success: true });
-      }
-
-      case 'CANCEL_RESERVATION': {
-        const { id, studentId, studentName, seatNumber, description } = payload;
-        const { error: deleteError } = await supabaseAdmin.from('reservations').delete().eq('id', id);
-        if (deleteError) throw deleteError;
-        
-        await supabaseAdmin.from('activity_logs').insert([{ 
-          student_id: studentId, student_name: studentName, 
-          description: description || `관리자 강제 취소 (${seatNumber})` 
-        }]);
-        
-        return NextResponse.json({ success: true });
-      }
-
-      case 'RESET_PRINT': {
-        const { id, studentId, studentName, seatNumber } = payload;
-        const { error } = await supabaseAdmin.from('reservations').update({ is_printed: false }).eq('id', id);
+      case "APPROVE_RESERVATION": {
+        const { id, studentId, studentName, seatNumber } = body.payload;
+        const { error } = await supabaseAdmin
+          .from("reservations")
+          .update({ payment_status: "confirmed" })
+          .eq("id", id);
         if (error) throw error;
-        
-        await supabaseAdmin.from('activity_logs').insert([{ 
-          student_id: studentId, student_name: studentName, 
-          description: `관리자 티켓 발권 상태 초기화 (${seatNumber})` 
-        }]);
-        
+        await supabaseAdmin
+          .from("activity_logs")
+          .insert([{ student_id: studentId, student_name: studentName, description: `관리자 승인 (${seatNumber})` }]);
         return NextResponse.json({ success: true });
       }
 
-      case 'ADD_BLACKLIST': {
-        const { studentId, studentName, movieDate } = payload;
-        
-        // 1. 블랙리스트 추가
-        const { error: blError } = await supabaseAdmin.from('blacklist').insert([{ student_id: studentId, student_name: studentName }]);
-        if (blError) throw blError;
+      case "CANCEL_RESERVATION": {
+        const { id, studentId, studentName, seatNumber, description } = body.payload;
+        const { error } = await supabaseAdmin.from("reservations").delete().eq("id", id);
+        if (error) throw error;
+        await supabaseAdmin.from("activity_logs").insert([
+          {
+            student_id: studentId,
+            student_name: studentName,
+            description: description ?? `관리자 강제 취소 (${seatNumber})`,
+          },
+        ]);
+        return NextResponse.json({ success: true });
+      }
 
-        // 2. 해당 학생의 기존 예매 내역 조회 (Service Role 활용)
-        const { data: existingTickets } = await supabaseAdmin.from('reservations')
-          .select('*')
-          .eq('student_id', studentId)
-          .eq('movie_date', movieDate);
+      case "RESET_PRINT": {
+        const { id, studentId, studentName, seatNumber } = body.payload;
+        const { error } = await supabaseAdmin
+          .from("reservations")
+          .update({ is_printed: false })
+          .eq("id", id);
+        if (error) throw error;
+        await supabaseAdmin.from("activity_logs").insert([
+          { student_id: studentId, student_name: studentName, description: `관리자 티켓 발권 상태 초기화 (${seatNumber})` },
+        ]);
+        return NextResponse.json({ success: true });
+      }
 
-        let canceledTicket = null;
-        if (existingTickets && existingTickets.length > 0) {
-          canceledTicket = existingTickets[0];
-          // 예매 취소 처리
-          await supabaseAdmin.from('reservations').delete().eq('id', canceledTicket.id);
-          // 로그 기록
-          await supabaseAdmin.from('activity_logs').insert([{ 
-            student_id: studentId, student_name: studentName, 
-            description: `블랙리스트 등록 및 예매 자동 취소 (${canceledTicket.seat_number})` 
-          }]);
+      case "ADD_BLACKLIST": {
+        const { studentId, studentName, movieDate } = body.payload;
+        const { error: insErr } = await supabaseAdmin
+          .from("blacklist")
+          .insert([{ student_id: studentId, student_name: studentName }]);
+        if (insErr) throw insErr;
+        const { data: existing } = await supabaseAdmin
+          .from("reservations")
+          .select("*")
+          .eq("movie_date", movieDate)
+          .eq("student_id", studentId)
+          .maybeSingle();
+        let canceledTicket: unknown = null;
+        if (existing) {
+          await supabaseAdmin.from("reservations").delete().eq("id", existing.id);
+          await supabaseAdmin.from("activity_logs").insert([
+            {
+              student_id: studentId,
+              student_name: studentName,
+              description: `블랙리스트 등록 및 예매 자동 취소 (${existing.seat_number})`,
+            },
+          ]);
+          canceledTicket = existing;
+        } else {
+          await supabaseAdmin.from("activity_logs").insert([
+            { student_id: studentId, student_name: studentName, description: "블랙리스트 등록" },
+          ]);
         }
-
         return NextResponse.json({ success: true, canceledTicket });
       }
 
-      case 'REMOVE_BLACKLIST': {
-        const { studentId } = payload;
-        const { error } = await supabaseAdmin.from('blacklist').delete().eq('student_id', studentId);
+      case "REMOVE_BLACKLIST": {
+        const { error } = await supabaseAdmin
+          .from("blacklist")
+          .delete()
+          .eq("student_id", body.payload.studentId);
         if (error) throw error;
+        await supabaseAdmin.from("activity_logs").insert([
+          { student_id: body.payload.studentId, student_name: "-", description: "블랙리스트 해제" },
+        ]);
         return NextResponse.json({ success: true });
       }
 
-      case 'LOG_ACTION': {
-        const { studentId, studentName, description } = payload;
-        await supabaseAdmin.from('activity_logs').insert([{ student_id: studentId, student_name: studentName, description }]);
+      case "LOG_ACTION": {
+        await supabaseAdmin.from("activity_logs").insert([body.payload]);
         return NextResponse.json({ success: true });
       }
 
       default:
-        return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });
+        return NextResponse.json({ success: false, error: "Unknown action" }, { status: 400 });
     }
-  } catch (error: any) {
-    console.error('Admin API Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (err) {
+    console.error("admin action error", err);
+    const msg = err instanceof Error ? err.message : "Server Error";
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
