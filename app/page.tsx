@@ -36,7 +36,6 @@ import {
   ArrowRightIcon,
   CinemaIcon,
   CrownIcon,
-  HomeIcon,
   PrinterIcon,
   SettingsIcon,
   SparkleIcon,

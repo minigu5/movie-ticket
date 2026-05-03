@@ -18,7 +18,6 @@ const geistMono = Geist_Mono({
 
 const songMyung = Song_Myung({
   variable: "--font-song-myung",
-  subsets: ["latin"],
   weight: "400",
   display: "swap",
 });

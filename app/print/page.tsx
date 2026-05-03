@@ -1,344 +1,326 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { USER_EMAILS } from '@/lib/emails';
-import Link from 'next/link';
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { STAFF_LIST, STUDENT_LIST } from "@/lib/constants";
+import type { MovieSettings, Reservation, VerifyPasswordResult } from "@/lib/db-types";
+import { POPCORN_LABELS, type PopcornFlavor } from "@/lib/db-types";
+import { popcornBreakdown } from "@/lib/format";
+import { validateIdentity, validatePin } from "@/lib/validation";
+import { useToast } from "@/hooks/useToast";
 
-// (STUDENT_LIST, STAFF_LIST 명단은 기존 그대로 유지)
+import { Wordmark } from "@/components/domain/Wordmark";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Spinner } from "@/components/ui/Spinner";
+import { LockIcon, PrinterIcon } from "@/components/icons";
 
-import { STUDENT_LIST, STAFF_LIST } from '../../lib/constants';
+const KIOSK_PASSWORD = "영화대교최고";
 
+const CODE39_MAP: Record<string, string> = {
+  "0": "nnnwwnwnn", "1": "wnnwnnnnw", "2": "nnwwnnnnw", "3": "wnwwnnnnn",
+  "4": "nnnwwnnnw", "5": "wnnwwnnnn", "6": "nnwwwnnnn", "7": "nnnwnnwnw",
+  "8": "wnnwnnwnn", "9": "nnwwnnwnn", A: "wnnnnwnnw", B: "nnwnnwnnw",
+  C: "wnwnnwnnn", D: "nnnnwwnnw", E: "wnnnwwnnn", F: "nnwnwwnnn",
+  G: "nnnnnwwnw", H: "wnnnnwwnn", I: "nnwnnwwnn", J: "nnnnwwwnn",
+  "*": "nnwnwnwnn",
+};
 
-export default function KioskPrintPage() {
-  const [isAdminAuth, setIsAdminAuth] = useState(false);
-  const [adminPasswordInput, setAdminPasswordInput] = useState('');
-
-  const [formData, setFormData] = useState({ studentId: '', name: '', password: '' });
-  const [movieInfo, setMovieInfo] = useState<any>(null);
-
-  const [ticketData, setTicketData] = useState<any>(null);
+export default function PrintPage() {
+  const toast = useToast();
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [adminInput, setAdminInput] = useState("");
+  const [movie, setMovie] = useState<MovieSettings | null>(null);
+  const [form, setForm] = useState({ studentId: "", name: "", password: "" });
+  const [ticket, setTicket] = useState<Reservation | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
-
   const [showResetButton, setShowResetButton] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && localStorage.getItem('skip_auth') === 'true') {
-      setIsAdminAuth(true);
+    if (typeof window !== "undefined" && localStorage.getItem("skip_auth") === "true") {
+      setAdminUnlocked(true);
     }
+    void (async () => {
+      const { data } = await supabase
+        .from("movie_settings")
+        .select("*")
+        .eq("id", 1)
+        .single<MovieSettings>();
+      setMovie(data ?? null);
+    })();
   }, []);
 
   useEffect(() => {
-    const fetchMovie = async () => {
-      // 🌟 [수정됨] DB에서 age_rating(관람가)도 함께 불러옵니다.
-      const { data } = await supabase.from('movie_settings').select('title, date_string, db_date, venue, age_rating').eq('id', 1).single();
-      if (data) setMovieInfo(data);
+    if (!ticket) return;
+    const t = setTimeout(() => window.print(), 500);
+    const onAfter = () => {
+      setTicket(null);
+      setForm({ studentId: "", name: "", password: "" });
     };
-    fetchMovie();
-  }, []);
-
-  useEffect(() => {
-    if (ticketData) {
-      const timer = setTimeout(() => {
-        window.print();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [ticketData]);
-
-  useEffect(() => {
-    const handleAfterPrint = () => {
-      setTicketData(null);
-      setFormData({ studentId: '', name: '', password: '' });
+    window.addEventListener("afterprint", onAfter);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("afterprint", onAfter);
     };
-    window.addEventListener('afterprint', handleAfterPrint);
-    return () => window.removeEventListener('afterprint', handleAfterPrint);
-  }, []);
+  }, [ticket]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
+  function unlock() {
+    if (adminInput === KIOSK_PASSWORD) setAdminUnlocked(true);
+    else toast.error("관리자 비밀번호가 틀렸습니다.");
+  }
 
-  const handleAdminLogin = () => {
-    if (adminPasswordInput === "영화대교최고") {
-      setIsAdminAuth(true);
-    } else {
-      alert("관리자 비밀번호가 틀렸습니다.");
-      setAdminPasswordInput('');
-    }
-  };
-
-  const handleRequestReset = async () => {
-    const cleanId = formData.studentId.replace(/['"]/g, '').trim();
+  async function requestReset() {
     setIsResetting(true);
     try {
-      const res = await fetch('/api/auth/request-reset', {
-        method: 'POST',
-        body: JSON.stringify({ studentId: cleanId, studentName: formData.name, baseUrl: window.location.origin, returnUrl: '/print' })
+      const id = form.studentId.replace(/['"]/g, "").trim();
+      const res = await fetch("/api/auth/request-reset", {
+        method: "POST",
+        body: JSON.stringify({
+          studentId: id,
+          studentName: form.name,
+          baseUrl: window.location.origin,
+          returnUrl: "/print",
+        }),
       });
-      if (res.ok) {
-        alert("학교 이메일로 비밀번호 재설정 링크가 발송되었습니다. 폰에서 확인해주세요!");
-        setShowResetButton(false);
-      } else {
-        alert("이메일 발송에 실패했습니다.");
-      }
+      if (res.ok) toast.notify("학교 이메일로 비밀번호 재설정 링크가 발송되었습니다.", "success");
+      else toast.error("발송에 실패했습니다.");
     } finally {
       setIsResetting(false);
     }
-  };
+  }
 
-  const handlePrintSubmit = async () => {
-    if (!formData.studentId || !formData.name || !formData.password) return alert("정보를 모두 입력해주세요.");
-    const cleanId = formData.studentId.replace(/['"]/g, '').trim();
-
-    if (cleanId === "교직원") {
-      if (!STAFF_LIST.includes(formData.name)) return alert("등록된 교직원 이름이 아닙니다.");
-    } else {
-      if (cleanId.length !== 4) return alert("학번은 4자리 숫자로 입력해주세요.");
-      if (STUDENT_LIST[cleanId] !== formData.name) return alert("학번과 이름이 일치하지 않습니다.");
+  async function submit() {
+    if (!movie) return;
+    if (!form.studentId || !form.name || !form.password) {
+      toast.error("정보를 모두 입력해주세요.");
+      return;
     }
-
-    if (isPrinting) return;
+    if (!validatePin(form.password)) {
+      toast.error("비밀번호는 4자리 숫자만 입력해주세요.");
+      return;
+    }
+    const id = validateIdentity(form.studentId, form.name);
+    if (!id.ok) {
+      toast.error(id.reason);
+      return;
+    }
     setIsPrinting(true);
-
     try {
-      const authKey = cleanId === "교직원" ? formData.name : cleanId;
-      const { data: authResult, error: authError } = await supabase.rpc('verify_student_password', { 
-        p_student_id: authKey, 
-        p_password: formData.password 
+      const { data, error } = await supabase.rpc("verify_student_password", {
+        p_student_id: id.authKey,
+        p_password: form.password,
       });
-
-      if (authError || !authResult.success) {
-        setShowResetButton(true);
-        return alert("❌ 비밀번호가 일치하지 않습니다.");
-      } else {
-        setShowResetButton(false);
-      }
-
-      const { data: ticket } = await supabase.from('reservations')
-        .select('*')
-        .eq('student_id', cleanId)
-        .eq('student_name', formData.name)
-        .eq('movie_date', movieInfo.db_date)
-        .single();
-
-      if (!ticket) return alert("예매 내역이 존재하지 않습니다.");
-
-      if (ticket.is_printed) {
-        return alert("⚠️ 이미 현장에서 발권이 완료된 티켓입니다! (1인 1매 원칙)\n오류인 경우 관리자에게 문의하세요.");
-      }
-
-      // 🌟 [수정됨] RLS(보안) 정책에 의해 클라이언트 직접 수정이 막히는 문제를 해결하기 위해 안전한 서버 API 호출로 업데이트
-      const apiRes = await fetch('/api/kiosk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'PRINT_TICKET',
-          payload: { ticketId: ticket.id, studentId: cleanId, studentName: formData.name, password: formData.password, seatNumber: ticket.seat_number }
-        })
-      });
-      const apiData = await apiRes.json();
-      
-      if (!apiData.success) {
-        alert("⚠️ 서버 오류로 발권 기록 업데이트에 실패했습니다. 관리자에게 문의하세요.");
+      if (error) {
+        toast.error("네트워크 오류가 발생했습니다.");
         return;
       }
-
-      ticket.is_printed = true; // 화면 반영을 위한 상태 업데이트
-      setTicketData(ticket);
-
-    } catch (err) {
-      alert("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+      const r = data as VerifyPasswordResult;
+      if (!r.exists || !r.success) {
+        setShowResetButton(true);
+        toast.error("비밀번호가 일치하지 않습니다.");
+        return;
+      }
+      setShowResetButton(false);
+      const { data: t, error: te } = await supabase
+        .from("reservations")
+        .select("*")
+        .eq("student_id", id.cleanId)
+        .eq("student_name", form.name)
+        .eq("movie_date", movie.db_date)
+        .single<Reservation>();
+      if (te || !t) {
+        toast.error("해당 학생의 예매 내역을 찾을 수 없습니다.");
+        return;
+      }
+      if (t.is_printed) {
+        toast.error("이미 발권이 완료된 티켓입니다. 관리자에게 문의해주세요.");
+        return;
+      }
+      const res = await fetch("/api/kiosk", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "PRINT_TICKET",
+          payload: {
+            ticketId: t.id,
+            studentId: id.cleanId,
+            studentName: form.name,
+            password: form.password,
+            seatNumber: t.seat_number,
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        toast.error(`발권 실패: ${json.error ?? ""}`);
+        return;
+      }
+      setTicket(t);
     } finally {
       setIsPrinting(false);
     }
-  };
+  }
 
-  const getPopcornReceiptText = (popcornString: string) => {
-    if (!popcornString || popcornString === 'none') return "❌ 팝콘 배부 대상이 아님\n(무료 관람권 예매자)";
-    
-    const popcornArray = popcornString.split(',');
-    const POPCORN_NAMES: Record<string, string> = { original: '오리지널 버터 팝콘', consomme: '콘소메맛 팝콘', caramel: '카라멜맛 팝콘' };
-    const counts: Record<string, number> = {};
-    
-    popcornArray.forEach((p: string) => { counts[p] = (counts[p] || 0) + 1; });
-    return Object.entries(counts).map(([k, c]) => `[ ${POPCORN_NAMES[k]} ]  x  ${c}개`).join('\n');
-  };
-
-  if (!isAdminAuth) {
-    // ... (기존 로그인 UI 화면 동일하므로 생략하지 않고 그대로 포함합니다.)
+  if (!adminUnlocked) {
     return (
-      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
-        <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-yellow-600 shadow-2xl">
-          <h1 className="text-2xl font-bold text-yellow-500 mb-6">🖨️ KIOSK 발권기 접속</h1>
-          <p className="text-gray-400 text-sm mb-6">원활한 현장 발권 준비를 위해<br />관리자 비밀번호를 입력해주세요.</p>
-          <input
-            type="password"
-            value={adminPasswordInput}
-            onChange={(e) => setAdminPasswordInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-            className="w-full p-4 rounded-lg bg-gray-700 text-white border border-gray-600 mb-6 text-center outline-none focus:border-yellow-500"
-            placeholder="비밀번호 입력"
-          />
-          <button
-            onClick={handleAdminLogin}
-            className="w-full py-4 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-black font-bold text-lg"
-          >
-            발권기 열기
-          </button>
-
-        </div>
-      </div>
+      <main className="min-h-screen flex items-center justify-center px-4">
+        <Card padding="lg" className="w-full max-w-sm text-center">
+          <div className="w-12 h-12 mx-auto rounded-full bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/30 flex items-center justify-center text-[var(--color-accent-soft)]">
+            <LockIcon className="w-6 h-6" />
+          </div>
+          <h1 className="mt-4 text-[20px] font-semibold">발권기 잠금 해제</h1>
+          <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">관리자 비밀번호를 입력해주세요.</p>
+          <div className="mt-5 space-y-3">
+            <Input
+              type="password"
+              align="center"
+              value={adminInput}
+              placeholder="비밀번호"
+              onChange={(e) => setAdminInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && unlock()}
+            />
+            <Button fullWidth onClick={unlock}>발권기 열기</Button>
+          </div>
+        </Card>
+      </main>
     );
   }
 
+  if (ticket) return <ReceiptView ticket={ticket} movie={movie} />;
+
   return (
-    <>
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        @media print {
-          @page { margin: 5mm; size: auto; }
-          body { background-color: #fff !important; color: #000 !important; }
-        }
-      `}} />
-
-      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4 print:bg-white print:text-black print:min-h-0 print:p-0 print:block select-none">
-
-        {!ticketData ? (
-          <>
-            <div className="w-full max-w-md bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-600 print:hidden">
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold text-yellow-500 tracking-wider mb-2">현장 발권기</h1>
-                <p className="text-gray-400 text-sm">현장에서 예매 티켓을 스티커/영수증으로 출력합니다.</p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-gray-300 mb-1 text-sm font-bold">학번</label>
-                  <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-lg" placeholder="예: 2703" />
-                </div>
-                <div>
-                  <label className="block text-gray-300 mb-1 text-sm font-bold">이름</label>
-                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-lg" placeholder="본명 입력" />
-                </div>
-                <div>
-                  <label className="block text-gray-300 mb-1 text-sm font-bold">예매 비밀번호 (숫자 4자리)</label>
-                  <input type="password" name="password" maxLength={4} value={formData.password} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-center text-2xl tracking-widest" placeholder="****" />
-                  {showResetButton && (
-                    <button onClick={handleRequestReset} disabled={isResetting} className="mt-3 text-sm text-red-400 hover:text-red-300 underline font-bold block w-full text-left">
-                      {isResetting ? "메일 발송 중..." : "🚨 비밀번호를 잊으셨나요? (폰으로 재설정 링크 받기)"}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <button onClick={handlePrintSubmit} disabled={isPrinting} className="w-full mt-8 py-4 bg-yellow-600 hover:bg-yellow-500 text-black font-black text-xl rounded-xl shadow-[0_0_20px_rgba(202,138,4,0.4)] transition-all">
-                {isPrinting ? '티켓 정보 확인 중...' : '🖨️ 영수증 티켓 출력하기'}
+    <main className="min-h-screen flex flex-col items-center px-4 py-8 no-print">
+      <Wordmark size="sm" subtitle="kiosk" />
+      <div className="w-full max-w-md mt-8 space-y-3">
+        <Card padding="lg">
+          <div className="text-[11px] tracking-[0.25em] uppercase text-[var(--color-text-muted)] mb-3">현장 발권</div>
+          <div className="space-y-3">
+            <Input
+              label="학번"
+              placeholder="예: 2703 (교직원은 '교직원')"
+              value={form.studentId}
+              onChange={(e) => setForm({ ...form, studentId: e.target.value })}
+            />
+            <Input
+              label="이름 (본명)"
+              placeholder="이름을 정확히 입력하세요"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            <Input
+              label="예매 비밀번호 (숫자 4자리)"
+              type="password"
+              maxLength={4}
+              align="center"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value.replace(/[^0-9]/g, "") })}
+            />
+            {showResetButton && (
+              <button
+                type="button"
+                onClick={requestReset}
+                disabled={isResetting}
+                className="text-[13px] text-[var(--color-accent-soft)] hover:text-[var(--color-accent)] underline underline-offset-4 font-medium block"
+              >
+                {isResetting ? "메일 발송 중..." : "비밀번호를 잊으셨나요? 이메일로 재설정"}
               </button>
-            </div>
-          </>
-        ) : (
-          <div className="w-[80mm] mx-auto bg-white text-black font-mono print:w-full print:m-0 print:px-4">
-
-            <div className="text-center text-2xl font-black mb-1 tracking-widest pt-2">영화대교 입장권</div>
-            <div className="text-[11px] text-center text-gray-700 mb-2">{new Date().toLocaleString()} (현장_KIOSK_1)</div>
-
-            <div className="border-b-2 border-dashed border-black my-2"></div>
-
-            {/* 🌟 [수정됨] DB에 저장된 관람가(age_rating)를 동적으로 반영합니다. 기본값은 전체관람가 */}
-            <div className="text-[13px] font-bold">2D, {movieInfo?.age_rating || '전체관람가'}</div>
-            <div className="text-3xl font-black leading-tight tracking-tighter my-1">{movieInfo?.title}</div>
-
-            {/* 🌟 [수정됨] 배경 반전을 지우고 검은색 두꺼운 테두리와 굵은 글씨로 흐려짐(연하게 찍힘) 문제 해결 */}
-            <div className="text-[15px] font-extrabold border-[3px] border-black inline-block px-2 py-1 mb-2 mt-1">상영일시: {movieInfo?.date_string}</div>
-
-            <div className="flex justify-between items-end mt-4 mb-4">
-              <div>
-                <div className="text-sm font-bold">{movieInfo?.venue}</div>
-                <div className="text-sm font-bold mt-1">예매자: {ticketData.student_name} ({ticketData.student_id})</div>
-              </div>
-              <div className="text-right">
-                <div className="text-[12px] font-bold">관람석</div>
-                <div className="text-4xl font-black">{ticketData.seat_number}</div>
-              </div>
-            </div>
-
-            <div className="border-b-2 border-dashed border-black my-3"></div>
-
-            <div className="text-lg font-black mb-1">🍿 팝콘 수령 정보</div>
-            <div className="text-sm font-bold whitespace-pre-wrap leading-relaxed">
-              {getPopcornReceiptText(ticketData.popcorn_order)}
-            </div>
-
-            <div className="border-b-2 border-dashed border-black my-3"></div>
-
-            <div className="text-center font-bold text-sm mb-2 mt-4">대구과학고등학교 영화대교</div>
-            <div className="text-[11px] leading-relaxed mb-6 text-left font-bold">
-              * 본 티켓은 1인 1매 한정으로 1회만 출력됩니다.<br />
-              * 티켓 분실 시 재발권 및 팝콘 수령이 불가합니다.<br />
-              * 팝콘 배부처에 본 티켓을 반드시 제시해 주세요.<br />
-              * 원활한 관람을 위해 시작 전 입장 바랍니다.
-            </div>
-
-            {/* 🌟 [수정됨] 외부 API 접속 차단(CORS/Adblock) 환경을 대비해 순수 React CSS 바코드 렌더러로 완전 대체 */}
-            {(() => {
-              const CODE39_MAP: Record<string, string> = {
-                '0': 'bwbWBwBwb', '1': 'BwbWbwbwB', '2': 'bwBWbwbwB', '3': 'BwBWbwbwb',
-                '4': 'bwbWBwbwB', '5': 'BwbWBwbwb', '6': 'bwBWBwbwb', '7': 'bwbWbwBwB',
-                '8': 'BwbWbwBwb', '9': 'bwBWbwBwb', 'A': 'BwbwbWbwB', 'B': 'bwBwbWbwB',
-                'C': 'BwBwbWbwb', 'D': 'bwbwBWbwB', 'E': 'BwbwBWbwb', 'F': 'bwBwBWbwb',
-                'G': 'bwbwbWBwB', 'H': 'BwbwbWBwb', 'I': 'bwBwbWBwb', 'J': 'bwbwBWBwb',
-                'K': 'BwbwbwbWB', 'L': 'bwBwbwbWB', 'M': 'BwBwbwbWb', 'N': 'bwbwBwbWB',
-                'O': 'BwbwBwbWb', 'P': 'bwBwBwbWb', 'Q': 'bwbwbwBWB', 'R': 'BwbwbwBWb',
-                'S': 'bwBwbwBWb', 'T': 'bwbwBwBWb', 'U': 'BWbwbwbwB', 'V': 'bWBwbwbwB',
-                'W': 'BWBwbwbwb', 'X': 'bWbwBwbwB', 'Y': 'BWbwBwbwb', 'Z': 'bWBwBwbwb',
-                '-': 'bWbwbwBwB', '.': 'BWbwbwBwb', ' ': 'bWBwbwBwb', '*': 'bWbwBwBwb'
-              };
-              const cleanId = ticketData.id.toString().replace(/-/g, '').toUpperCase();
-              const displayId = cleanId.length > 16 ? cleanId.substring(0, 16) : cleanId.padStart(16, '0');
-              const formattedId = displayId.match(/.{1,4}/g)?.join(' ') || displayId;
-              
-              const upper = `*${displayId}*`;
-              const bars: string[] = [];
-              for (let i = 0; i < upper.length; i++) {
-                const char = upper[i];
-                const pattern = CODE39_MAP[char] || CODE39_MAP['-'];
-                for (let p=0; p<pattern.length; p++) bars.push(pattern[p]);
-                if (i < upper.length - 1) bars.push('w');
-              }
-              
-              let currentX = 0;
-              const svgElements = bars.map((v, i) => {
-                const isBlack = v.toLowerCase() === 'b';
-                const isWide = v === 'B' || v === 'W';
-                const width = isWide ? 3.5 : 1.5;
-                
-                const rect = isBlack ? (
-                  <rect key={i} x={currentX} y="0" width={width} height="50" fill="#000" />
-                ) : null;
-                
-                currentX += width;
-                return rect;
-              });
-
-              return (
-                <div className="flex flex-col items-center mt-2 mb-4 w-full">
-                  <div className="flex justify-center h-[50px] w-full overflow-hidden">
-                    <svg width={currentX} height="50" viewBox={`0 0 ${currentX} 50`} style={{ maxWidth: '100%' }}>
-                      {svgElements}
-                    </svg>
-                  </div>
-                  <div className="text-center font-mono text-[13px] font-bold tracking-[0.2em] mt-1 text-gray-800">
-                    {formattedId}
-                  </div>
-                </div>
-              );
-            })()}
+            )}
+            <Button fullWidth size="lg" onClick={submit} loading={isPrinting} leading={<PrinterIcon className="w-5 h-5" />}>
+              티켓 출력하기
+            </Button>
           </div>
-        )}
-
+        </Card>
+        <p className="text-center text-[11px] text-[var(--color-text-muted)]">
+          {STAFF_LIST.length}명의 교직원 / {Object.keys(STUDENT_LIST).length}명의 학생을 등록 중입니다.
+        </p>
       </div>
-    </>
+      {isPrinting && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50">
+          <Spinner size={32} />
+        </div>
+      )}
+    </main>
+  );
+}
+
+function ReceiptView({ ticket, movie }: { ticket: Reservation; movie: MovieSettings | null }) {
+  const breakdown = popcornBreakdown(ticket.popcorn_order);
+  const popcornText =
+    breakdown.length === 0
+      ? "팝콘 없음 (음료/팝콘 미포함)"
+      : breakdown.map((b) => `${POPCORN_LABELS[b.flavor as PopcornFlavor]}  x${b.count}`).join("\n");
+  const cleanedId = ticket.id.replace(/-/g, "").toUpperCase().slice(0, 16).padEnd(16, "0");
+  const formattedId = cleanedId.match(/.{1,4}/g)?.join(" ") ?? cleanedId;
+
+  return (
+    <main className="min-h-screen bg-white text-black flex justify-center print:block">
+      <div className="w-[80mm] p-4 font-mono">
+        <div className="text-center">
+          <div className="text-[22px] font-black tracking-[0.3em]">영화대교</div>
+          <div className="text-[11px] text-gray-700 mt-1">
+            {new Date().toLocaleString("ko-KR")} (KIOSK_1)
+          </div>
+        </div>
+        <div className="border-t border-dashed border-black my-2" />
+        <div className="text-[12px] font-bold">2D · {movie?.age_rating ?? "전체관람가"}</div>
+        <div className="text-[20px] font-black leading-tight tracking-tight mt-1">{movie?.title ?? ""}</div>
+        <div className="mt-2 inline-block border-2 border-black px-2 py-0.5 text-[13px] font-extrabold">
+          상영일시: {movie?.date_string ?? ""}
+        </div>
+        <div className="mt-3 flex justify-between items-end">
+          <div>
+            <div className="text-[12px] font-bold">{movie?.venue ?? ""}</div>
+            <div className="text-[12px] font-bold mt-1">
+              예매자 {ticket.student_name} ({ticket.student_id})
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] font-bold">관람석</div>
+            <div className="text-[28px] font-black leading-none">{ticket.seat_number}</div>
+          </div>
+        </div>
+        <div className="border-t border-dashed border-black my-2" />
+        <div className="text-[14px] font-black">팝콘 수령 정보</div>
+        <pre className="text-[12px] font-bold whitespace-pre-wrap mt-1">{popcornText}</pre>
+        <div className="border-t border-dashed border-black my-2" />
+        <div className="text-[12px] font-bold text-center">대구과학고등학교 영화대교</div>
+        <div className="text-[10px] mt-1 leading-relaxed">
+          · 본 티켓은 1회 발권되며, 재발권은 운영진 승인 후 가능합니다.
+          <br />· 입장 시 좌석 정보를 입장 안내요원에게 보여주세요.
+          <br />· 상영 중 휴대전화는 무음으로 설정해주세요.
+          <br />· 팝콘은 상영 시작 10분 전부터 현장에서 수령 가능합니다.
+        </div>
+        <div className="mt-3 flex justify-center">
+          <Code39Barcode value={cleanedId} />
+        </div>
+        <div className="mt-1 text-center font-mono text-[11px] tracking-[0.2em]">{formattedId}</div>
+      </div>
+    </main>
+  );
+}
+
+function Code39Barcode({ value }: { value: string }) {
+  const seq = `*${value}*`;
+  const bars: { w: number; black: boolean }[] = [];
+  for (let i = 0; i < seq.length; i++) {
+    const ch = seq[i];
+    const pat = CODE39_MAP[ch] ?? CODE39_MAP["0"];
+    for (let j = 0; j < pat.length; j++) {
+      const wide = pat[j] === "w";
+      bars.push({ w: wide ? 3 : 1, black: j % 2 === 0 });
+    }
+    if (i !== seq.length - 1) bars.push({ w: 1, black: false });
+  }
+  const total = bars.reduce((s, b) => s + b.w, 0);
+  let x = 0;
+  return (
+    <svg width="220" height="50" viewBox={`0 0 ${total} 50`} preserveAspectRatio="none" style={{ maxWidth: "100%" }}>
+      {bars.map((b, i) => {
+        const cur = x;
+        x += b.w;
+        return b.black ? <rect key={i} x={cur} y={0} width={b.w} height={50} fill="black" /> : null;
+      })}
+    </svg>
   );
 }

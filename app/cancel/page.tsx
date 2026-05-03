@@ -1,148 +1,220 @@
 "use client";
 
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { USER_EMAILS } from '@/lib/emails';
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { USER_EMAILS } from "@/lib/emails";
+import type { MovieSettings, Reservation } from "@/lib/db-types";
+import { popcornTotal } from "@/lib/format";
+import { useToast } from "@/hooks/useToast";
 
-function CancelForm() {
-  const searchParams = useSearchParams();
-  const ticketId = searchParams.get('ticketId');
+import { Wordmark } from "@/components/domain/Wordmark";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
+import { Spinner } from "@/components/ui/Spinner";
+import { AlertIcon, HomeIcon } from "@/components/icons";
+
+export default function CancelPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen flex items-center justify-center">
+          <Spinner size={24} />
+        </main>
+      }
+    >
+      <Inner />
+    </Suspense>
+  );
+}
+
+function Inner() {
+  const params = useSearchParams();
   const router = useRouter();
+  const toast = useToast();
+  const ticketId = params.get("ticketId");
 
-  const [ticket, setTicket] = useState<any>(null);
-  const [password, setPassword] = useState('');
-  const[showResetButton, setShowResetButton] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [ticket, setTicket] = useState<Reservation | null>(null);
+  const [password, setPassword] = useState("");
+  const [showResetButton, setShowResetButton] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
-    if (ticketId) {
-      supabase.from('reservations').select('*').eq('id', ticketId).single().then(({ data }) => {
-        setTicket(data);
-        setLoading(false);
-      });
-    } else {
+    if (!ticketId) {
       setLoading(false);
+      return;
     }
+    void (async () => {
+      const { data } = await supabase
+        .from("reservations")
+        .select("*")
+        .eq("id", ticketId)
+        .single<Reservation>();
+      setTicket(data ?? null);
+      setLoading(false);
+    })();
   }, [ticketId]);
 
-  const handleCancel = async () => {
-    if (!/^\d{4}$/.test(password)) return alert("비밀번호 숫자 4자리를 입력해주세요.");
-
-    // 🌟 [수정됨] 교직원은 이름으로 비밀번호를 찾도록 수정
-    const authKey = ticket.student_id === "교직원" ? ticket.student_name : ticket.student_id;
-
-    // 1. RPC 호출로 비밀번호 검증 및 삭제 통합 처리 (보안 강화)
-    const { data: cancelSuccess, error: cancelError } = await supabase.rpc('cancel_reservation_secure', {
-      p_reservation_id: ticketId,
-      p_password: password
-    });
-
-    if (cancelError || !cancelSuccess) {
-      setShowResetButton(true);
-      return alert("❌ 비밀번호가 일치하지 않거나 취소 중 오류가 발생했습니다.");
-    }
-
-    // 🌟 4. 로그 중복 방지: 여기에만 '본인 예매 취소' 기록을 남깁니다.
-    await supabase.from('activity_logs').insert([{ 
-      student_id: ticket.student_id, student_name: ticket.student_name, 
-      description: `본인 예매 취소 (${ticket.seat_number})` 
-    }]);
-
-    // 5. 취소 안내 메일 발송
-    const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
-    if (userEmail) {
-      const { data: movieSettings } = await supabase.from('movie_settings').select('*').eq('id', 1).single();
-      
-      // 🌟 환불이 필요한 상황인지 체크 (팝콘을 시켰고 & 이미 결제 확정된 경우)
-      const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
-      
-      await fetch('/api/ticket', {
-        method: 'POST',
-        body: JSON.stringify({
-          email: userEmail, name: ticket.student_name, seat: ticket.seat_number,
-          movieTitle: movieSettings.title, movieDate: movieSettings.date_string,
-          statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id,
-          baseUrl: window.location.origin, isRefundNeeded
-        })
-      });
-    }
-
-    alert("✅ 예매가 정상적으로 취소되었습니다.");
-    router.push('/');
-  };
-
-  const handleRequestReset = async () => {
+  async function requestReset() {
+    if (!ticket) return;
     setIsResetting(true);
     try {
-      const res = await fetch('/api/auth/request-reset', {
-        method: 'POST',
+      const res = await fetch("/api/auth/request-reset", {
+        method: "POST",
         body: JSON.stringify({
           studentId: ticket.student_id,
           studentName: ticket.student_name,
           baseUrl: window.location.origin,
-          returnUrl: `/cancel?ticketId=${ticketId}`
-        })
+          returnUrl: window.location.pathname + window.location.search,
+        }),
       });
       if (res.ok) {
-        alert("학교 이메일로 비밀번호 재설정 링크가 발송되었습니다.");
+        toast.notify("학교 이메일로 비밀번호 재설정 링크가 발송되었습니다.", "success");
         setShowResetButton(false);
       } else {
-        alert("이메일 발송에 실패했습니다.");
+        toast.error("발송에 실패했습니다.");
       }
     } finally {
       setIsResetting(false);
     }
-  };
+  }
 
-  if (loading) return <div className="text-white text-center mt-20 font-bold">데이터를 불러오는 중...</div>;
-  if (!ticket) return <div className="text-white text-center mt-20 font-bold">존재하지 않거나 이미 취소된 예매 내역입니다.</div>;
+  async function performCancel() {
+    if (!ticket) return;
+    if (!/^[0-9]{4}$/.test(password)) {
+      toast.error("비밀번호는 4자리 숫자만 입력해주세요.");
+      return;
+    }
+    const ok = await toast.confirm("정말 예매를 취소하시겠습니까?", { tone: "danger" });
+    if (!ok) return;
 
-  // 🌟 [핵심 변경] 팝콘을 샀더라도, 아직 'pending(결제 대기)' 상태면 취소 가능하도록 로직 변경!
-  const isPaidPopcorn = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
+    const { data: result, error } = await supabase.rpc("cancel_reservation_secure", {
+      p_reservation_id: ticket.id,
+      p_password: password,
+    });
+    if (error || !result) {
+      setShowResetButton(true);
+      toast.error("비밀번호가 일치하지 않거나 취소 중 오류가 발생했습니다.");
+      return;
+    }
+
+    await supabase.from("activity_logs").insert([
+      { student_id: ticket.student_id, student_name: ticket.student_name, description: `본인 예매 취소 (${ticket.seat_number})` },
+    ]);
+
+    const { data: movie } = await supabase
+      .from("movie_settings")
+      .select("title, date_string")
+      .eq("id", 1)
+      .single<Pick<MovieSettings, "title" | "date_string">>();
+
+    const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
+    const isRefundNeeded = ticket.popcorn_order !== "none" && ticket.payment_status === "confirmed";
+    if (userEmail) {
+      void fetch("/api/ticket", {
+        method: "POST",
+        body: JSON.stringify({
+          email: userEmail,
+          name: ticket.student_name,
+          seat: ticket.seat_number,
+          movieTitle: movie?.title ?? "",
+          movieDate: movie?.date_string ?? "",
+          statusType: "canceled",
+          popcorn: ticket.popcorn_order,
+          ticketId: ticket.id,
+          baseUrl: window.location.origin,
+          isRefundNeeded,
+        }),
+      });
+    }
+
+    await toast.success("예매 취소 완료", "예매가 정상적으로 취소되었습니다.");
+    router.push("/");
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <Spinner size={24} />
+      </main>
+    );
+  }
+  if (!ticket) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-4">
+        <Card padding="lg" className="max-w-sm text-center">
+          <p className="text-[14px] text-[var(--color-text-secondary)]">존재하지 않거나 이미 취소된 예매입니다.</p>
+          <Button className="mt-5" onClick={() => router.push("/")} fullWidth leading={<HomeIcon className="w-4 h-4" />}>
+            메인으로
+          </Button>
+        </Card>
+      </main>
+    );
+  }
+
+  const hasPaidPopcorn = popcornTotal(ticket.popcorn_order) > 0 && ticket.payment_status === "confirmed";
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-gray-700 shadow-2xl">
-        <h1 className="text-2xl font-bold text-red-500 mb-2">예매 취소</h1>
-        <p className="text-gray-300 text-sm mb-6 bg-gray-700 p-3 rounded-lg">
-          좌석: <span className="font-bold text-white">{ticket.seat_number}</span><br/>
-          예매자: <span className="font-bold text-white">{ticket.student_id} {ticket.student_name}</span>
-        </p>
+    <main className="min-h-screen flex flex-col items-center px-4 py-8">
+      <Wordmark size="sm" subtitle="cancel" />
+      <div className="w-full max-w-sm mt-8 space-y-4">
+        <Card padding="lg">
+          <Badge tone="rose">예매 취소</Badge>
+          <h1 className="mt-3 text-[20px] font-semibold tracking-tight">예매를 취소하시겠어요?</h1>
 
-        {isPaidPopcorn && (
-          <div className="mb-6 bg-yellow-900/30 border border-yellow-600 p-4 rounded-xl text-yellow-500 text-sm font-bold">
-            🚨 결제가 확정된 팝콘 예매가 포함되어 있습니다.<br/>
-            온라인상으로는 예매 내역이 즉시 취소되지만,<br/>
-            <span className="text-yellow-400">환불 금액은 영화 상영 당일 현장에서<br/>학생회 스태프를 찾아와 직접 수령하셔야 합니다.</span>
+          <div className="mt-4 px-3 py-3 rounded-[var(--radius)] bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)]">
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="text-[var(--color-text-muted)]">좌석</span>
+              <span className="font-mono font-bold text-[var(--color-accent-soft)]">{ticket.seat_number}</span>
+            </div>
+            <div className="flex items-center justify-between text-[13px] mt-1.5">
+              <span className="text-[var(--color-text-muted)]">예매자</span>
+              <span>{ticket.student_name} <span className="text-[var(--color-text-muted)] font-mono">({ticket.student_id})</span></span>
+            </div>
           </div>
-        )}
-        
-        <input
-          type="password" maxLength={4} placeholder="비밀번호 4자리"
-          value={password} onChange={(e) => setPassword(e.target.value.replace(/[^0-9]/g, ''))}
-          className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 mb-4 text-center text-xl tracking-widest outline-none focus:border-red-500"
-        />
-        
-        <button onClick={handleCancel} className="w-full py-3 bg-red-600 hover:bg-red-500 rounded-lg text-white font-bold transition-colors mb-4 shadow-lg">
-          예매 취소하기
-        </button>
 
-        {showResetButton && (
-          <button onClick={handleRequestReset} disabled={isResetting} className="text-sm text-yellow-400 hover:text-yellow-300 underline underline-offset-4 transition-colors font-bold block w-full">
-            {isResetting ? "메일 발송 중..." : "🚨 비밀번호를 모르시나요? (이메일로 재설정)"}
-          </button>
-        )}
+          {hasPaidPopcorn && (
+            <div className="mt-4 px-3 py-3 rounded-[var(--radius)] border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/8 text-[12.5px] text-[var(--color-warning)] flex gap-2">
+              <AlertIcon className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>
+                팝콘 결제가 완료된 예매입니다. 취소해도 환불은 <strong>상영 당일 현장에서</strong> 직접 수령해야 합니다.
+              </span>
+            </div>
+          )}
+
+          <div className="mt-4">
+            <Input
+              label="예매 비밀번호 (숫자 4자리)"
+              type="password"
+              maxLength={4}
+              align="center"
+              value={password}
+              onChange={(e) => setPassword(e.target.value.replace(/[^0-9]/g, ""))}
+            />
+            {showResetButton && (
+              <button
+                type="button"
+                onClick={requestReset}
+                disabled={isResetting}
+                className="mt-3 text-[13px] text-[var(--color-accent-soft)] hover:text-[var(--color-accent)] underline underline-offset-4 font-medium block"
+              >
+                {isResetting ? "메일 발송 중..." : "비밀번호를 잊으셨나요? 이메일로 재설정"}
+              </button>
+            )}
+          </div>
+
+          <Button className="mt-5" fullWidth variant="danger" onClick={performCancel}>
+            예매 취소하기
+          </Button>
+        </Card>
+
+        <Button variant="ghost" fullWidth onClick={() => router.push("/")} leading={<HomeIcon className="w-4 h-4" />}>
+          메인 페이지로
+        </Button>
       </div>
-    </div>
-  );
-}
-
-export default function CancelPage() {
-  return (
-    <Suspense fallback={<div className="text-white text-center mt-20">로딩 중...</div>}>
-      <CancelForm />
-    </Suspense>
+    </main>
   );
 }
