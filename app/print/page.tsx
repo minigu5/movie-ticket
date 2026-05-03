@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/Input";
 import { Spinner } from "@/components/ui/Spinner";
 import { LockIcon, PrinterIcon } from "@/components/icons";
 
-const KIOSK_PASSWORD = "영화대교최고";
+const KIOSK_PASSWORD = "bridge5780";
 
 const CODE39_MAP: Record<string, string> = {
   "0": "nnnwwnwnn", "1": "wnnwnnnnw", "2": "nnwwnnnnw", "3": "wnwwnnnnn",
