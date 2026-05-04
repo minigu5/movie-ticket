@@ -51,15 +51,15 @@ export function SeatGrid({
         <div
           className={[
             "w-[72%] h-9 md:h-10 rounded-t-[28px] mb-10 flex items-center justify-center",
-            "border-t border-[var(--color-border)]",
+            "border-t",
             groupMode
-              ? "bg-[var(--color-success)]/30 shadow-[0_-12px_36px_rgba(16,185,129,0.2)]"
-              : "bg-[var(--color-bg-overlay)] shadow-[0_-12px_36px_rgba(255,255,255,0.04)]",
+              ? "bg-[var(--color-success)]/55 border-[var(--color-success-soft)] shadow-[0_-14px_44px_rgba(16,185,129,0.35)]"
+              : "bg-zinc-200/95 border-white/70 shadow-[0_-14px_44px_rgba(255,255,255,0.18)]",
           ].join(" ")}
         >
           <span
-            className={`text-[11px] md:text-[12px] font-semibold tracking-[0.5em] uppercase ${
-              groupMode ? "text-[var(--color-success-soft)] animate-pulse" : "text-[var(--color-text-muted)]"
+            className={`text-[11px] md:text-[12px] font-bold tracking-[0.5em] uppercase ${
+              groupMode ? "text-[var(--color-bg-base)] animate-pulse" : "text-zinc-900"
             }`}
           >
             {groupMode ? "단체 예매 중" : "Screen"}

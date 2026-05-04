@@ -37,20 +37,24 @@ export function Modal({
   zIndex,
 }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
-  // focus + body lock — fire ONLY when `open` flips, not on every parent rerender
+  // focus + body lock + reset scroll — fire only when `open` flips
   useEffect(() => {
     if (!open) return;
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const t = setTimeout(() => dialogRef.current?.focus(), 30);
+    const t = setTimeout(() => {
+      dialogRef.current?.focus();
+      if (bodyRef.current) bodyRef.current.scrollTop = 0;
+    }, 30);
     return () => {
       document.body.style.overflow = original;
       clearTimeout(t);
     };
   }, [open]);
 
-  // ESC handler — re-bound when handler identity changes, but doesn't steal focus
+  // ESC handler — separate so input focus stays put on parent rerenders
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -70,7 +74,7 @@ export function Modal({
 
   return createPortal(
     <div
-      className="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 flex items-center justify-center p-4"
       style={{ zIndex: z }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && dismissible && onClose) onClose();
@@ -88,12 +92,13 @@ export function Modal({
         className={[
           "relative w-full bg-[var(--color-bg-elevated)] rounded-[var(--radius-lg)] border shadow-[var(--shadow-elev-2)]",
           "animate-[scale-in_220ms_ease-out_both]",
+          "flex flex-col max-h-[calc(100dvh-32px)] overflow-hidden",
           sizeMap[size],
           borderTone,
         ].join(" ")}
       >
         {(title || dismissible) && (
-          <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-2">
+          <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-3 border-b border-[var(--color-border-subtle)] flex-shrink-0">
             <div className="flex-1">
               {title && (
                 <h2 className="text-[18px] font-semibold tracking-tight text-[var(--color-text-primary)]">
@@ -118,9 +123,11 @@ export function Modal({
             )}
           </div>
         )}
-        <div className="px-6 pb-6 pt-2">{children}</div>
+        <div ref={bodyRef} className="px-6 py-5 overflow-y-auto flex-1 min-h-0">
+          {children}
+        </div>
         {footer && (
-          <div className="flex flex-wrap items-center justify-end gap-2 px-6 py-4 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-base)]/30 rounded-b-[var(--radius-lg)]">
+          <div className="flex flex-wrap items-center justify-end gap-2 px-6 py-4 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-base)]/30 flex-shrink-0">
             {footer}
           </div>
         )}
