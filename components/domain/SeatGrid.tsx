@@ -34,7 +34,11 @@ export function SeatGrid({
   const aisleClass = shape.isGrand ? "mr-3 md:mr-6" : "mr-6 md:mr-10";
 
   return (
-    <div className="relative w-full overflow-x-auto pb-6">
+    <div className="w-full">
+      <div className="md:hidden mb-3 text-center text-[11px] text-[var(--color-accent-soft)] animate-pulse">
+        ← 가로로 스크롤하여 좌석을 확인하세요
+      </div>
+      <div className="relative w-full overflow-x-auto pb-6">
       {isClosed && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--color-bg-base)]/85 backdrop-blur-sm rounded-[var(--radius-lg)]">
           <div className="px-6 py-3 rounded-[var(--radius)] border-2 border-[var(--color-danger)] text-[var(--color-danger-soft)] font-semibold tracking-wider -rotate-3">
@@ -60,10 +64,6 @@ export function SeatGrid({
           >
             {groupMode ? "단체 예매 중" : "Screen"}
           </span>
-        </div>
-
-        <div className="md:hidden absolute top-2 right-4 text-[11px] text-[var(--color-accent-soft)] font-medium animate-pulse">
-          ← 가로로 스크롤
         </div>
 
         {shape.rows.map((rowChar, rowIndex) => (
@@ -138,6 +138,7 @@ export function SeatGrid({
             </span>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

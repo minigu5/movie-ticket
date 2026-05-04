@@ -21,9 +21,9 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const STATE_CLS: Record<SeatVisualState, string> = {
   empty:
-    "bg-[var(--color-bg-overlay)]/60 border border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-overlay)] hover:border-[var(--color-border)]",
+    "bg-[var(--color-bg-overlay)] border border-[var(--color-border)] text-[var(--color-text-primary)] hover:bg-[var(--color-border)] hover:border-[var(--color-border-strong)]",
   vip:
-    "bg-[var(--color-accent)]/8 border border-[var(--color-accent)]/40 text-[var(--color-accent-soft)] hover:bg-[var(--color-accent)]/15",
+    "bg-[var(--color-vip)]/12 border border-[var(--color-vip)]/35 text-[var(--color-vip-soft)] hover:bg-[var(--color-vip)]/22 hover:border-[var(--color-vip)]/55",
   selected:
     "bg-[var(--color-accent)] border border-[var(--color-accent)] text-[var(--color-bg-base)] -translate-y-[2px] shadow-[var(--shadow-glow-amber)] font-bold",
   confirmed:
