@@ -11,31 +11,49 @@ const sizeMap = {
 
 export function Wordmark({ size = "md", className }: Props) {
   return (
-    <div className={`relative inline-flex flex-col items-center select-none ${className ?? ""}`}>
-      {/* concentric amber halos behind wordmark */}
+    <div className={`relative inline-flex items-center justify-center select-none ${className ?? ""}`}>
+      {/* outermost diffuse cream halo */}
       <div
-        className="absolute inset-0 -z-10 pointer-events-none"
         aria-hidden
+        className="absolute pointer-events-none -z-10"
         style={{
+          width: "320%",
+          height: "320%",
           background:
-            "radial-gradient(closest-side, rgba(245,158,11,0.32) 0%, rgba(245,158,11,0.18) 30%, rgba(245,158,11,0.08) 55%, transparent 75%)",
-          filter: "blur(28px)",
-          transform: "scale(1.4)",
+            "radial-gradient(closest-side, rgba(254,243,199,0.18) 0%, rgba(252,211,77,0.12) 28%, rgba(245,158,11,0.06) 55%, transparent 78%)",
+          filter: "blur(48px)",
         }}
       />
+      {/* warm core glow */}
       <div
-        className="absolute inset-0 -z-10 pointer-events-none"
         aria-hidden
+        className="absolute pointer-events-none -z-10"
         style={{
+          width: "190%",
+          height: "190%",
           background:
-            "radial-gradient(closest-side, rgba(251,191,36,0.18) 0%, transparent 60%)",
-          filter: "blur(48px)",
-          transform: "scale(2)",
+            "radial-gradient(closest-side, rgba(254,235,170,0.28) 0%, rgba(245,200,100,0.14) 45%, transparent 75%)",
+          filter: "blur(28px)",
+        }}
+      />
+      {/* tightest highlight */}
+      <div
+        aria-hidden
+        className="absolute pointer-events-none -z-10"
+        style={{
+          width: "120%",
+          height: "120%",
+          background:
+            "radial-gradient(closest-side, rgba(255,245,200,0.22) 0%, transparent 70%)",
+          filter: "blur(14px)",
         }}
       />
       <h1
-        className={`font-display ${sizeMap[size]} text-[var(--color-text-primary)] tracking-[0.08em] leading-[1.05] text-center`}
-        style={{ textShadow: "0 0 28px rgba(245,158,11,0.28), 0 0 12px rgba(255,255,255,0.08)" }}
+        className={`relative font-display ${sizeMap[size]} text-[var(--color-text-primary)] tracking-[0.08em] leading-[1.05] text-center`}
+        style={{
+          textShadow:
+            "0 0 22px rgba(254,235,170,0.35), 0 0 8px rgba(255,255,255,0.12)",
+        }}
       >
         영화
         <br />

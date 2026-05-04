@@ -189,7 +189,7 @@ export function UsageGuide({ open, onClose }: { open: boolean; onClose: () => vo
           <SectionHeader label="좌석 색상" tone="violet" />
           <div className="grid grid-cols-2 gap-2.5">
             <LegendItem
-              swatch="bg-[var(--color-bg-overlay)] border-[var(--color-border)]"
+              swatch="bg-[var(--color-seat)] border-[var(--color-seat-border)]"
               label="예매 가능"
               hint="누구나 선택"
             />

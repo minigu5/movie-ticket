@@ -21,7 +21,7 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const STATE_CLS: Record<SeatVisualState, string> = {
   empty:
-    "bg-[var(--color-bg-overlay)] border border-[var(--color-border)] text-[var(--color-text-primary)] hover:bg-[var(--color-border)] hover:border-[var(--color-border-strong)]",
+    "bg-[var(--color-seat)] border border-[var(--color-seat-border)] text-zinc-200 hover:bg-[var(--color-seat-hover)] hover:border-[var(--color-seat-hover-border)]",
   vip:
     "bg-[var(--color-vip)]/12 border border-[var(--color-vip)]/35 text-[var(--color-vip-soft)] hover:bg-[var(--color-vip)]/22 hover:border-[var(--color-vip)]/55",
   selected:
@@ -40,7 +40,9 @@ const STATE_CLS: Record<SeatVisualState, string> = {
 };
 
 export function Seat({ state, label, isGrand, className, ...rest }: Props) {
-  const size = isGrand ? "w-8 h-10 md:w-9 md:h-11" : "w-10 h-12 md:w-11 md:h-13";
+  const size = isGrand
+    ? "w-8 h-[36px] md:w-9 md:h-[40px]"
+    : "w-10 h-[44px] md:w-11 md:h-[48px]";
   const text = isGrand
     ? "text-[10px] md:text-[11px]"
     : "text-[11px] md:text-[12.5px]";

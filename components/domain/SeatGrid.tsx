@@ -154,7 +154,7 @@ export function SeatLegend({
   showGroupColors?: boolean;
 }) {
   const items: { dot: string; text: string }[] = [
-    { dot: "bg-[var(--color-bg-overlay)] border border-[var(--color-border)]", text: "예매 가능" },
+    { dot: "bg-[var(--color-seat)] border border-[var(--color-seat-border)]", text: "예매 가능" },
     { dot: "bg-[var(--color-vip)]/15 border border-[var(--color-vip)]/40", text: "동아리 전용" },
     { dot: "bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)]", text: "예매 완료" },
   ];
