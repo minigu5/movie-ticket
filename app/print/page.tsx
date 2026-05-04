@@ -191,7 +191,7 @@ export default function PrintPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center px-4 py-8 no-print">
-      <Wordmark size="sm" subtitle="kiosk" />
+      <Wordmark size="sm" />
       <div className="w-full max-w-md mt-8 space-y-3">
         <Card padding="lg">
           <div className="text-[11px] tracking-[0.25em] uppercase text-[var(--color-text-muted)] mb-3">현장 발권</div>

@@ -229,7 +229,7 @@ function Inner() {
 
   return (
     <main className="min-h-screen flex flex-col items-center px-4 py-8">
-      <Wordmark size="sm" subtitle="group invitation" />
+      <Wordmark size="sm" />
 
       <div className="w-full max-w-md mt-8 space-y-4">
         {/* status banner */}

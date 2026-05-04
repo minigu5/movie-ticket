@@ -688,7 +688,7 @@ export default function HomePage() {
 
       {/* wordmark */}
       <header className="mb-8 md:mb-10">
-        <Wordmark size="sm" subtitle="cinema bridge" />
+        <Wordmark size="sm" />
       </header>
 
       {/* invite banner */}

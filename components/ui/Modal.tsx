@@ -38,20 +38,26 @@ export function Modal({
 }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  // focus + body lock — fire ONLY when `open` flips, not on every parent rerender
   useEffect(() => {
     if (!open) return;
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const t = setTimeout(() => dialogRef.current?.focus(), 30);
+    return () => {
+      document.body.style.overflow = original;
+      clearTimeout(t);
+    };
+  }, [open]);
+
+  // ESC handler — re-bound when handler identity changes, but doesn't steal focus
+  useEffect(() => {
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && dismissible && onClose) onClose();
     };
     window.addEventListener("keydown", onKey);
-    const t = setTimeout(() => dialogRef.current?.focus(), 30);
-    return () => {
-      document.body.style.overflow = original;
-      window.removeEventListener("keydown", onKey);
-      clearTimeout(t);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [open, dismissible, onClose]);
 
   if (!open || typeof document === "undefined") return null;

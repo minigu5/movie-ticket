@@ -68,7 +68,7 @@ function Inner() {
 
   return (
     <main className="min-h-screen flex flex-col items-center px-4 py-8">
-      <Wordmark size="sm" subtitle="reset password" />
+      <Wordmark size="sm" />
       <div className="w-full max-w-sm mt-8">
         <Card padding="lg" className="text-center">
           <div className="w-12 h-12 mx-auto rounded-full bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/30 flex items-center justify-center text-[var(--color-accent-soft)]">
