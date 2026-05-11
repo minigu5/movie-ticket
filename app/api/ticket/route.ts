@@ -96,6 +96,13 @@ export async function POST(req: Request) {
             <div style="margin-top: 15px; text-align: center;">
               <img src="${baseUrl}/qr.jpeg" alt="송금 QR" width="150" height="150" style="border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);" />
             </div>
+            <div style="margin: 15px auto 0 auto; max-width: 320px; background-color: #F3EFE6; border: 1px solid #d6cfbf; border-radius: 10px; padding: 12px 14px; text-align: left;">
+              <div style="font-size: 10px; letter-spacing: 2px; color: #888; font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">계좌번호</div>
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                <span style="font-family: monospace; font-size: 13px; color: #2C3338; font-weight: bold;">7777028184681 카카오뱅크 신민규</span>
+                <span style="flex-shrink: 0; font-size: 10px; color: #666; border: 1px solid #c8c0ae; padding: 4px 8px; border-radius: 6px; background-color: #ffffff;">길게 눌러 복사</span>
+              </div>
+            </div>
           ` : statusType === 'changed' ? `
             <p style="margin-top: 25px; color: #1d4ed8; font-weight: bold; font-size: 14px;">🔄 좌석 변경이 완료되었습니다.</p>
           ` : statusType === 'canceled' ? `

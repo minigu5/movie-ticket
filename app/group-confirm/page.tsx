@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { USER_EMAILS } from '@/lib/emails';
+import AccountInfo from '@/components/AccountInfo';
 
 function GroupConfirmForm() {
   const searchParams = useSearchParams();
@@ -229,7 +230,8 @@ function GroupConfirmForm() {
         <div className="bg-slate-900/90 backdrop-blur-xl p-8 rounded-2xl max-w-sm w-full border border-amber-500/30 text-center shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
           <h2 className="text-2xl font-bold text-amber-400 mb-2">결제 대기 중</h2>
           <p className="text-slate-300 mb-6 text-sm">QR코드로 30분 내에 입금을 완료해주세요.</p>
-          <div className="bg-white p-4 rounded-xl mb-6 inline-block"><img src="/qr.jpeg" alt="QR" className="w-48 h-48 object-contain" /></div>
+          <div className="bg-white p-4 rounded-xl mb-4 inline-block"><img src="/qr.jpeg" alt="QR" className="w-48 h-48 object-contain" /></div>
+          <div className="mb-6"><AccountInfo /></div>
           <div className="bg-slate-800 rounded-xl p-4 text-left mb-6 border border-slate-700">
             <p className="text-sm text-slate-300 mb-1">결제 금액: <span className="text-amber-400 font-bold text-xl">{totalPrice.toLocaleString()}원</span></p>
             <p className="text-sm text-slate-300">입금자명: <span className="text-indigo-400 font-bold">{myReservation.student_id} {myReservation.student_name}</span></p>
