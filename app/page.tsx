@@ -1177,7 +1177,7 @@ export default function Home() {
           <div className="space-y-2">
             <p className="text-xs text-slate-400">
               <span className="font-semibold text-slate-300 mr-1.5">다른 사이트</span>
-              <a href="https://github.com/minigu5/latex-to-hwp" target="_blank" rel="noopener" className="text-slate-300 hover:text-indigo-400 transition-colors">휩 — LaTeX to HWP ↗</a>
+              <a href="https://hwip.vercel.app/" target="_blank" rel="noopener" className="text-slate-300 hover:text-indigo-400 transition-colors">휩 — LaTeX to HWP ↗</a>
             </p>
           </div>
         </div>
