@@ -1165,13 +1165,29 @@ export default function Home() {
         </div>
       )}
 
-      <footer className="mt-32 md:mt-40 mb-8 text-center w-full opacity-40 hover:opacity-100 transition-opacity duration-1000">
-        <p className="text-[11px] md:text-xs text-slate-400 font-light tracking-wide">
-          Crafted by <span className="font-semibold text-slate-300">Shin Mingyu</span> with <span className="font-semibold text-indigo-400/80 drop-shadow-[0_0_5px_rgba(99,102,241,0.5)]">Google AI Studio</span>
-        </p>
-        <p className="text-[9px] md:text-[10px] text-slate-500 mt-1.5 tracking-widest uppercase">
-          Powered by Supabase & Vercel
-        </p>
+      <footer className="w-full mt-16 border-t border-slate-800">
+        <div className="py-5 grid grid-cols-2 gap-8">
+          <div className="space-y-2">
+            <p className="text-xs text-slate-400"><span className="font-semibold text-slate-300 mr-1.5">개발자</span>신민규</p>
+            <p className="text-xs text-slate-400">
+              <span className="font-semibold text-slate-300 mr-1.5">Email</span>
+              <a href="mailto:seong381400@gmail.com" className="text-slate-300 hover:text-indigo-400 transition-colors">seong381400@gmail.com</a>
+            </p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs text-slate-400">
+              <span className="font-semibold text-slate-300 mr-1.5">다른 사이트</span>
+              <a href="https://github.com/minigu5/latex-to-hwp" target="_blank" rel="noopener" className="text-slate-300 hover:text-indigo-400 transition-colors">휩 — LaTeX to HWP ↗</a>
+            </p>
+          </div>
+        </div>
+        <div className="border-t border-slate-800 bg-slate-900/50 -mx-4 md:-mx-8 px-4 md:px-8">
+          <div className="py-4 flex items-center justify-center gap-2.5 text-[11px] text-slate-500 flex-wrap">
+            <a href="/privacy" className="hover:text-slate-400 transition-colors">개인정보처리방침</a>
+            <span className="opacity-40">·</span>
+            <span>© 2026 영화대교 예매 시스템. All rights reserved.</span>
+          </div>
+        </div>
       </footer>
     </div>
   );
