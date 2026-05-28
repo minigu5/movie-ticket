@@ -53,14 +53,20 @@ export default function Home() {
   const showSuccess = (title: string, message: string) => setSuccessInfo({ title, message });
 
   const isGrandHall = movieInfo.venue.includes('대강당');
-  
-  const rows = isGrandHall 
-    ?['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R'] 
-    :['A','B','C','D','E','F','G','H','I']; 
 
-  const cols = isGrandHall 
-    ? Array.from({ length: 27 }, (_, i) => i + 1) 
-    : Array.from({ length: 14 }, (_, i) => i + 1); 
+  const rows = useMemo(
+    () => isGrandHall
+      ? ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R']
+      : ['A','B','C','D','E','F','G','H','I'],
+    [isGrandHall]
+  );
+
+  const cols = useMemo(
+    () => isGrandHall
+      ? Array.from({ length: 27 }, (_, i) => i + 1)
+      : Array.from({ length: 14 }, (_, i) => i + 1),
+    [isGrandHall]
+  );
 
   const getSeatId = (rowIndex: number, colIndex: number) => {
     if (!isGrandHall) { 
@@ -192,8 +198,15 @@ export default function Home() {
       const { data: bgData } = await supabase.from('blacklist').select('student_id');
       if (bgData) setBlacklistedUsers(bgData.map(b => b.student_id));
 
-      // 🌟 [단체 예매] 만료된 단체 예매 정리 (백그라운드)
-      fetch('/api/cron/group-check').catch(() => {});
+      // 🌟 [단체 예매] 만료된 단체 예매 정리 — 세션당 최대 10분에 1회만 트리거
+      try {
+        const KEY = 'group_check_last_run';
+        const last = Number(sessionStorage.getItem(KEY) || 0);
+        if (Date.now() - last > 10 * 60 * 1000) {
+          sessionStorage.setItem(KEY, String(Date.now()));
+          fetch('/api/cron/group-check').catch(() => {});
+        }
+      } catch { /* sessionStorage unavailable: skip */ }
     } catch (err) {
       console.error("데이터 불러오기 오류:", err);
     } finally {
@@ -555,10 +568,9 @@ export default function Home() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center select-none overflow-hidden">
-        <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');` }} />
         <div className="relative flex flex-col items-center justify-center animate-pulse">
           <div className="absolute w-48 h-48 md:w-64 md:h-64 bg-indigo-500/20 rounded-full blur-[80px] pointer-events-none"></div>
-          <div style={{ fontFamily: "'Song Myung', serif" }} className="text-center flex flex-col leading-tight z-10 text-slate-100">
+          <div style={{ fontFamily: "var(--font-song-myung), serif" }} className="text-center flex flex-col leading-tight z-10 text-slate-100">
             <span className="text-[60px] md:text-[80px] tracking-[0.1em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">영화</span>
             <span className="text-[60px] md:text-[80px] tracking-[0.1em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">대교</span>
           </div>
@@ -584,9 +596,8 @@ export default function Home() {
       </div>
 
       <div className="relative flex flex-col items-center justify-center mb-10 mt-4 select-none group">
-        <style dangerouslySetInnerHTML={{ __html: `@import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');` }} />
         <div className="absolute w-32 h-32 md:w-40 md:h-40 bg-indigo-500/20 rounded-full blur-[60px] pointer-events-none transition-all duration-1000 group-hover:bg-indigo-500/30 group-hover:scale-110"></div>
-        <div style={{ fontFamily: "'Song Myung', serif" }} className="text-center flex flex-col leading-tight z-10 text-slate-100">
+        <div style={{ fontFamily: "var(--font-song-myung), serif" }} className="text-center flex flex-col leading-tight z-10 text-slate-100">
           <span className="text-[40px] md:text-[50px] tracking-[0.1em] drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">영화</span>
           <span className="text-[40px] md:text-[50px] tracking-[0.1em] drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">대교</span>
         </div>
@@ -604,7 +615,7 @@ export default function Home() {
       )}
 
       <div className="flex flex-col md:flex-row items-center gap-6 mb-12 bg-white/5 backdrop-blur-xl p-6 rounded-2xl w-full max-w-4xl shadow-2xl border border-white/10 transition-all duration-500 hover:border-white/20 hover:bg-white/10">
-        <img src={movieInfo.poster_url} alt="영화 포스터" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-slate-800" />
+        <img src={movieInfo.poster_url} alt="영화 포스터" loading="lazy" decoding="async" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-slate-800" />
         <div className="flex flex-col text-center md:text-left w-full">
           <span className="text-indigo-400 font-bold mb-1 text-sm tracking-wide">이달의 명작 상영작</span>
           <div className="flex flex-col md:flex-row md:items-end gap-2 mb-2 justify-center md:justify-start">
@@ -830,7 +841,7 @@ export default function Home() {
           <div className="bg-slate-900/90 backdrop-blur-xl p-8 rounded-2xl max-w-sm border border-amber-500/30 text-center shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
             <h2 className="text-2xl font-bold text-amber-400 mb-2">결제 대기 중</h2>
             <p className="text-slate-300 mb-6 text-sm">QR코드로 30분 내에 입금을 완료해주세요.</p>
-            <div className="bg-white p-4 rounded-xl mb-4 inline-block"><img src="/qr.jpeg" alt="QR" className="w-48 h-48 object-contain" /></div>
+            <div className="bg-white p-4 rounded-xl mb-4 inline-block"><img src="/qr.jpeg" alt="QR" loading="lazy" decoding="async" className="w-48 h-48 object-contain" /></div>
             <div className="mb-6"><AccountInfo /></div>
             <div className="bg-slate-800 rounded-xl p-4 text-left mb-6 border border-slate-700">
               <p className="text-sm text-slate-300 mb-1">결제 금액: <span className="text-amber-400 font-bold text-xl">{(popcornList.filter(p => p !== 'none').length * 2500).toLocaleString()}원</span></p>
@@ -1070,7 +1081,7 @@ export default function Home() {
               <div className="mb-6 border border-amber-500/30 bg-amber-900/20 p-4 rounded-xl">
                 <p className="text-amber-400 font-bold mb-4">⏳ 결제 대기 중인 좌석입니다</p>
                 <div className="bg-white p-3 rounded-xl inline-block mb-3 shadow-lg">
-                  <img src="/qr.jpeg" alt="송금 QR" className="w-32 h-32 object-contain" />
+                  <img src="/qr.jpeg" alt="송금 QR" loading="lazy" decoding="async" className="w-32 h-32 object-contain" />
                 </div>
                 <div className="mb-3"><AccountInfo /></div>
                 <p className="text-sm text-amber-300/80 font-bold">입금 후 관리자가 확인 시<br/>예매가 최종 완료됩니다.</p>

@@ -22,9 +22,12 @@ export async function POST(req: Request) {
         if (e1) throw e1;
         
         const [resQ, blQ, logQ] = await Promise.all([
-          supabaseAdmin.from('reservations').select('*').eq('movie_date', movieData?.db_date).order('created_at', { ascending: false }),
-          supabaseAdmin.from('blacklist').select('*').order('created_at', { ascending: false }),
-          supabaseAdmin.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(100)
+          supabaseAdmin.from('reservations')
+            .select('id, seat_number, payment_status, student_name, student_id, popcorn_order, is_printed, is_group_leader')
+            .eq('movie_date', movieData?.db_date)
+            .order('created_at', { ascending: false }),
+          supabaseAdmin.from('blacklist').select('student_id, student_name').order('created_at', { ascending: false }),
+          supabaseAdmin.from('activity_logs').select('id, created_at, student_id, student_name, description').order('created_at', { ascending: false }).limit(100)
         ]);
 
         if (resQ.error) throw resQ.error;

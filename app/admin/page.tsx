@@ -67,7 +67,8 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (isAuthenticated) fetchAdminData();
-  }, [isAuthenticated, password]);
+    // password는 인증 시점 이후 변경되지 않으므로 의존성에서 제외
+  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleSkipAuth = async () => {
     let currentPass = password;
