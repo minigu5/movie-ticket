@@ -166,19 +166,24 @@ export default function Home() {
 
   const fetchInitialData = async () => {
     try {
-      const { data: settingsData } = await supabase.from('movie_settings').select('*').eq('id', 1).single();
+      const [{ data: settingsData }, { data: bgData }] = await Promise.all([
+        supabase.from('movie_settings').select('*').eq('id', 1).single(),
+        supabase.from('blacklist').select('student_id'),
+      ]);
+
       let currentDbDate = "2026-04-18";
-      
+
       if (settingsData) {
         setMovieInfo(settingsData);
         currentDbDate = settingsData.db_date;
         if (new Date() > new Date(settingsData.deadline_date)) setIsClosed(true);
       }
+      if (bgData) setBlacklistedUsers(bgData.map(b => b.student_id));
 
       const { data: resData } = await supabase.from('reservations')
         .select('id, seat_number, payment_status, student_name, student_id, group_expires_at, popcorn_order')
         .eq('movie_date', currentDbDate);
-        
+
       if (resData) {
         const newStatuses: Record<string, SeatData> = {};
         const now = new Date();
@@ -186,7 +191,6 @@ export default function Home() {
           if (res.payment_status === 'pending' || res.payment_status === 'confirmed') {
             newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id, popcorn: res.popcorn_order };
           } else if (res.payment_status === 'group_pending') {
-            // 🌟 [단체 예매] 만료 시간이 지나지 않은 경우만 표시 (JIT 필터링)
             if (res.group_expires_at && new Date(res.group_expires_at) > now) {
               newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id, popcorn: res.popcorn_order };
             }
@@ -194,9 +198,6 @@ export default function Home() {
         });
         setSeatStatuses(newStatuses);
       }
-
-      const { data: bgData } = await supabase.from('blacklist').select('student_id');
-      if (bgData) setBlacklistedUsers(bgData.map(b => b.student_id));
 
       // 🌟 [단체 예매] 만료된 단체 예매 정리 — 세션당 최대 10분에 1회만 트리거
       try {

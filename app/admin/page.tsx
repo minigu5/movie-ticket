@@ -201,9 +201,10 @@ export default function AdminPage() {
 
     const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
     if (userEmail) {
-      await fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'confirmed', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl }) });
+      fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'confirmed', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl }) });
     }
-    alert("승인 완료 및 이메일 발송됨!"); fetchAdminData();
+    setReservations(prev => prev.map(r => r.id === ticket.id ? { ...r, payment_status: 'confirmed' } : r));
+    alert("승인 완료 및 이메일 발송됨!");
   };
 
   const handleCancel = async (ticket: any) => {
@@ -224,12 +225,13 @@ export default function AdminPage() {
     const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
     if (userEmail) {
       const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
-      await fetch('/api/ticket', {
+      fetch('/api/ticket', {
         method: 'POST',
         body: JSON.stringify({ email: userEmail, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
       });
     }
-    alert("취소 완료 및 이메일 발송됨!"); fetchAdminData();
+    setReservations(prev => prev.filter(r => r.id !== ticket.id));
+    alert("취소 완료 및 이메일 발송됨!");
   };
 
   const handleResetPrint = async (ticket: any) => {
@@ -250,8 +252,8 @@ export default function AdminPage() {
       return;
     }
 
+    setReservations(prev => prev.map(r => r.id === ticket.id ? { ...r, is_printed: false } : r));
     alert("✅ 발권 상태가 초기화되었습니다.");
-    fetchAdminData();
   };
 
   const handleAddBlacklist = async () => {
@@ -272,28 +274,34 @@ export default function AdminPage() {
     if (data.canceledTicket && userEmail) {
       const ticket = data.canceledTicket;
       const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
-      await fetch('/api/ticket', {
+      fetch('/api/ticket', {
         method: 'POST',
         body: JSON.stringify({ email: userEmail, name: studentName, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
       });
     }
 
     if (userEmail) {
-      await fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: userEmail, name: studentName, action: 'added' }) });
+      fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: userEmail, name: studentName, action: 'added' }) });
     }
 
-    alert("블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!"); setNewBlackId(''); fetchAdminData();
+    setBlacklist(prev => [...prev, { student_id: newBlackId, student_name: studentName }]);
+    setReservations(prev => prev.filter(r => r.student_id !== newBlackId));
+    setNewBlackId('');
+    alert("블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!");
   };
 
   const handleRemoveBlacklist = async (studentId: string, studentName: string) => {
     if (!confirm(`${studentName}(${studentId}) 학생의 블랙리스트를 해제하시겠습니까?`)) return;
-    await fetch('/api/admin/action', {
+    const res = await fetch('/api/admin/action', {
       method: 'POST',
       body: JSON.stringify({ action: 'REMOVE_BLACKLIST', adminPassword: password, payload: { studentId } })
     });
+    const data = await res.json();
+    if (!data.success) return alert("해제 실패");
     const userEmail = USER_EMAILS[studentId];
-    if (userEmail) await fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: userEmail, name: studentName, action: 'removed' }) });
-    alert("해제 완료 및 안내 메일 발송!"); fetchAdminData();
+    if (userEmail) fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: userEmail, name: studentName, action: 'removed' }) });
+    setBlacklist(prev => prev.filter(b => b.student_id !== studentId));
+    alert("해제 완료 및 안내 메일 발송!");
   };
 
   const handleSendPromoClick = () => {
