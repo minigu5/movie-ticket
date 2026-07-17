@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getTransporter } from '@/lib/mailer';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(req: Request) {
   try {
@@ -7,8 +8,13 @@ export async function POST(req: Request) {
 
     const { transporter, user: senderUser } = getTransporter();
 
-    const sendPromises = members.map((member: { email: string, name: string, seat: string, studentId: string, memberId: string }) => {
-      if (!member.email) return Promise.resolve();
+    const memberIds = members.map((m: { memberId: string }) => m.memberId);
+    const { data: rows } = await supabaseAdmin.from('reservations').select('id, email').in('id', memberIds);
+    const emailByMemberId = new Map((rows || []).map((r: any) => [r.id, r.email]));
+
+    const sendPromises = members.map((member: { name: string, seat: string, studentId: string, memberId: string }) => {
+      const email = emailByMemberId.get(member.memberId);
+      if (!email) return Promise.resolve();
 
       const confirmUrl = `${baseUrl}/group-confirm?groupId=${groupId}&memberId=${member.memberId}`;
 
@@ -58,7 +64,7 @@ export async function POST(req: Request) {
 
       return transporter.sendMail({
         from: `"영화대교 예매시스템" <${senderUser}>`,
-        to: member.email,
+        to: email,
         subject: `[영화대교] 🎬 ${member.name}님, 단체 관람에 초대되었습니다 - ${member.seat} 좌석`,
         html: htmlContent
       });
