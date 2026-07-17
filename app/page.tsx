@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { USER_EMAILS } from '../lib/emails';
+import { ensureProfile, signInWithGoogle, authFetch, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
 
-
-import { STUDENT_LIST, STAFF_LIST, CLUB_MEMBERS } from '../lib/constants';
 import AccountInfo from '@/components/AccountInfo';
 
 interface SeatData {
@@ -38,10 +36,9 @@ export default function Home() {
     grand_vip_start_row: "A", grand_vip_end_row: "C", grand_vip_start_col: 10, grand_vip_end_col: 18
   });
   
-  const[formData, setFormData] = useState({ studentId: '', name: '', password: '' });
-  
-  const[showResetButton, setShowResetButton] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
+  const [profile, setProfile] = useState<AppProfile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [clubMemberIds, setClubMemberIds] = useState<string[]>([]);
   const [clickedSeatInfo, setClickedSeatInfo] = useState<{seatId: string, status: string, ticketId: string, popcorn?: string} | null>(null);
 
   const [alertInfo, setAlertInfo] = useState<{message: string, isError: boolean} | null>(null);
@@ -115,7 +112,6 @@ export default function Home() {
     return vips;
   }, [movieInfo, isGrandHall, rows, cols]);
 
-  const [inviteName, setInviteName] = useState("");
   const [isManualOpen, setIsManualOpen] = useState(false);
 
   // 🌟 [단체 예매] Group Mode 상태 관리
@@ -129,31 +125,40 @@ export default function Home() {
   const [groupSendingProgress, setGroupSendingProgress] = useState({current: 0, total: 0, sending: false});
 
   useEffect(() => {
-    fetchInitialData();
-  },[]);
-
-  // 🌟 [추가됨] VIP 초청 링크를 통한 접근 시 데이터 자동 채우기
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('invite') === 'true') {
-        let paramId = params.get('id') || '';
-        let paramName = params.get('name') || '';
-        
-        if (paramId === 'undefined' || paramId === 'null') paramId = '';
-        if (paramName === 'undefined' || paramName === 'null') paramName = '';
-
-        if (paramId || paramName) {
-          // 🍎 [추가됨] 숫자가 아닌 학번(교직원/관리자 등)은 '교직원'으로 표시합니다.
-          const finalId = (paramId && isNaN(Number(paramId))) ? '교직원' : paramId;
-          setFormData(prev => ({ ...prev, studentId: finalId, name: paramName }));
-          if (paramName) setInviteName(paramName);
+    let active = true;
+    const bootstrap = async () => {
+      try {
+        const p = await ensureProfile();
+        if (active) setProfile(p);
+      } catch (err) {
+        if (err instanceof DomainNotAllowedError) {
+          showAlert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
         }
-        // 주소창에서 파라미터 숨기기 (깔끔한 UI 유지)
-        window.history.replaceState({}, '', window.location.pathname);
+      } finally {
+        if (active) setAuthLoading(false);
       }
-    }
+    };
+    bootstrap();
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session) { setProfile(null); return; }
+      try {
+        const p = await ensureProfile();
+        setProfile(p);
+      } catch (err) {
+        if (err instanceof DomainNotAllowedError) {
+          showAlert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
+        }
+        setProfile(null);
+      }
+    });
+
+    return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
+
+  useEffect(() => {
+    if (profile) fetchInitialData();
+  }, [profile]);
 
   // 🌟 [단체 예매] 이메일 발송 중 페이지 이탈 방지
   useEffect(() => {
@@ -228,7 +233,7 @@ export default function Home() {
         return;
       }
       if (groupMembers.length >= 9) return showAlert("단체 예매는 리더를 포함하여 최대 10명까지 가능합니다.");
-      if (vipSeats.has(seatId) && groupLeader && !CLUB_MEMBERS.includes(groupLeader.studentId)) {
+      if (vipSeats.has(seatId) && groupLeader && (!groupLeader.studentId || !clubMemberIds.includes(groupLeader.studentId))) {
         return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.");
       }
       setSelectedSeat(seatId);
@@ -603,17 +608,6 @@ export default function Home() {
           <span className="text-[40px] md:text-[50px] tracking-[0.1em] drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">대교</span>
         </div>
       </div>
-
-      {inviteName && (
-        <div className="w-full max-w-4xl bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 border border-amber-500/30 rounded-2xl p-5 mb-6 text-center transform shadow-[0_0_30px_rgba(245,158,11,0.15)] animate-in fade-in slide-in-from-top-4 duration-700">
-          <div className="text-amber-400 font-bold text-lg md:text-xl tracking-wide flex items-center justify-center gap-2">
-            <span>✨</span>
-            <span><span className="text-white">{inviteName}</span>님, 특별 초청을 환영합니다!</span>
-            <span>✨</span>
-          </div>
-          <p className="text-slate-400 text-sm mt-2 font-light">예매 시 귀하의 학번과 이름이 자동으로 입력되어 있습니다.</p>
-        </div>
-      )}
 
       <div className="flex flex-col md:flex-row items-center gap-6 mb-12 bg-white/5 backdrop-blur-xl p-6 rounded-2xl w-full max-w-4xl shadow-2xl border border-white/10 transition-all duration-500 hover:border-white/20 hover:bg-white/10">
         <img src={movieInfo.poster_url} alt="영화 포스터" loading="lazy" decoding="async" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-slate-800" />
