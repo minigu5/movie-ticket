@@ -98,13 +98,7 @@ export async function GET() {
 }
 
 function getEmail(reservation: any): string | null {
-  // 학번→이메일 매핑은 서버에서 직접 접근하기 어려우므로 간접 구현
-  // USER_EMAILS를 여기서도 사용
-  try {
-    const { USER_EMAILS } = require('@/lib/emails');
-    const key = reservation.student_id === "교직원" ? reservation.student_name : reservation.student_id;
-    return USER_EMAILS[key] || null;
-  } catch { return null; }
+  return reservation.email || null;
 }
 
 function buildCancelEmail(name: string, seat: string, leaderName: string): string {
