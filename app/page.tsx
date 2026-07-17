@@ -171,10 +171,12 @@ export default function Home() {
 
   const fetchInitialData = async () => {
     try {
-      const [{ data: settingsData }, { data: bgData }] = await Promise.all([
+      const [{ data: settingsData }, { data: bgData }, { data: clubData }] = await Promise.all([
         supabase.from('movie_settings').select('*').eq('id', 1).single(),
         supabase.from('blacklist').select('student_id'),
+        supabase.from('club_members').select('student_id'),
       ]);
+      if (clubData) setClubMemberIds(clubData.map(c => c.student_id));
 
       let currentDbDate = "2026-04-18";
 
