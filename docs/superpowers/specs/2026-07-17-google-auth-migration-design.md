@@ -14,7 +14,7 @@
 **비목표**:
 - 결제/팝콘 기능 부활 없음 (이미 제거된 상태 유지)
 - 좌석 배치 알고리즘, VIP 좌석 판정 로직 자체는 변경 없음 (판정에 쓰는 데이터 소스만 배열 → DB 테이블로 교체)
-- 기존 예약 데이터(비밀번호 포함)의 소급 마이그레이션 없음. 과거 데이터는 열람용으로만 보존
+- 기존 예약 데이터의 소급 마이그레이션 없음. `reservations` 테이블은 컷오버 시점에 전체 초기화한다(원래도 상영 회차마다 테이블을 초기화하던 운영 방식과 동일)
 
 ## 2. 인증 인프라
 
@@ -52,14 +52,25 @@ create table club_members (
   added_by text,
   created_at timestamptz not null default now()
 );
+
+-- 단일 행(id=1)만 사용하는 키오스크 잠금 비밀번호 저장소
+create table kiosk_settings (
+  id int primary key default 1,
+  password text not null,
+  updated_at timestamptz not null default now(),
+  constraint kiosk_settings_singleton check (id = 1)
+);
 ```
 
-- `admins`, `club_members`는 관리자 페이지에서 CRUD 가능한 관리 화면 추가 (기존 하드코딩 배열 대체).
+- `admins`, `club_members`, `kiosk_settings`는 관리자 페이지에서 CRUD/수정 가능한 관리 화면 추가 (기존 하드코딩 배열/문자열 대체).
 - 부트스트랩 관리자 1행(`ts250024@ts.hs.kr`)은 SQL로 최초 1회 직접 insert. 이후 관리자 추가/삭제는 `/admin` UI에서 처리.
+- `kiosk_settings`는 초기값으로 기존 하드코딩 비밀번호("영화대교최고")를 그대로 SQL로 1행 insert.
 
 ### 기존 테이블 변경
 
-- `reservations`: `user_id uuid references profiles(id)` 컬럼 추가. 신규 예매부터 채움. 기존 `password` 컬럼은 삭제하지 않고 과거 데이터 보존용으로 유지(신규 예매는 값 없이/미사용).
+- `reservations`: 컷오버 시점에 테이블 전체를 `TRUNCATE`(모든 행 삭제)한 뒤 스키마를 변경한다.
+  - `user_id uuid not null references profiles(id)` 컬럼 추가 (과거 데이터가 없으므로 처음부터 `NOT NULL`로 생성 가능)
+  - `password` 컬럼 삭제 (`ALTER TABLE reservations DROP COLUMN password`)
 
 ### 제거 대상 (삭제 시점은 9절 하드 컷오버 이후)
 
@@ -85,14 +96,14 @@ create table club_members (
 
 ## 6. 키오스크 (`/print`, `app/api/kiosk`)
 
-- 발권 화면 진입 잠금(관리자 비밀번호 "영화대교최고")은 이번 변경과 무관하므로 그대로 유지.
-- `PRINT_TICKET` 액션: 기존 비밀번호 검증(`verify_student_password` RPC 호출) 제거. 대신 학생이 학번+이름을 입력하면 `reservations`에서 일치하는 예약을 조회해 발권한다. 별도 구글 로그인은 키오스크에서 요구하지 않는다(현장 관리자 잠금으로 보호되는 공유 기기이므로).
+- 발권 화면 진입 잠금 비밀번호는 코드에 하드코딩("영화대교최고")된 현재 방식을 버리고 `kiosk_settings` 테이블에서 조회한다. `/admin`에서 관리자가 비밀번호를 변경하면 즉시 반영된다.
+- `PRINT_TICKET` 액션: 기존 학생 비밀번호 검증(`verify_student_password` RPC 호출) 제거. 대신 학생이 학번+이름을 입력하면 `reservations`에서 일치하는 예약을 조회해 발권한다. 별도 구글 로그인은 키오스크에서 요구하지 않는다(현장 관리자 잠금으로 보호되는 공유 기기이므로).
 
 ## 7. 관리자 사이트 (`/admin`)
 
 - 진입 시 구글 로그인을 요구한다. 로그인 후 세션 이메일이 `admins` 테이블에 없으면 "권한 없음" 화면을 보여주고 이후 API 호출을 막는다.
 - `app/api/admin/action`을 비롯한 모든 관리자 API 라우트에서 `adminPassword` 바디 파라미터 검증을 제거하고, `Authorization: Bearer` 토큰 검증 + `admins` 테이블 조회로 교체한다.
-- 관리 탭 추가: 관리자 목록(`admins`) CRUD, 동아리원(`club_members`) CRUD.
+- 관리 탭 추가: 관리자 목록(`admins`) CRUD, 동아리원(`club_members`) CRUD, 키오스크 잠금 비밀번호(`kiosk_settings`) 변경.
 - 기존 기능(예매 내역, 강제 취소, 활동 로그, 블랙리스트, 영화 설정, 대량 메일 발송, 발권 초기화)은 그대로 유지하되 인증 계층만 교체.
 
 ## 8. 외부 사전 준비 (사용자가 직접 해야 하는 작업)
@@ -105,10 +116,10 @@ Claude가 접근할 수 없는 콘솔 작업이라 사용자가 직접 처리해
 
 ## 9. 마이그레이션 및 기존 데이터 처리
 
-- 기존 `reservations.password` 컬럼은 삭제하지 않고 과거 데이터 열람용으로만 남긴다. 신규 예매부터는 사용하지 않는다.
-- 과거(전환 이전) 예약 건은 `user_id`가 `null`로 남는다. 관리자 대시보드에서 열람은 가능하나, 본인 셀프 취소는 불가하며 필요 시 관리자가 수동 처리한다.
-- 하드 컷오버: 전환 시점부터 예매/취소/단체예매/키오스크/관리자 페이지 전부 즉시 신규 인증 방식으로 전환한다(구버전과 병행 운영 없음).
-- 전환 완료 후 확인되면 `student_auth` 테이블, `verify_student_password` RPC, `lib/emails.ts`, `STUDENT_LIST`/`STAFF_LIST`/`CLUB_MEMBERS` 배열, `reset-password` 페이지/API, `ADMIN_PASSWORD` 환경변수를 삭제한다.
+- 하드 컷오버: 전환 시점에 `reservations` 테이블을 `TRUNCATE`로 전부 비운다. 기존에도 상영 회차가 바뀔 때마다 테이블을 초기화하던 운영 방식이라, 과거 예약 이력을 보존할 필요가 없다는 전제다(이력 보존 기능은 이번 범위 밖, 추후 별도 작업).
+- 동시에 `reservations.password` 컬럼을 `DROP COLUMN`으로 완전히 제거하고 `user_id` 컬럼을 `NOT NULL`로 추가한다.
+- 컷오버 이후 예매/취소/단체예매/키오스크/관리자 페이지 전부 즉시 신규 인증 방식으로 전환한다(구버전과 병행 운영 없음).
+- 전환 완료 후 확인되면 `student_auth` 테이블, `verify_student_password` RPC, `lib/emails.ts`, `STUDENT_LIST`/`STAFF_LIST`/`CLUB_MEMBERS` 배열, `reset-password` 페이지/API, `ADMIN_PASSWORD` 환경변수, 하드코딩된 키오스크 잠금 비밀번호 문자열을 삭제한다.
 
 ## 10. 리스크 / 열린 사항
 
