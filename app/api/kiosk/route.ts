@@ -1,3 +1,4 @@
+// app/api/kiosk/route.ts
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
@@ -5,41 +6,39 @@ export async function POST(req: Request) {
   try {
     const { action, payload } = await req.json();
 
-    if (action === 'PRINT_TICKET') {
-      const { ticketId, studentId, studentName, password, seatNumber } = payload;
-      
-      const authKey = studentId === "교직원" ? studentName : studentId;
-      const { data: authResult, error: authError } = await supabaseAdmin.rpc('verify_student_password', { 
-        p_student_id: authKey, 
-        p_password: password 
-      });
+    if (action === 'KIOSK_LOGIN') {
+      const { password } = payload;
+      const { data: settings, error } = await supabaseAdmin.from('kiosk_settings').select('password').eq('id', 1).single();
+      if (error) throw error;
 
-      if (authError || !authResult.success) {
-        return NextResponse.json({ success: false, error: 'Unauthorized: Invalid password' }, { status: 401 });
+      if (!settings || settings.password !== password) {
+        return NextResponse.json({ success: false, error: 'Unauthorized: Invalid kiosk password' }, { status: 401 });
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === 'PRINT_TICKET') {
+      const { ticketId, studentId, studentName, seatNumber } = payload;
+
+      const { data: ticket, error: fetchError } = await supabaseAdmin.from('reservations')
+        .select('id, student_id, student_name')
+        .eq('id', ticketId)
+        .single();
+
+      if (fetchError || !ticket || ticket.student_id !== studentId || ticket.student_name !== studentName) {
+        return NextResponse.json({ success: false, error: 'Unauthorized: 학번/이름이 예약 내역과 일치하지 않습니다.' }, { status: 401 });
       }
 
       const { error: e1 } = await supabaseAdmin.from('reservations').update({ is_printed: true }).eq('id', ticketId);
       if (e1) throw e1;
-      
-      const { error: e2 } = await supabaseAdmin.from('activity_logs').insert([{ 
-        student_id: studentId, 
-        student_name: studentName, 
-        description: `현장 KIOSK 티켓 발권 완료 (${seatNumber})` 
+
+      const { error: e2 } = await supabaseAdmin.from('activity_logs').insert([{
+        student_id: studentId,
+        student_name: studentName,
+        description: `현장 KIOSK 티켓 발권 완료 (${seatNumber})`
       }]);
       if (e2) throw e2;
 
-      return NextResponse.json({ success: true });
-    }
-
-    if (action === 'UPDATE_GROUP_POPCORN') {
-      const { reservationId, popcornOrder, paymentStatus } = payload;
-      
-      const { error } = await supabaseAdmin.from('reservations').update({ 
-        popcorn_order: popcornOrder, 
-        payment_status: paymentStatus 
-      }).eq('id', reservationId);
-      
-      if (error) throw error;
       return NextResponse.json({ success: true });
     }
 
