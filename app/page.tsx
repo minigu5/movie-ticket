@@ -270,60 +270,14 @@ export default function Home() {
     setPopcornList(filtered);
   };
 
-  const handleRequestReset = async () => {
-    const cleanStudentId = formData.studentId.replace(/['"]/g, '').trim();
-    setIsResetting(true);
-    try {
-      const res = await fetch('/api/auth/request-reset', {
-        method: 'POST',
-        body: JSON.stringify({ studentId: cleanStudentId, studentName: formData.name, baseUrl: window.location.origin })
-      });
-      if (res.ok) {
-        showAlert("학교 이메일로 비밀번호 재설정 링크가 발송되었습니다.", false);
-        setShowResetButton(false);
-      } else { showAlert("발송에 실패했습니다."); }
-    } finally { setIsResetting(false); }
-  };
-
   const handleSubmit = async () => {
-    if (!formData.studentId || !formData.name || !formData.password) return showAlert("정보를 모두 입력해주세요!");
-    if (!/^[0-9]{4}$/.test(formData.password)) return showAlert("❌ 비밀번호는 4자리 '숫자'만 입력해주세요!");
+    if (!profile) return showAlert("로그인이 필요합니다.");
 
-    const cleanStudentId = formData.studentId.replace(/['"]/g, '').trim();
-
-    if (cleanStudentId === "교직원") {
-      if (!STAFF_LIST.includes(formData.name)) return showAlert("❌ 등록된 교직원 이름이 아닙니다.");
-    } else {
-      if (cleanStudentId.length !== 4) return showAlert("학번은 4자리 숫자로 입력해주세요.");
-      if (STUDENT_LIST[cleanStudentId] !== formData.name) return showAlert(`❌ 학번과 이름이 일치하지 않습니다.`);
-    }
-
-    if (blacklistedUsers.includes(cleanStudentId)) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
+    if (blacklistedUsers.includes(profile.student_id ?? '')) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
 
     if (selectedSeat && vipSeats.has(selectedSeat)) {
-      if (!CLUB_MEMBERS.includes(cleanStudentId)) {
+      if (!profile.student_id || !clubMemberIds.includes(profile.student_id)) {
         return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
-      }
-    }
-
-    const authKey = cleanStudentId === "교직원" ? formData.name : cleanStudentId;
-    const { data: authResult, error: authError } = await supabase.rpc('verify_student_password', { 
-      p_student_id: authKey, 
-      p_password: formData.password 
-    });
-
-    if (authError) return showAlert("네트워크 오류가 발생했습니다.");
-
-    if (!authResult.exists) {
-      // 신규 사용자: INSERT (RLS anon INSERT 허용됨)
-      await supabase.from('student_auth').insert({ student_id: authKey, password: formData.password });
-      setShowResetButton(false);
-    } else {
-      if (!authResult.success) {
-        setShowResetButton(true);
-        return showAlert("❌ 비밀번호가 일치하지 않습니다.");
-      } else {
-        setShowResetButton(false);
       }
     }
 
@@ -332,11 +286,10 @@ export default function Home() {
         const { data: existingTickets } = await supabase.from('reservations')
           .select('*')
           .eq('movie_date', movieInfo.db_date)
-          .eq('student_id', cleanStudentId)
-          .eq('student_name', formData.name);
+          .eq('user_id', profile.id);
 
         const baseUrl = window.location.origin;
-        const userEmail = cleanStudentId === "교직원" ? USER_EMAILS[formData.name] : USER_EMAILS[cleanStudentId];
+        const userEmail = profile.email;
         const finalPopcornString = popcornList.filter(p => p !== 'none').join(',') || 'none';
 
         if (existingTickets && existingTickets.length > 0) {
@@ -364,10 +317,10 @@ export default function Home() {
 
             if (updateError) return showAlert("변경 중 오류 발생 (이미 선점된 좌석일 수 있습니다).");
 
-            await supabase.from('activity_logs').insert([{ student_id: cleanStudentId, student_name: formData.name, description: `좌석 변경 (${myOldTicket.seat_number} ➡️ ${selectedSeat}) 및 팝콘 갱신` }]);
+            await supabase.from('activity_logs').insert([{ student_id: profile.student_id, student_name: profile.name, description: `좌석 변경 (${myOldTicket.seat_number} ➡️ ${selectedSeat}) 및 팝콘 갱신` }]);
 
             if (userEmail && updatedTicket) {
-              fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: formData.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'changed', popcorn: finalPopcornString, ticketId: updatedTicket.id, baseUrl }) });
+              fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: profile.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'changed', popcorn: finalPopcornString, ticketId: updatedTicket.id, baseUrl }) });
             }
             showSuccess("예매 변경 완료!", "✨ 좌석이 성공적으로 변경되었습니다.\n새로운 티켓이 학교 메일로 발송되었습니다.");
             fetchInitialData(); setIsModalOpen(false); setSelectedSeat(null);
@@ -377,7 +330,7 @@ export default function Home() {
 
         const finalStatus = finalPopcornString === 'none' ? 'confirmed' : 'pending';
         const { data: newTicket, error: insertError } = await supabase.from('reservations')
-          .insert([{ movie_date: movieInfo.db_date, student_id: cleanStudentId, student_name: formData.name, password: formData.password, seat_number: selectedSeat, popcorn_order: finalPopcornString, payment_status: finalStatus }])
+          .insert([{ movie_date: movieInfo.db_date, user_id: profile.id, student_id: profile.student_id, student_name: profile.name, email: profile.email, seat_number: selectedSeat, popcorn_order: finalPopcornString, payment_status: finalStatus }])
           .select('id').single();
 
         if (insertError) {
@@ -386,22 +339,22 @@ export default function Home() {
         }
 
         const logDesc = finalStatus === 'confirmed' ? `무료 예매 (${selectedSeat})` : `팝콘 포함 예매 대기 (${selectedSeat})`;
-        await supabase.from('activity_logs').insert([{ student_id: cleanStudentId, student_name: formData.name, description: logDesc }]);
+        await supabase.from('activity_logs').insert([{ student_id: profile.student_id, student_name: profile.name, description: logDesc }]);
 
-        setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: finalStatus, name: formData.name, ticketId: newTicket?.id || '' } }));
-        setIsModalOpen(false); 
+        setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: finalStatus, name: profile.name, ticketId: newTicket?.id || '' } }));
+        setIsModalOpen(false);
 
         if (userEmail && newTicket) {
-          fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: formData.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: finalStatus, popcorn: finalPopcornString, ticketId: newTicket.id, baseUrl }) });
+          fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: profile.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: finalStatus, popcorn: finalPopcornString, ticketId: newTicket.id, baseUrl }) });
         }
 
         if (finalStatus === 'confirmed') {
-          showSuccess("🎉 예매 성공!", `${formData.name}님 귀중한 예매 감사합니다! 📧\n입력하신 학교 이메일로 VIP 모바일 티켓이 발송되었습니다.`);
+          showSuccess("🎉 예매 성공!", `${profile.name}님 귀중한 예매 감사합니다! 📧\n학교 이메일로 VIP 모바일 티켓이 발송되었습니다.`);
           setSelectedSeat(null);
         } else {
           setIsPaymentModalOpen(true);
         }
-        
+
       } catch (err) {
         showAlert("네트워크 오류가 발생했습니다.");
       }
