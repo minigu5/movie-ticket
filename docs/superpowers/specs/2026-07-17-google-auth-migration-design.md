@@ -15,6 +15,9 @@
 - 결제/팝콘 기능 부활 없음 (이미 제거된 상태 유지)
 - 좌석 배치 알고리즘, VIP 좌석 판정 로직 자체는 변경 없음 (판정에 쓰는 데이터 소스만 배열 → DB 테이블로 교체)
 - 기존 예약 데이터의 소급 마이그레이션 없음. `reservations` 테이블은 컷오버 시점에 전체 초기화한다(원래도 상영 회차마다 테이블을 초기화하던 운영 방식과 동일)
+- 대량 홍보 메일(학년별/전체 발송) 기능 부활 없음. `profiles`는 로그인 이력이 있는 사람만 존재하므로(신규 학기 초에는 0명), 학번↔이메일 전수 매핑 없이는 "아직 로그인한 적 없는 전교생"에게 보낼 방법이 없다. 이 기능은 이번 전환에서 완전히 삭제한다(6절 참고).
+
+**중요 결론 (구현 착수 전 확인됨)**: `profiles`는 로그인해야만 생기는 테이블이라, "아직 로그인 안 한 사람"을 이메일로 찾아낼 방법이 없다. 이 제약이 아래 두 기능에 영향을 준다.
 
 ## 2. 인증 인프라
 
@@ -40,6 +43,8 @@ create table profiles (
   role text not null check (role in ('student', 'staff')),
   created_at timestamptz not null default now()
 );
+-- 학번으로 프로필을 역조회할 일(블랙리스트 표시, 동아리원 이름 표시 등)이 있어 인덱스 추가
+create unique index profiles_student_id_idx on profiles(student_id) where student_id is not null;
 
 create table admins (
   email text primary key,
@@ -70,6 +75,7 @@ create table kiosk_settings (
 
 - `reservations`: 컷오버 시점에 테이블 전체를 `TRUNCATE`(모든 행 삭제)한 뒤 스키마를 변경한다.
   - `user_id uuid not null references profiles(id)` 컬럼 추가 (과거 데이터가 없으므로 처음부터 `NOT NULL`로 생성 가능)
+  - `email text not null` 컬럼 추가. 예매/취소/승인/블랙리스트 처리 시 메일 발송 대상 주소를 매번 `USER_EMAILS`나 조인으로 찾지 않고, 예매 시점의 세션 이메일을 그대로 복사해 저장해둔다(기존 코드가 `ticket.student_id`/`ticket.student_name`만 갖고 여러 곳에서 `USER_EMAILS[...]` 조회하던 자리를 전부 `ticket.email`로 대체).
   - `password` 컬럼 삭제 (`ALTER TABLE reservations DROP COLUMN password`)
 
 ### 제거 대상 (삭제 시점은 9절 하드 컷오버 이후)
@@ -85,14 +91,22 @@ create table kiosk_settings (
 - 세션 없으면 "구글로 로그인" 버튼만 노출. 로그인 성공 시 `profiles` upsert(최초 1회) 후 좌석 선택 화면 진입.
 - 기존 학번/이름/비밀번호 입력 폼(`formData` 관련 state 및 UI) 전부 제거. 예매에 필요한 `student_id`/`name`은 로그인된 `profiles` 값을 그대로 사용.
 - VIP 좌석 판정: `CLUB_MEMBERS.includes(id)` 배열 조회 → `club_members` 테이블 조회로 교체.
-- 좌석 클릭 시 즉시 예약 insert. `user_id`, `student_id`, `student_name`, `seat_number` 등 저장. 확인 메일은 세션의 `email`을 그대로 사용 (`USER_EMAILS` 조회 제거).
+- 좌석 클릭 시 즉시 예약 insert. `user_id`, `student_id`, `student_name`, `email`(세션 이메일), `seat_number` 등 저장. 확인 메일은 방금 저장한 `email` 값을 그대로 사용 (`USER_EMAILS` 조회 제거).
 - 기존 예약이 있는 상태에서 다른 좌석 클릭 시 자동 이동(기존 취소 후 재예약) 로직은 `user_id` 기준으로 동일하게 유지.
 - 블랙리스트 체크는 `student_id` 기준 그대로 유지(테이블/로직 변경 없음).
 
 ## 5. 취소/단체예매 플로우
 
 - `/cancel`: 세션이 있으면 자동으로 `user_id` 기준 본인 예약을 조회해 보여준다. 학번/이름/비밀번호 재입력 폼은 삭제.
-- `/group-confirm`: 그룹장은 세션으로 식별한다. 그룹원 추가 시 학번+이름만 입력받아 좌석을 확보하는 기존 흐름은 유지하되(그룹원은 본인이 직접 로그인하는 게 아니므로 비밀번호 필드는 원래도 없었음), 이름 대조용 명렬표 검증은 제거한다.
+
+### 단체예매 초대 방식 변경 (기존 자유 입력 → 등록된 사람 검색)
+
+기존에는 그룹 리더가 멤버의 학번+이름을 자유 텍스트로 입력하면(명렬표로 이름만 대조) 시스템이 `USER_EMAILS`로 이메일을 찾아 자동으로 초대 메일을 보냈다. 새 설계에서는 로그인 이력이 없는 사람의 이메일을 알아낼 방법이 없으므로(1절 참고), **아직 한 번도 로그인한 적 없는 사람은 애초에 단체예매에 초대할 수 없다.**
+
+- 신규 API `app/api/profiles/search/route.ts` (GET, `?q=검색어`): `Authorization: Bearer` 토큰으로 로그인 여부만 확인(관리자 권한 불필요), `profiles` 테이블에서 `name ILIKE` 또는 `student_id =` 매치되는 행을 최대 10건 반환한다. 응답 필드는 `id`(profiles.id), `student_id`, `name`만 포함하고 **`email`은 절대 클라이언트에 내려주지 않는다** (익명 사용자가 전교생 이메일을 긁어가는 것을 막기 위함, `supabaseAdmin` 서비스 롤로 조회).
+- `/`(`app/page.tsx`)의 그룹원 추가 UI: 학번+이름 텍스트 입력 대신, 이름/학번으로 검색해 나오는 후보 목록에서 선택하는 방식으로 변경. 후보가 없으면 "이 사람은 아직 로그인한 적이 없어 초대할 수 없습니다. 먼저 사이트에 한 번 로그인해달라고 요청해주세요" 안내를 보여준다.
+- 그룹원의 `student_id`/`name`/`email`은 검색으로 찾은 실제 `profiles` 행 값을 그대로 예약에 채워 넣는다(리더가 잘못 입력할 여지가 없어짐 → VIP 좌석 판정도 이 시점에 이미 정확한 `student_id`로 확인 가능, 별도 재검증 불필요).
+- `/group-confirm`: 그룹장/그룹원 모두 세션으로 식별한다(멤버도 초대 수락 시점에는 이미 로그인 이력이 있으므로, 링크 클릭 후 세션이 없으면 구글 로그인 화면을 먼저 보여준다). 비밀번호 재입력 폼은 삭제.
 
 ## 6. 키오스크 (`/print`, `app/api/kiosk`)
 
@@ -104,7 +118,9 @@ create table kiosk_settings (
 - 진입 시 구글 로그인을 요구한다. 로그인 후 세션 이메일이 `admins` 테이블에 없으면 "권한 없음" 화면을 보여주고 이후 API 호출을 막는다.
 - `app/api/admin/action`을 비롯한 모든 관리자 API 라우트에서 `adminPassword` 바디 파라미터 검증을 제거하고, `Authorization: Bearer` 토큰 검증 + `admins` 테이블 조회로 교체한다.
 - 관리 탭 추가: 관리자 목록(`admins`) CRUD, 동아리원(`club_members`) CRUD, 키오스크 잠금 비밀번호(`kiosk_settings`) 변경.
-- 기존 기능(예매 내역, 강제 취소, 활동 로그, 블랙리스트, 영화 설정, 대량 메일 발송, 발권 초기화)은 그대로 유지하되 인증 계층만 교체.
+- 기존 기능(예매 내역, 강제 취소, 활동 로그, 블랙리스트, 영화 설정, 발권 초기화)은 그대로 유지하되 인증 계층만 교체.
+- **대량 홍보 메일(학년별/전체/개인 발송) 기능은 완전히 삭제한다.** 관련 UI(`promoTargets`, `singleTarget`, 발송 진행률 바, 발송 확인 모달)와 `app/api/promo/route.ts`, `admins`용 `LOG_ACTION` 중 홍보 발송 로그 트리거를 모두 제거한다. 사유는 1절 참고.
+- 블랙리스트 추가 시 학번 대조용 명렬표(`STUDENT_LIST`)가 사라지므로, 관리자가 학번+이름을 자유 입력한다(더 이상 존재 검증 없이 그대로 저장). 이름은 표시용일 뿐 차단 로직은 `student_id`만 사용하므로 기능상 문제 없음.
 
 ## 8. 외부 사전 준비 (사용자가 직접 해야 하는 작업)
 
@@ -119,7 +135,8 @@ Claude가 접근할 수 없는 콘솔 작업이라 사용자가 직접 처리해
 - 하드 컷오버: 전환 시점에 `reservations` 테이블을 `TRUNCATE`로 전부 비운다. 기존에도 상영 회차가 바뀔 때마다 테이블을 초기화하던 운영 방식이라, 과거 예약 이력을 보존할 필요가 없다는 전제다(이력 보존 기능은 이번 범위 밖, 추후 별도 작업).
 - 동시에 `reservations.password` 컬럼을 `DROP COLUMN`으로 완전히 제거하고 `user_id` 컬럼을 `NOT NULL`로 추가한다.
 - 컷오버 이후 예매/취소/단체예매/키오스크/관리자 페이지 전부 즉시 신규 인증 방식으로 전환한다(구버전과 병행 운영 없음).
-- 전환 완료 후 확인되면 `student_auth` 테이블, `verify_student_password` RPC, `lib/emails.ts`, `STUDENT_LIST`/`STAFF_LIST`/`CLUB_MEMBERS` 배열, `reset-password` 페이지/API, `ADMIN_PASSWORD` 환경변수, 하드코딩된 키오스크 잠금 비밀번호 문자열을 삭제한다.
+- 전환 완료 후 확인되면 `student_auth` 테이블, `verify_student_password` RPC, `lib/emails.ts`, `STUDENT_LIST`/`STAFF_LIST`/`CLUB_MEMBERS` 배열, `reset-password` 페이지/API, `ADMIN_PASSWORD` 환경변수, 하드코딩된 키오스크 잠금 비밀번호 문자열, `app/api/promo/route.ts`를 삭제한다.
+- `app/api/cron/group-check/route.ts`의 `getEmail()` 함수(현재 `require('@/lib/emails')`로 `USER_EMAILS` 조회)는 삭제 대신 `reservation.email` 컬럼을 직접 읽도록 수정한다(더 이상 조회가 필요 없어짐).
 
 ## 10. 리스크 / 열린 사항
 
