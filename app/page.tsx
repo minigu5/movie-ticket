@@ -132,14 +132,16 @@ export default function Home() {
   const [groupSendingProgress, setGroupSendingProgress] = useState({current: 0, total: 0, sending: false});
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // 🌟 [버그 수정] getSession()을 별도로 호출하지 않고 onAuthStateChange 콜백 하나로만
-  // 세션을 판단한다. bootstrap()의 getSession()과 onAuthStateChange의 내부 초기화가
-  // 동시에 supabase-js의 세션 락을 경합하면 새로고침 시 getSession()이 영원히 resolve되지
-  // 않아 "로그인 확인 중..." 화면에서 멈추는 문제가 있었음 (supabase-js v2의 알려진 이슈).
+  // 🌟 [버그 수정] onAuthStateChange 콜백은 supabase-js 내부 exclusive lock을 쥔 채로
+  // 실행된다. 콜백 안에서 다시 supabase.auth.* (ensureProfile 내부의 getSession())을
+  // await하면 같은 락을 재획득하려다 데드락에 빠진다 — 새로고침으로 저장된 세션을
+  // 복구하는 경로에서만 이 락이 걸려 있어서 재현되고, URL의 OAuth 토큰으로 로그인하는
+  // 경로는 락 밖에서 이벤트가 발생해 문제가 없었던 것. 공식 문서 권장대로 setTimeout(0)으로
+  // 콜백 바깥(락 해제 후)에서 실행되게 미룬다.
   useEffect(() => {
     let active = true;
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         if (active) { setProfile(null); setAvatarUrl(null); setAuthLoading(false); }
         return;
@@ -147,17 +149,19 @@ export default function Home() {
       if (active) {
         setAvatarUrl(session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null);
       }
-      try {
-        const p = await ensureProfile();
-        if (active) setProfile(p);
-      } catch (err) {
-        if (err instanceof DomainNotAllowedError) {
-          showAlert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
+      setTimeout(async () => {
+        try {
+          const p = await ensureProfile();
+          if (active) setProfile(p);
+        } catch (err) {
+          if (err instanceof DomainNotAllowedError) {
+            showAlert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
+          }
+          if (active) setProfile(null);
+        } finally {
+          if (active) setAuthLoading(false);
         }
-        if (active) setProfile(null);
-      } finally {
-        if (active) setAuthLoading(false);
-      }
+      }, 0);
     });
 
     return () => { active = false; sub.subscription.unsubscribe(); };

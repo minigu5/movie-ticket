@@ -29,20 +29,24 @@ function GroupConfirmForm() {
 
   useEffect(() => {
     let active = true;
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         if (active) { setProfile(null); setAuthLoading(false); }
         return;
       }
-      try {
-        const p = await ensureProfile();
-        if (active) setProfile(p);
-      } catch (err) {
-        if (err instanceof DomainNotAllowedError) alert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
-        if (active) setProfile(null);
-      } finally {
-        if (active) setAuthLoading(false);
-      }
+      // 🌟 콜백은 exclusive lock을 쥔 채 실행됨 — 안에서 getSession()을 다시 await하면
+      // 데드락(새로고침 시 무한 로딩). setTimeout(0)으로 락 밖에서 실행되게 미룬다.
+      setTimeout(async () => {
+        try {
+          const p = await ensureProfile();
+          if (active) setProfile(p);
+        } catch (err) {
+          if (err instanceof DomainNotAllowedError) alert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
+          if (active) setProfile(null);
+        } finally {
+          if (active) setAuthLoading(false);
+        }
+      }, 0);
     });
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
