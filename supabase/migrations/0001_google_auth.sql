@@ -6,8 +6,8 @@
 truncate table public.reservations;
 
 alter table public.reservations
-  add column user_id uuid,
-  add column email text;
+  add column if not exists user_id uuid,
+  add column if not exists email text;
 
 alter table public.reservations drop column if exists password;
 
@@ -29,8 +29,12 @@ begin
 exception when duplicate_table then null;
 end $$;
 
-alter table public.reservations
-  add constraint reservations_user_id_fkey foreign key (user_id) references public.profiles(id);
+do $$
+begin
+  alter table public.reservations
+    add constraint reservations_user_id_fkey foreign key (user_id) references public.profiles(id);
+exception when duplicate_object then null;
+end $$;
 
 alter table public.reservations
   alter column user_id set not null,
