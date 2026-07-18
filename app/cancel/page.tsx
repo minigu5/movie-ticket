@@ -18,18 +18,22 @@ function CancelForm() {
 
   useEffect(() => {
     let active = true;
-    const bootstrap = async () => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session) {
+        if (active) { setProfile(null); setAuthLoading(false); }
+        return;
+      }
       try {
         const p = await ensureProfile();
         if (active) setProfile(p);
       } catch (err) {
         if (err instanceof DomainNotAllowedError) alert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
+        if (active) setProfile(null);
       } finally {
         if (active) setAuthLoading(false);
       }
-    };
-    bootstrap();
-    return () => { active = false; };
+    });
+    return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {

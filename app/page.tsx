@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { ensureProfile, signInWithGoogle, authFetch, authFetchGet, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
+import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, authFetchGet, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
 
 import AccountInfo from '@/components/AccountInfo';
@@ -38,8 +38,13 @@ export default function Home() {
   
   const [profile, setProfile] = useState<AppProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [clubMemberIds, setClubMemberIds] = useState<string[]>([]);
-  const [clickedSeatInfo, setClickedSeatInfo] = useState<{seatId: string, status: string, ticketId: string, popcorn?: string} | null>(null);
+
+  // 🌟 [예매 후 UI] 내 예매 정보 + 자리 이동 모드
+  const [myReservation, setMyReservation] = useState<{id: string, seat: string, status: string, popcorn?: string} | null>(null);
+  const [isMovingSeat, setIsMovingSeat] = useState(false);
 
   const [alertInfo, setAlertInfo] = useState<{message: string, isError: boolean} | null>(null);
   const [confirmInfo, setConfirmInfo] = useState<{message: string, onConfirm: () => void} | null>(null);
@@ -127,9 +132,21 @@ export default function Home() {
   const [groupSendingProgress, setGroupSendingProgress] = useState({current: 0, total: 0, sending: false});
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // 🌟 [버그 수정] getSession()을 별도로 호출하지 않고 onAuthStateChange 콜백 하나로만
+  // 세션을 판단한다. bootstrap()의 getSession()과 onAuthStateChange의 내부 초기화가
+  // 동시에 supabase-js의 세션 락을 경합하면 새로고침 시 getSession()이 영원히 resolve되지
+  // 않아 "로그인 확인 중..." 화면에서 멈추는 문제가 있었음 (supabase-js v2의 알려진 이슈).
   useEffect(() => {
     let active = true;
-    const bootstrap = async () => {
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session) {
+        if (active) { setProfile(null); setAvatarUrl(null); setAuthLoading(false); }
+        return;
+      }
+      if (active) {
+        setAvatarUrl(session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null);
+      }
       try {
         const p = await ensureProfile();
         if (active) setProfile(p);
@@ -137,22 +154,9 @@ export default function Home() {
         if (err instanceof DomainNotAllowedError) {
           showAlert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
         }
+        if (active) setProfile(null);
       } finally {
         if (active) setAuthLoading(false);
-      }
-    };
-    bootstrap();
-
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!session) { setProfile(null); return; }
-      try {
-        const p = await ensureProfile();
-        setProfile(p);
-      } catch (err) {
-        if (err instanceof DomainNotAllowedError) {
-          showAlert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
-        }
-        setProfile(null);
       }
     });
 
@@ -201,7 +205,7 @@ export default function Home() {
       if (bgData) setBlacklistedUsers(bgData.map(b => b.email));
 
       const { data: resData } = await supabase.from('reservations')
-        .select('id, seat_number, payment_status, student_name, student_id, group_expires_at, popcorn_order')
+        .select('id, seat_number, payment_status, student_name, student_id, group_expires_at, popcorn_order, user_id')
         .eq('movie_date', currentDbDate);
 
       if (resData) {
@@ -217,6 +221,10 @@ export default function Home() {
           }
         });
         setSeatStatuses(newStatuses);
+
+        // 🌟 [예매 후 UI] 내 예매(확정/결제대기) 찾기 — group_pending(단체 초대 미확정)은 제외
+        const mine = resData.find(r => r.user_id === profile?.id && (r.payment_status === 'confirmed' || r.payment_status === 'pending'));
+        setMyReservation(mine ? { id: mine.id, seat: mine.seat_number, status: mine.payment_status, popcorn: mine.popcorn_order } : null);
       }
 
       // 🌟 [단체 예매] 만료된 단체 예매 정리 — 세션당 최대 10분에 1회만 트리거
@@ -259,16 +267,12 @@ export default function Home() {
       return;
     }
 
-    if (seatStatuses[seatId]) {
-      if (seatStatuses[seatId].status === 'group_pending') return;
-      setClickedSeatInfo({
-        seatId,
-        status: seatStatuses[seatId].status,
-        ticketId: seatStatuses[seatId].ticketId,
-        popcorn: seatStatuses[seatId].popcorn
-      });
-      return;
-    }
+    // 🌟 [예매 완료 좌석] 클릭해도 아무 효과 없음 (본인/타인 무관)
+    if (seatStatuses[seatId]) return;
+
+    // 🌟 [예매 후 UI] 이미 예매한 사람은 "자리 이동" 버튼을 눌러야만 새 좌석을 고를 수 있음
+    if (myReservation && !isMovingSeat) return;
+
     setSelectedSeat(seatId);
   };
 
@@ -333,7 +337,7 @@ export default function Home() {
               fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: profile.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'changed', popcorn: finalPopcornString, ticketId: updatedTicket.id, baseUrl }) });
             }
             showSuccess("예매 변경 완료!", "✨ 좌석이 성공적으로 변경되었습니다.\n새로운 티켓이 학교 메일로 발송되었습니다.");
-            fetchInitialData(); setIsModalOpen(false); setSelectedSeat(null);
+            fetchInitialData(); setIsModalOpen(false); setSelectedSeat(null); setIsMovingSeat(false);
           });
           return;
         }
@@ -352,6 +356,7 @@ export default function Home() {
         await supabase.from('activity_logs').insert([{ student_id: profile.student_id, student_name: profile.name, description: logDesc }]);
 
         setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: finalStatus, name: profile.name, ticketId: newTicket?.id || '' } }));
+        setMyReservation({ id: newTicket?.id || '', seat: selectedSeat as string, status: finalStatus, popcorn: finalPopcornString });
         setIsModalOpen(false);
 
         if (userEmail && newTicket) {
@@ -371,6 +376,44 @@ export default function Home() {
     };
 
     showConfirm(`[${selectedSeat}] 좌석 예매를 확정하시겠습니까?`, processReservation);
+  };
+
+  // 🌟 [예매 후 UI] 내 예매 취소
+  const handleCancelMyReservation = () => {
+    if (!myReservation) return;
+    showConfirm("정말로 예매를 취소하시겠습니까?", async () => {
+      try {
+        const res = await authFetch('/api/reservations', { action: 'CANCEL_OWN', payload: { reservationId: myReservation.id } });
+        const data = await res.json();
+        if (!data.success) return showAlert(data.error || "취소 중 오류가 발생했습니다.");
+
+        const canceledTicket = data.ticket;
+        if (canceledTicket.email) {
+          const isRefundNeeded = canceledTicket.popcorn_order !== 'none' && canceledTicket.payment_status === 'confirmed';
+          fetch('/api/ticket', {
+            method: 'POST',
+            body: JSON.stringify({
+              email: canceledTicket.email, name: canceledTicket.student_name, seat: canceledTicket.seat_number,
+              movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled',
+              popcorn: canceledTicket.popcorn_order, ticketId: canceledTicket.id, baseUrl: window.location.origin, isRefundNeeded
+            })
+          });
+        }
+
+        showSuccess("취소 완료", "✅ 예매가 정상적으로 취소되었습니다.");
+        setMyReservation(null);
+        setIsMovingSeat(false);
+        setSelectedSeat(null);
+        fetchInitialData();
+      } catch {
+        showAlert("네트워크 오류가 발생했습니다.");
+      }
+    });
+  };
+
+  const handleLogout = async () => {
+    setIsProfileMenuOpen(false);
+    await signOutAndClear();
   };
 
   // ===== 🌟 [단체 예매] Handler Functions =====
@@ -568,6 +611,35 @@ export default function Home() {
             </Link>
           </>
         )}
+
+        <div className="relative">
+          <button
+            onClick={() => setIsProfileMenuOpen(v => !v)}
+            aria-label="프로필 메뉴"
+            className="w-9 h-9 md:w-10 md:h-10 rounded-full overflow-hidden border border-white/20 bg-slate-800 hover:border-indigo-400/60 transition-all shadow-lg flex items-center justify-center shrink-0"
+          >
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={profile.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <span className="text-slate-300 font-bold text-sm">{profile.name.charAt(0)}</span>
+            )}
+          </button>
+
+          {isProfileMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-20" onClick={() => setIsProfileMenuOpen(false)} />
+              <div className="absolute right-0 mt-2 w-44 bg-slate-900 border border-white/10 rounded-xl shadow-2xl z-30 overflow-hidden">
+                <div className="px-3 py-3 border-b border-white/10">
+                  <p className="text-white text-sm font-bold truncate">{profile.name}</p>
+                  <p className="text-slate-500 text-xs truncate">{profile.email}</p>
+                </div>
+                <button onClick={handleLogout} className="w-full text-left px-3 py-2.5 text-sm text-rose-400 hover:bg-white/5 font-bold transition-colors">
+                  🚪 로그아웃
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="relative flex flex-col items-center justify-center mb-10 mt-4 select-none group">
@@ -727,6 +799,35 @@ export default function Home() {
           </div>
         ) : isClosed ? (
            <div className="py-4 px-8 rounded-xl w-full bg-rose-900/40 border border-rose-800 text-rose-400 font-bold text-lg cursor-not-allowed">예매가 모두 마감되었습니다</div>
+        ) : myReservation && !isMovingSeat ? (
+          <div className="space-y-4">
+            <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full border ${myReservation.status === 'pending' ? 'bg-yellow-600/20 text-yellow-400 border-yellow-600 animate-pulse' : 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40'}`}>
+              {myReservation.status === 'pending' ? '⏳ 결제 대기 중' : '✅ 예매 확정'}
+            </span>
+            <p className="text-lg text-slate-200">내 좌석: <span className="text-amber-400 font-bold text-3xl md:text-4xl ml-2 tracking-tighter drop-shadow-md">{myReservation.seat}</span></p>
+            {myReservation.popcorn && myReservation.popcorn !== 'none' && (
+              <p className="text-slate-400 text-sm">🍿 팝콘 {myReservation.popcorn.split(',').length}개 주문됨</p>
+            )}
+            <div className="flex gap-3">
+              <button onClick={() => { setIsMovingSeat(true); setSelectedSeat(null); }} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)]">🔄 자리 이동</button>
+              <button onClick={handleCancelMyReservation} className="flex-1 py-3 bg-rose-600/90 hover:bg-rose-500 border border-rose-500 rounded-lg text-white font-bold transition-all">🚨 예매 취소</button>
+            </div>
+          </div>
+        ) : isMovingSeat ? (
+          selectedSeat ? (
+            <>
+              <p className="text-lg md:text-xl mb-6 text-slate-200">이동할 좌석: <span className="text-amber-400 font-bold text-3xl md:text-4xl ml-2 tracking-tighter drop-shadow-md">{selectedSeat}</span></p>
+              <div className="flex gap-3">
+                <button onClick={() => { setIsMovingSeat(false); setSelectedSeat(null); }} className="py-4 px-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-300 font-bold transition-all">취소</button>
+                <button onClick={() => setIsModalOpen(true)} className="flex-1 bg-indigo-600 hover:bg-indigo-500 hover:scale-[1.02] transition-all text-white font-bold py-4 px-8 rounded-xl text-lg border border-indigo-500">이 자리로 이동하기</button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-slate-400 py-2 font-light">이동할 빈 좌석을 선택해주세요.</p>
+              <button onClick={() => setIsMovingSeat(false)} className="py-2 px-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold text-sm transition-all">이동 취소</button>
+            </div>
+          )
         ) : selectedSeat ? (
           <>
             <p className="text-lg md:text-xl mb-6 text-slate-200">선택된 좌석: <span className="text-amber-400 font-bold text-3xl md:text-4xl ml-2 tracking-tighter drop-shadow-md">{selectedSeat}</span></p>
@@ -1032,49 +1133,6 @@ export default function Home() {
             </div>
             <p className="text-emerald-400 font-bold">{groupSendingProgress.current} / {groupSendingProgress.total}명 완료</p>
             <p className="text-slate-500 text-xs mt-2">창을 닫지 마세요. 이메일 발송이 완료될 때까지 기다려주세요.</p>
-          </div>
-        </div>
-      )}
-
-      {clickedSeatInfo && (
-        <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-[70]">
-          <div className="bg-slate-900/90 backdrop-blur-xl p-8 rounded-2xl max-w-sm w-full border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center">
-            <h2 className="text-2xl font-bold text-white mb-4">
-              좌석 정보 <span className="text-indigo-400">[{clickedSeatInfo.seatId}]</span>
-            </h2>
-            
-            {clickedSeatInfo.status === 'pending' ? (
-              <div className="mb-6 border border-amber-500/30 bg-amber-900/20 p-4 rounded-xl">
-                <p className="text-amber-400 font-bold mb-4">⏳ 결제 대기 중인 좌석입니다</p>
-                <div className="bg-white p-3 rounded-xl inline-block mb-3 shadow-lg">
-                  <img src="/qr.jpeg" alt="송금 QR" loading="lazy" decoding="async" className="w-32 h-32 object-contain" />
-                </div>
-                <div className="mb-3"><AccountInfo /></div>
-                <p className="text-sm text-amber-300/80 font-bold">입금 후 관리자가 확인 시<br/>예매가 최종 완료됩니다.</p>
-              </div>
-            ) : (
-              <div className="mb-6 border border-emerald-500/30 bg-emerald-900/20 p-4 rounded-xl">
-                <p className="text-emerald-400 font-bold">✅ 예매가 확정된 좌석입니다.</p>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              {clickedSeatInfo.popcorn && clickedSeatInfo.popcorn !== 'none' && clickedSeatInfo.status === 'confirmed' ? (
-                <button disabled className="w-full py-3 bg-slate-800/80 rounded-lg text-rose-300 font-bold shadow-lg cursor-not-allowed border border-slate-700">
-                  🚫 결제 완료된 팝콘 예매 취소 불가 (자리 변경만 가능)
-                </button>
-              ) : (
-                <button onClick={() => window.location.href = `/cancel?ticketId=${clickedSeatInfo.ticketId}`} className="w-full py-3 bg-rose-600/90 hover:bg-rose-500 border border-rose-500 rounded-lg text-white font-bold transition-all shadow-lg hover:shadow-[0_0_15px_rgba(225,29,72,0.4)]">
-                  🚨 예매 취소하기
-                </button>
-              )}
-              <button onClick={() => { setClickedSeatInfo(null); setIsManualOpen(true); }} className="w-full py-3 bg-indigo-600/90 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-lg hover:shadow-[0_0_15px_rgba(79,70,229,0.4)]">
-                🔄 자리 변경 방법 보기
-              </button>
-              <button onClick={() => setClickedSeatInfo(null)} className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all">
-                닫기
-              </button>
-            </div>
           </div>
         </div>
       )}
