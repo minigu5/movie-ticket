@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { ensureProfile, signInWithGoogle, authFetch, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
+import { ensureProfile, signInWithGoogle, authFetch, authFetchGet, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
 
 import AccountInfo from '@/components/AccountInfo';
@@ -116,10 +116,12 @@ export default function Home() {
 
   // 🌟 [단체 예매] Group Mode 상태 관리
   const [isGroupMode, setIsGroupMode] = useState(false);
-  const [groupLeader, setGroupLeader] = useState<{studentId: string, name: string, password: string, seat: string} | null>(null);
-  const [groupMembers, setGroupMembers] = useState<{studentId: string, name: string, seat: string}[]>([]);
+  const [groupLeader, setGroupLeader] = useState<{profileId: string, studentId: string | null, name: string, seat: string} | null>(null);
+  const [groupMembers, setGroupMembers] = useState<{profileId: string, studentId: string | null, name: string, seat: string}[]>([]);
   const [isGroupMemberModal, setIsGroupMemberModal] = useState(false);
-  const [memberFormData, setMemberFormData] = useState({studentId: '', name: ''});
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [memberSearchResults, setMemberSearchResults] = useState<{id: string, student_id: string | null, name: string}[]>([]);
+  const [selectedMember, setSelectedMember] = useState<{id: string, student_id: string | null, name: string} | null>(null);
   const [isGroupSummaryOpen, setIsGroupSummaryOpen] = useState(false);
   const [isGroupSoloConfirmOpen, setIsGroupSoloConfirmOpen] = useState(false); // 🌟 [추가] 혼자 예매 선택 모달
   const [groupSendingProgress, setGroupSendingProgress] = useState({current: 0, total: 0, sending: false});
@@ -366,77 +368,61 @@ export default function Home() {
   // ===== 🌟 [단체 예매] Handler Functions =====
 
   const handleGroupStart = async () => {
-    if (!formData.studentId || !formData.name || !formData.password) return showAlert("정보를 모두 입력해주세요!");
-    if (!/^[0-9]{4}$/.test(formData.password)) return showAlert("❌ 비밀번호는 4자리 '숫자'만 입력해주세요!");
-    const cleanStudentId = formData.studentId.replace(/['\"]/g, '').trim();
-    if (cleanStudentId === "교직원") {
-      if (!STAFF_LIST.includes(formData.name)) return showAlert("❌ 등록된 교직원 이름이 아닙니다.");
-    } else {
-      if (cleanStudentId.length !== 4) return showAlert("학번은 4자리 숫자로 입력해주세요.");
-      if (STUDENT_LIST[cleanStudentId] !== formData.name) return showAlert(`❌ 학번과 이름이 일치하지 않습니다.`);
-    }
-    if (blacklistedUsers.includes(cleanStudentId)) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
-    if (selectedSeat && vipSeats.has(selectedSeat) && !CLUB_MEMBERS.includes(cleanStudentId)) {
+    if (!profile) return showAlert("로그인이 필요합니다.");
+
+    if (blacklistedUsers.includes(profile.student_id ?? '')) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
+    if (selectedSeat && vipSeats.has(selectedSeat) && (!profile.student_id || !clubMemberIds.includes(profile.student_id))) {
       return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
     }
-    const authKey = cleanStudentId === "교직원" ? formData.name : cleanStudentId;
-    const { data: authResult, error: authError } = await supabase.rpc('verify_student_password', { 
-      p_student_id: authKey, 
-      p_password: formData.password 
-    });
 
-    if (authError) return showAlert("네트워크 오류가 발생했습니다.");
-
-    if (!authResult.exists) {
-      await supabase.from('student_auth').insert({ student_id: authKey, password: formData.password });
-      setShowResetButton(false);
-    } else {
-      if (!authResult.success) {
-        setShowResetButton(true);
-        return showAlert("❌ 비밀번호가 일치하지 않습니다.");
-      } else {
-        setShowResetButton(false);
-      }
-    }
     const { data: existingTickets } = await supabase.from('reservations')
-      .select('id').eq('movie_date', movieInfo.db_date).eq('student_id', cleanStudentId);
+      .select('id').eq('movie_date', movieInfo.db_date).eq('user_id', profile.id);
     if (existingTickets && existingTickets.length > 0) {
       return showAlert("이미 예매 내역이 존재하는 학생은 단체 예매 리더가 될 수 없습니다.\n기존 예매를 취소한 뒤 다시 시도해주세요.");
     }
-    setGroupLeader({ studentId: cleanStudentId, name: formData.name, password: formData.password, seat: selectedSeat! });
+
+    setGroupLeader({ profileId: profile.id, studentId: profile.student_id, name: profile.name, seat: selectedSeat! });
     setGroupMembers([]);
     setIsGroupMode(true);
     setIsModalOpen(false);
-    setShowResetButton(false);
   };
 
+  useEffect(() => {
+    const q = memberSearchQuery.trim();
+    if (q.length < 1) { setMemberSearchResults([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await authFetchGet(`/api/profiles/search?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (data.success) setMemberSearchResults(data.results);
+      } catch { setMemberSearchResults([]); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [memberSearchQuery]);
+
   const handleAddGroupMember = async (andFinalize: boolean) => {
-    if (!memberFormData.studentId || !memberFormData.name) return showAlert("학번과 이름을 모두 입력해주세요!");
-    const cleanId = memberFormData.studentId.replace(/['\"]/g, '').trim();
-    if (cleanId === "교직원") {
-      if (!STAFF_LIST.includes(memberFormData.name)) return showAlert("❌ 등록된 교직원 이름이 아닙니다.");
-    } else {
-      if (cleanId.length !== 4) return showAlert("학번은 4자리 숫자로 입력해주세요.");
-      if (STUDENT_LIST[cleanId] !== memberFormData.name) return showAlert(`❌ 학번과 이름이 일치하지 않습니다.`);
-    }
-    if (blacklistedUsers.includes(cleanId)) return showAlert("🚫 블랙리스트에 등록되어 추가할 수 없습니다.");
-    if (groupLeader?.studentId === cleanId) return showAlert("리더 본인은 추가할 수 없습니다.");
-    if (groupMembers.some(m => m.studentId === cleanId)) return showAlert("이미 단체에 추가된 학생입니다.");
+    if (!selectedMember) return showAlert("추가할 사람을 검색해서 선택해주세요!");
+    if (blacklistedUsers.includes(selectedMember.student_id ?? '')) return showAlert("🚫 블랙리스트에 등록되어 추가할 수 없습니다.");
+    if (groupLeader?.profileId === selectedMember.id) return showAlert("리더 본인은 추가할 수 없습니다.");
+    if (groupMembers.some(m => m.profileId === selectedMember.id)) return showAlert("이미 단체에 추가된 사람입니다.");
+
     const { data: existing } = await supabase.from('reservations')
-      .select('id').eq('movie_date', movieInfo.db_date).eq('student_id', cleanId);
+      .select('id').eq('movie_date', movieInfo.db_date).eq('user_id', selectedMember.id);
     if (existing && existing.length > 0) return showAlert("이미 예매가 완료된 학생입니다.");
 
-    // 🌟 [추가] 동아리 전용 좌석 검증 (멤버 추가 시)
     if (selectedSeat && vipSeats.has(selectedSeat)) {
-      if (!CLUB_MEMBERS.includes(cleanId)) {
+      if (!selectedMember.student_id || !clubMemberIds.includes(selectedMember.student_id)) {
         return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n이 좌석에는 동아리 부원만 추가할 수 있습니다.");
       }
     }
 
-    const newMembers = [...groupMembers, { studentId: cleanId, name: memberFormData.name, seat: selectedSeat! }];
+    const newMembers = [...groupMembers, { profileId: selectedMember.id, studentId: selectedMember.student_id, name: selectedMember.name, seat: selectedSeat! }];
     setGroupMembers(newMembers);
     setIsGroupMemberModal(false);
     setSelectedSeat(null);
+    setMemberSearchQuery('');
+    setMemberSearchResults([]);
+    setSelectedMember(null);
     if (andFinalize) {
       setTimeout(() => setIsGroupSummaryOpen(true), 100);
     }
@@ -946,21 +932,40 @@ export default function Home() {
         <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900/90 backdrop-blur-xl p-6 rounded-2xl w-full max-w-md border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
             <h2 className="text-2xl font-bold text-white mb-2">단체 멤버 추가</h2>
-            <p className="text-slate-400 text-sm mb-6">좌석 <span className="text-sky-400 font-bold">{selectedSeat}</span>에 앉을 학생 정보를 입력하세요.</p>
+            <p className="text-slate-400 text-sm mb-6">좌석 <span className="text-sky-400 font-bold">{selectedSeat}</span>에 앉을 사람을 검색하세요. <span className="text-amber-400">한 번이라도 로그인한 적이 있어야</span> 검색됩니다.</p>
             <div className="space-y-4 text-left">
               <div>
-                <label className="block text-slate-300 mb-1 text-sm">학번</label>
-                <input type="text" value={memberFormData.studentId} onChange={e => setMemberFormData(prev => ({...prev, studentId: e.target.value}))} className="w-full p-3 rounded-lg bg-slate-800/80 text-white border border-white/10 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all" placeholder="예: 2703 (교직원은 '교직원')"/>
+                <label className="block text-slate-300 mb-1 text-sm">이름 또는 학번으로 검색</label>
+                <input
+                  type="text"
+                  value={memberSearchQuery}
+                  onChange={e => { setMemberSearchQuery(e.target.value); setSelectedMember(null); }}
+                  className="w-full p-3 rounded-lg bg-slate-800/80 text-white border border-white/10 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
+                  placeholder="예: 신민규 또는 2208"
+                />
               </div>
-              <div>
-                <label className="block text-slate-300 mb-1 text-sm">이름 (본명)</label>
-                <input type="text" value={memberFormData.name} onChange={e => setMemberFormData(prev => ({...prev, name: e.target.value}))} className="w-full p-3 rounded-lg bg-slate-800/80 text-white border border-white/10 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all" placeholder="이름을 정확히 입력하세요"/>
-              </div>
+              {memberSearchQuery.trim().length > 0 && (
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {memberSearchResults.length === 0 && (
+                    <p className="text-slate-500 text-xs px-1">검색 결과가 없습니다. 아직 로그인한 적이 없는 사람일 수 있어요.</p>
+                  )}
+                  {memberSearchResults.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => { setSelectedMember(r); setMemberSearchQuery(r.name); setMemberSearchResults([]); }}
+                      className={`w-full text-left p-3 rounded-lg border transition-all ${selectedMember?.id === r.id ? 'bg-sky-600/30 border-sky-500' : 'bg-slate-800/60 border-white/10 hover:bg-slate-700/60'}`}
+                    >
+                      <span className="text-white font-bold">{r.name}</span>
+                      {r.student_id && <span className="text-slate-400 text-sm ml-2">{r.student_id}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex gap-3 mt-8">
-              <button onClick={() => { setIsGroupMemberModal(false); setSelectedSeat(null); }} className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all text-sm">취소</button>
-              <button onClick={() => handleAddGroupMember(false)} className="flex-1 py-3 bg-sky-600 hover:bg-sky-500 border border-sky-500 rounded-lg text-white font-bold transition-all text-sm">계속하기</button>
-              <button onClick={() => handleAddGroupMember(true)} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all text-sm">완료하기</button>
+              <button onClick={() => { setIsGroupMemberModal(false); setSelectedSeat(null); setMemberSearchQuery(''); setMemberSearchResults([]); setSelectedMember(null); }} className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all text-sm">취소</button>
+              <button onClick={() => handleAddGroupMember(false)} disabled={!selectedMember} className="flex-1 py-3 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed border border-sky-500 rounded-lg text-white font-bold transition-all text-sm">계속하기</button>
+              <button onClick={() => handleAddGroupMember(true)} disabled={!selectedMember} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed border border-emerald-500 rounded-lg text-white font-bold transition-all text-sm">완료하기</button>
             </div>
           </div>
         </div>
