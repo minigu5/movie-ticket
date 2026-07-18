@@ -428,6 +428,9 @@ export default function Home() {
   // 🌟 [예매 후 UI] 내 예매 취소
   const handleCancelMyReservation = () => {
     if (!myReservation) return;
+    if (myReservation.status === 'confirmed' && myReservation.popcorn && myReservation.popcorn !== 'none') {
+      return showAlert("🍿 팝콘 결제가 완료된 예매는 취소할 수 없습니다.\n취소가 필요하면 현장에서 문의해주세요.");
+    }
     showConfirm("정말로 예매를 취소하시겠습니까?", async () => {
       try {
         const res = await authFetch('/api/reservations', { action: 'CANCEL_OWN', payload: { reservationId: myReservation.id } });
@@ -447,7 +450,7 @@ export default function Home() {
           });
         }
 
-        showSuccess("취소 완료", "✅ 예매가 정상적으로 취소되었습니다.");
+        showAlert("✅ 예매가 정상적으로 취소되었습니다.", false);
         setMyReservation(null);
         setIsMovingSeat(false);
         setSelectedSeat(null);
@@ -876,7 +879,11 @@ export default function Home() {
             )}
             <div className="flex gap-3">
               <button onClick={() => { setIsMovingSeat(true); setSelectedSeat(null); }} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)]">🔄 자리 이동</button>
-              <button onClick={handleCancelMyReservation} className="flex-1 py-3 bg-rose-600/90 hover:bg-rose-500 border border-rose-500 rounded-lg text-white font-bold transition-all">🚨 예매 취소</button>
+              {myReservation.status === 'confirmed' && myReservation.popcorn && myReservation.popcorn !== 'none' ? (
+                <button disabled title="팝콘 결제가 완료된 예매는 취소할 수 없습니다." className="flex-1 py-3 bg-slate-700/40 border border-slate-600 rounded-lg text-slate-500 font-bold cursor-not-allowed">🚨 예매 취소 불가</button>
+              ) : (
+                <button onClick={handleCancelMyReservation} className="flex-1 py-3 bg-rose-600/90 hover:bg-rose-500 border border-rose-500 rounded-lg text-white font-bold transition-all">🚨 예매 취소</button>
+              )}
             </div>
           </div>
         ) : isMovingSeat ? (
