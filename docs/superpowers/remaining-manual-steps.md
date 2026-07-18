@@ -218,6 +218,32 @@ select * from public.kiosk_settings;
 
 ---
 
+## 1-1. DB 마이그레이션 SQL 실행 — 0002 (동아리원/블랙리스트 이메일 전환)
+
+**파일 위치:** `supabase/migrations/0002_email_membership.sql` (이미 저장소에 있음)
+
+동아리원(VIP)/블랙리스트를 학번 대신 이메일 기준으로 관리하도록 바뀌면서 `club_members`,
+`blacklist` 테이블의 기존 데이터를 비우고 스키마를 바꿉니다. 실행 방법은 0001과 동일합니다.
+
+1. Supabase 대시보드 → 해당 프로젝트 → **SQL Editor** → "New query".
+2. `supabase/migrations/0002_email_membership.sql` 파일 내용 전체를 복사해서 붙여넣기.
+3. **Run** 클릭.
+
+실행 후 확인:
+
+```sql
+-- club_members에 10명 시드 데이터가 email 기준으로 들어가 있어야 함
+select * from public.club_members;
+
+-- blacklist는 email 컬럼만 있고 비어있어야 함
+select column_name, is_nullable
+from information_schema.columns
+where table_schema = 'public' and table_name = 'blacklist'
+order by column_name;
+```
+
+---
+
 ## 2. Google Cloud Console — OAuth 동의 화면
 
 1. https://console.cloud.google.com 접속, 새 프로젝트 생성(또는 기존 프로젝트 선택).
