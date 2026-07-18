@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
-import { ensureProfile, signInWithGoogle, authFetch, DomainNotAllowedError, type AppProfile } from '../../lib/supabase-auth';
+import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, DomainNotAllowedError, type AppProfile } from '../../lib/supabase-auth';
 import Link from 'next/link';
 
 const POPCORN_NAMES: Record<string, string> = { "original": "오리지널", "consomme": "콘소메", "caramel": "카라멜" };
@@ -22,13 +22,6 @@ export default function AdminPage() {
 
   const [logs, setLogs] = useState<any[]>([]);
   const [showLogs, setShowLogs] = useState(false);
-
-  const [promoTargets, setPromoTargets] = useState({ grade1: false, grade2: false, grade3: false, staff: false, club: true });
-  const [singleTarget, setSingleTarget] = useState("");
-  const [isSendingPromo, setIsSendingPromo] = useState(false);
-  const [promoProgress, setPromoProgress] = useState({ current: 0, total: 0 });
-  const [showPromoWarning, setShowPromoWarning] = useState(false);
-  const [pendingPromoRecipients, setPendingPromoRecipients] = useState<any[]>([]);
 
   const [blacklist, setBlacklist] = useState<any[]>([]);
   const [newBlackId, setNewBlackId] = useState('');
@@ -265,58 +258,6 @@ export default function AdminPage() {
     alert("해제 완료" + (data.email ? ' 및 안내 메일 발송!' : ' (등록된 이메일이 없어 안내 메일은 발송되지 않았습니다.)'));
   };
 
-  const handleSendPromoClick = () => {
-    const recipientMap = new Map();
-    if (promoTargets.club) {
-      CLUB_MEMBERS.forEach(id => {
-        if (USER_EMAILS[id]) recipientMap.set(id, { studentId: id, email: USER_EMAILS[id], name: STUDENT_LIST[id] || "학생" });
-      });
-    }
-    if (singleTarget && USER_EMAILS[singleTarget]) {
-      const name = isNaN(Number(singleTarget)) ? singleTarget : STUDENT_LIST[singleTarget] || "학생";
-      recipientMap.set(singleTarget, { studentId: singleTarget, email: USER_EMAILS[singleTarget], name });
-    }
-    Object.keys(USER_EMAILS).forEach(key => {
-      let shouldAdd = false;
-      if (promoTargets.grade1 && key.startsWith('1') && key.length === 4) shouldAdd = true;
-      if (promoTargets.grade2 && key.startsWith('2') && key.length === 4) shouldAdd = true;
-      if (promoTargets.grade3 && key.startsWith('3') && key.length === 4) shouldAdd = true;
-      if (promoTargets.staff && isNaN(Number(key))) shouldAdd = true;
-      if (shouldAdd) recipientMap.set(key, { studentId: key, email: USER_EMAILS[key], name: isNaN(Number(key)) ? key : STUDENT_LIST[key] || "학생" });
-    });
-
-    const recipients = Array.from(recipientMap.values());
-    if (recipients.length === 0) return alert("선택된 발송 대상이 없습니다.");
-
-    setPendingPromoRecipients(recipients);
-    setShowPromoWarning(true);
-  };
-
-  const executeSendPromo = async () => {
-    setShowPromoWarning(false); setIsSendingPromo(true);
-    const recipients = pendingPromoRecipients;
-    setPromoProgress({ current: 0, total: recipients.length });
-
-    const CHUNK_SIZE = 15;
-    for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
-      const chunk = recipients.slice(i, i + CHUNK_SIZE);
-      try { await fetch('/api/promo', { method: 'POST', body: JSON.stringify({ chunk, movieInfo, baseUrl }) }); } catch (err) { console.error(err); }
-      setPromoProgress({ current: Math.min(i + CHUNK_SIZE, recipients.length), total: recipients.length });
-      await new Promise(res => setTimeout(res, 1000));
-    }
-
-    await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'LOG_ACTION',
-        adminPassword: password,
-        payload: { studentId: "관리자", studentName: "-", description: `홍보 이메일 발송 완료 (${recipients.length}명)` }
-      })
-    });
-
-    setIsSendingPromo(false); alert("✅ 홍보 메일 발송 완료!"); fetchAdminData();
-  };
-
   if (authLoading) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <p className="text-white font-bold animate-pulse">로그인 확인 중...</p>
@@ -355,12 +296,11 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8 relative">
-      <div className="w-full flex flex-wrap justify-end gap-3 mb-6 z-20">
-        {isAuthenticated && (
-          <button onClick={toggleSkipAuth} className={`px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-colors shadow-lg border ${skipAuth ? 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/50 text-amber-400' : 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-400'}`}>
-            {skipAuth ? "🔓 자동 로그인 (ON)" : "🔒 자동 로그인 (OFF)"}
-          </button>
-        )}
+      <div className="w-full flex flex-wrap justify-end items-center gap-3 mb-6 z-20">
+        <span className="text-xs md:text-sm text-gray-500">{profile.email}</span>
+        <button onClick={() => signOutAndClear().then(() => window.location.reload())} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-xs md:text-sm text-slate-400 font-bold transition-colors shadow-lg">
+          🚪 로그아웃
+        </button>
         <Link href="/" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🏠 메인 홈</Link>
         <Link href="/print" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🖨️ 현장 발권기</Link>
       </div>
@@ -377,31 +317,6 @@ export default function AdminPage() {
             <div className="flex gap-4">
               <button onClick={() => setShowVenueWarning(false)} className="flex-1 py-4 bg-gray-700 hover:bg-gray-600 rounded-xl text-white font-bold text-lg">돌아가기 (취소)</button>
               <button onClick={() => proceedSave(true)} className="flex-1 py-4 bg-red-600 hover:bg-red-500 rounded-xl text-white font-bold text-lg shadow-[0_0_15px_rgba(239,68,68,0.8)]">초기화 및 변경</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPromoWarning && (
-        <div className="fixed inset-0 bg-blue-900/90 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
-          <div className="bg-gray-900 p-8 rounded-2xl max-w-lg w-full border-4 border-blue-500 shadow-[0_0_50px_rgba(59,130,246,0.5)] text-center">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-4 animate-pulse">📧 대량 메일 발송 확인</h2>
-            <div className="text-blue-200 text-base md:text-lg font-bold space-y-4 mb-8">
-              <p>현재 선택된 그룹을 바탕으로 명단을 추출했습니다.</p>
-              <div className="bg-blue-950 p-6 rounded-xl text-white border border-blue-800 shadow-inner">
-                <p className="text-sm text-blue-300 mb-2">발송 예정 총 인원</p>
-                <p className="text-6xl text-yellow-400 font-black drop-shadow-md">
-                  {pendingPromoRecipients.length}<span className="text-2xl text-white ml-2 font-bold">명</span>
-                </p>
-              </div>
-              <p className="text-sm text-gray-400 font-normal leading-relaxed">
-                (발송 중에는 창을 닫거나 새로고침하지 말고,<br />로딩 게이지가 다 찰 때까지 잠시만 기다려 주세요.)
-              </p>
-              <p className="text-white">위 인원에게 홍보 메일을 발송하시겠습니까?</p>
-            </div>
-            <div className="flex gap-4">
-              <button onClick={() => setShowPromoWarning(false)} className="flex-1 py-4 bg-gray-700 hover:bg-gray-600 rounded-xl text-white font-bold text-lg transition-colors">돌아가기</button>
-              <button onClick={executeSendPromo} className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold text-lg shadow-[0_0_15px_rgba(59,130,246,0.8)] transition-colors">발송 시작 🚀</button>
             </div>
           </div>
         </div>
@@ -508,37 +423,6 @@ export default function AdminPage() {
           <div className="md:col-span-2 mt-4 text-right"><button onClick={handleSaveSettingsClick} className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg">💾 변경사항 저장</button></div>
         </div>
       )}
-
-      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-blue-600 mb-8">
-        <h2 className="text-xl font-bold text-blue-400 mb-4">📧 상영작 홍보 메일 발송</h2>
-        <div className="flex flex-wrap gap-6 mb-6">
-          <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={promoTargets.grade1} onChange={e => setPromoTargets({ ...promoTargets, grade1: e.target.checked })} className="w-5 h-5 accent-blue-600" /> <span className="text-gray-300 font-bold">1학년</span></label>
-          <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={promoTargets.grade2} onChange={e => setPromoTargets({ ...promoTargets, grade2: e.target.checked })} className="w-5 h-5 accent-blue-600" /> <span className="text-gray-300 font-bold">2학년</span></label>
-          <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={promoTargets.grade3} onChange={e => setPromoTargets({ ...promoTargets, grade3: e.target.checked })} className="w-5 h-5 accent-blue-600" /> <span className="text-gray-300 font-bold">3학년</span></label>
-          <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={promoTargets.staff} onChange={e => setPromoTargets({ ...promoTargets, staff: e.target.checked })} className="w-5 h-5 accent-blue-600" /> <span className="text-gray-300 font-bold">교직원</span></label>
-          <label className="flex items-center gap-2 cursor-pointer border-l-2 border-gray-600 pl-6 ml-2"><input type="checkbox" checked={promoTargets.club} onChange={e => setPromoTargets({ ...promoTargets, club: e.target.checked })} className="w-5 h-5 accent-purple-600" /> <span className="text-purple-400 font-bold">테스트용 (동아리부원 10명)</span></label>
-        </div>
-
-        <div className="mb-6 p-4 bg-gray-700/50 rounded-xl border border-gray-600">
-          <label className="block text-gray-300 mb-2 text-sm font-bold">🎯 특정 1인에게만 보내기 (선택)</label>
-          <select value={singleTarget} onChange={e => setSingleTarget(e.target.value)} className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 outline-none focus:border-blue-500">
-            <option value="">-- 개인 발송 안 함 (위에 체크된 그룹에게만 발송) --</option>
-            <optgroup label="👩‍🏫 교직원">{Object.keys(USER_EMAILS).filter(k => isNaN(Number(k))).sort().map(staff => <option key={staff} value={staff}>{staff}</option>)}</optgroup>
-            <optgroup label="🎓 1학년">{Object.keys(USER_EMAILS).filter(k => k.startsWith('1') && k.length === 4).sort().map(id => <option key={id} value={id}>{id} {STUDENT_LIST[id]}</option>)}</optgroup>
-            <optgroup label="🎓 2학년">{Object.keys(USER_EMAILS).filter(k => k.startsWith('2') && k.length === 4).sort().map(id => <option key={id} value={id}>{id} {STUDENT_LIST[id]}</option>)}</optgroup>
-            <optgroup label="🎓 3학년">{Object.keys(USER_EMAILS).filter(k => k.startsWith('3') && k.length === 4).sort().map(id => <option key={id} value={id}>{id} {STUDENT_LIST[id]}</option>)}</optgroup>
-          </select>
-        </div>
-
-        {isSendingPromo ? (
-          <div className="w-full bg-gray-700 rounded-full h-8 relative overflow-hidden border border-gray-600">
-            <div className="bg-blue-600 h-8 transition-all duration-300 flex items-center justify-center" style={{ width: `${(promoProgress.current / promoProgress.total) * 100}%` }}></div>
-            <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow-md">안전 발송 중... ({promoProgress.current} / {promoProgress.total})</span>
-          </div>
-        ) : (
-          <button onClick={handleSendPromoClick} className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg rounded-xl shadow-lg transition-colors">🚀 체크한 대상에게 홍보 메일 발송하기</button>
-        )}
-      </div>
 
       <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-red-600 mb-8">
         <h2 className="text-xl font-bold text-red-400 mb-4">🚫 블랙리스트 관리</h2>
