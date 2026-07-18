@@ -32,6 +32,9 @@ export default function AdminPage() {
   const [clubMembers, setClubMembers] = useState<{student_id: string, added_by: string | null, created_at: string}[]>([]);
   const [newClubStudentId, setNewClubStudentId] = useState('');
   const [kioskPasswordInput, setKioskPasswordInput] = useState('');
+  const [profileSearchQuery, setProfileSearchQuery] = useState('');
+  const [profileSearchResults, setProfileSearchResults] = useState<{id: string, email: string, student_id: string | null, name: string, role: string}[]>([]);
+  const [editingProfile, setEditingProfile] = useState<{id: string, email: string, student_id: string, name: string, role: string} | null>(null);
 
   const [baseUrl, setBaseUrl] = useState('');
   useEffect(() => setBaseUrl(window.location.origin), []);
@@ -303,6 +306,29 @@ export default function AdminPage() {
     alert("✅ 키오스크 잠금 비밀번호가 변경되었습니다.");
   };
 
+  const handleSearchProfile = async () => {
+    const res = await authFetch('/api/admin/action', { action: 'SEARCH_PROFILE', payload: { query: profileSearchQuery } });
+    const data = await res.json();
+    if (data.success) setProfileSearchResults(data.data);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editingProfile) return;
+    if (editingProfile.role === 'student' && !/^\d{4}$/.test(editingProfile.student_id)) {
+      return alert("학생은 학번 4자리가 필요합니다.");
+    }
+    const res = await authFetch('/api/admin/action', {
+      action: 'UPDATE_PROFILE',
+      payload: { id: editingProfile.id, studentId: editingProfile.student_id, name: editingProfile.name, role: editingProfile.role }
+    });
+    const data = await res.json();
+    if (!data.success) return alert("저장 실패: " + data.error);
+    alert("✅ 저장되었습니다.");
+    setEditingProfile(null);
+    setProfileSearchResults([]);
+    setProfileSearchQuery('');
+  };
+
   if (authLoading) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <p className="text-white font-bold animate-pulse">로그인 확인 중...</p>
@@ -469,7 +495,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-emerald-600 mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-emerald-600 mb-8 grid grid-cols-1 md:grid-cols-4 gap-6">
         <div>
           <h2 className="text-lg font-bold text-emerald-400 mb-3">👑 관리자 목록</h2>
           <div className="flex gap-2 mb-3">
@@ -509,6 +535,43 @@ export default function AdminPage() {
             <button onClick={handleUpdateKioskPassword} className="bg-yellow-600 hover:bg-yellow-500 px-3 py-2 rounded font-bold text-sm text-black">변경</button>
           </div>
           <p className="text-gray-500 text-xs mt-2">현장 키오스크(/print) 진입 시 입력하는 비밀번호입니다.</p>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-bold text-pink-400 mb-3">🛠️ 사용자 프로필 수정</h2>
+          <p className="text-gray-500 text-xs mb-2">구글 이름이 잘못 인식된 경우 여기서 고칩니다.</p>
+          <div className="flex gap-2 mb-3">
+            <input type="text" value={profileSearchQuery} onChange={e => setProfileSearchQuery(e.target.value)} placeholder="이메일/이름/학번" className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
+            <button onClick={handleSearchProfile} className="bg-pink-600 hover:bg-pink-500 px-3 py-2 rounded font-bold text-sm">검색</button>
+          </div>
+          <div className="space-y-1 max-h-32 overflow-y-auto mb-3">
+            {profileSearchResults.map(p => (
+              <button
+                key={p.id}
+                onClick={() => setEditingProfile({ id: p.id, email: p.email, student_id: p.student_id ?? '', name: p.name, role: p.role })}
+                className="w-full text-left bg-gray-700/50 hover:bg-gray-700 rounded px-2 py-1 text-xs text-gray-200"
+              >
+                {p.email} — {p.name} ({p.student_id ?? '교직원'})
+              </button>
+            ))}
+          </div>
+          {editingProfile && (
+            <div className="bg-gray-900 p-3 rounded-lg border border-pink-700 space-y-2">
+              <p className="text-xs text-gray-400">{editingProfile.email}</p>
+              <select value={editingProfile.role} onChange={e => setEditingProfile({ ...editingProfile, role: e.target.value })} className="w-full p-1.5 bg-gray-700 rounded border border-gray-600 text-white text-xs">
+                <option value="student">학생</option>
+                <option value="staff">교직원</option>
+              </select>
+              {editingProfile.role === 'student' && (
+                <input type="text" maxLength={4} value={editingProfile.student_id} onChange={e => setEditingProfile({ ...editingProfile, student_id: e.target.value })} placeholder="학번 4자리" className="w-full p-1.5 bg-gray-700 rounded border border-gray-600 text-white text-xs" />
+              )}
+              <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({ ...editingProfile, name: e.target.value })} placeholder="이름" className="w-full p-1.5 bg-gray-700 rounded border border-gray-600 text-white text-xs" />
+              <div className="flex gap-2">
+                <button onClick={() => setEditingProfile(null)} className="flex-1 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold">취소</button>
+                <button onClick={handleSaveProfile} className="flex-1 py-1.5 bg-pink-600 hover:bg-pink-500 rounded text-xs font-bold">저장</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
