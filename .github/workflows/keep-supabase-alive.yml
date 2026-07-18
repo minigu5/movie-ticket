@@ -1,0 +1,25 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # 매주 월요일과 목요일 낮 12:00(UTC 기준)에 정기적으로 실행됩니다. (한국시간 저녁 9:00)
+    # 3~4일 간격이므로 7일 제한인 Supabase가 잠드는 것을 완벽히 방지합니다.
+    - cron: '0 12 * * 1,4'
+  workflow_dispatch: # GitHub 웹사이트에서 우리가 원할 때 수동으로 실행해 볼 수 있는 버튼을 활성화합니다.
+
+jobs:
+  ping_supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send API Request to Supabase
+        run: |
+          # curl을 사용해 Supabase의 REST API로 1개의 행만 가볍게 조회(Select)하는 요청을 보냅니다.
+          # 아래 주소 끝부분의 'keep_alive'를 본인이 실제로 만든 테이블 이름으로 수정해 주세요.
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/reservations?limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          
+          echo "Supabase API Response HTTP Status Code: $STATUS_CODE"
+          
+          # HTTP 상태 코드가 200번대(성공) 또는 400번대(데이터 없음 등)여도 호출 자체는 성공했으므로 DB는 정상 자극됩니다.
