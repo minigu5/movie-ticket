@@ -6,16 +6,22 @@ Supabase 대시보드 / Google Cloud Console / Vercel 대시보드에서 직접 
 
 ---
 
-## 0. 먼저: Supabase 프로젝트가 살아있는지 확인
+## 0. (해결됨) Supabase 프로젝트 URL 오타
 
-이전 세션에서 `.env.local`에 적힌 프로젝트 URL(`mfpeyfqjjznwfdfdsfo.supabase.co`)이
-DNS 조회 자체가 안 되는 상태였습니다(NXDOMAIN). 아래 순서로 확인해주세요.
+`.env.local`에 적혀있던 프로젝트 URL이 `mfpeyfqjjznwfdfdsfo.supabase.co`로 되어 있었는데,
+실제 프로젝트 URL은 `mfpeyfqjjzjnwfgfdsfo.supabase.co`였습니다(글자 순서/오타 차이). 이게
+세션 초반 DNS 조회 실패(NXDOMAIN)와 이후 Google 로그인의 `redirect_uri_mismatch` 오류의
+원인이었습니다. `.env.local`은 올바른 URL로 수정 완료(anon/service_role 키는 원래부터
+정상이었음 — JWT 안의 `ref` 클레임이 처음부터 올바른 프로젝트 ref였습니다).
 
-1. https://supabase.com/dashboard 접속해서 해당 프로젝트가 목록에 있는지 확인.
-2. 프로젝트가 "Paused"(일시정지) 상태면 "Restore project" 버튼으로 복구.
-3. 프로젝트를 열고 **Project Settings → API**에서 "Project URL"과 "anon public" 키를 확인해서
-   `.env.local`의 `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` /
-   `SUPABASE_SERVICE_ROLE_KEY`와 일치하는지 대조. 다르면 `.env.local`을 최신 값으로 갱신.
+**남은 확인 사항:**
+1. **Vercel 대시보드 → 프로젝트 → Settings → Environment Variables**에서
+   `NEXT_PUBLIC_SUPABASE_URL` 값이 `https://mfpeyfqjjzjnwfgfdsfo.supabase.co`로
+   되어 있는지 확인. 잘못돼 있으면 고치고 재배포.
+2. **Google Cloud Console → 클라이언트 → 해당 OAuth 클라이언트 → 승인된 리디렉션 URI**에
+   `https://mfpeyfqjjzjnwfgfdsfo.supabase.co/auth/v1/callback`이 정확히 등록돼 있는지 확인.
+3. **Supabase 대시보드 → Authentication → URL Configuration**의 Site URL/Redirect URLs도
+   실제 서비스 도메인 기준으로 등록돼 있는지 확인(1절 참고).
 4. 프로젝트 자체가 삭제된 경우 새로 만들어야 하며, 그 경우 아래 SQL 마이그레이션과
    Google OAuth 설정을 새 프로젝트 기준으로 다시 진행해야 합니다.
 
