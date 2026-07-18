@@ -32,6 +32,13 @@ export default function AdminPage() {
 
   const [blacklist, setBlacklist] = useState<any[]>([]);
   const [newBlackId, setNewBlackId] = useState('');
+  const [newBlackName, setNewBlackName] = useState('');
+
+  const [admins, setAdmins] = useState<{email: string, added_by: string | null, created_at: string}[]>([]);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [clubMembers, setClubMembers] = useState<{student_id: string, added_by: string | null, created_at: string}[]>([]);
+  const [newClubStudentId, setNewClubStudentId] = useState('');
+  const [kioskPasswordInput, setKioskPasswordInput] = useState('');
 
   const [baseUrl, setBaseUrl] = useState('');
   useEffect(() => setBaseUrl(window.location.origin), []);
@@ -78,22 +85,20 @@ export default function AdminPage() {
     setCheckingAdmin(false);
   };
 
-  const fetchAdminData = async () => {
+  const fetchAdminData = async (): Promise<boolean> => {
     setIsLoadingUI(true);
     try {
-      const res = await fetch('/api/admin/action', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'FETCH_INITIAL_DATA', adminPassword: password })
-      });
+      const res = await authFetch('/api/admin/action', { action: 'FETCH_INITIAL_DATA' });
       const { data, success, error } = await res.json();
 
       if (!success) {
-        if (res.status === 401) setIsAuthenticated(false);
+        if (res.status === 401 || res.status === 403) return false;
         alert(`데이터 불러오기 실패: ${error}`);
-        return console.error("데이터 로드 실패:", error);
+        console.error("데이터 로드 실패:", error);
+        return true;
       }
 
-      const { movieData, resData, blData, logData } = data;
+      const { movieData, resData, blData, logData, adminData, clubData, kioskPassword } = data;
       if (movieData) {
         setMovieInfo(movieData);
         setEditForm({
@@ -112,8 +117,13 @@ export default function AdminPage() {
       if (resData) setReservations(resData);
       if (blData) setBlacklist(blData);
       if (logData) setLogs(logData);
+      if (adminData) setAdmins(adminData);
+      if (clubData) setClubMembers(clubData);
+      if (typeof kioskPassword === 'string') setKioskPasswordInput(kioskPassword);
+      return true;
     } catch (err) {
       console.error("데이터 불러오기 오류:", err);
+      return true;
     } finally {
       setIsLoadingUI(false);
     }
@@ -137,20 +147,14 @@ export default function AdminPage() {
       grand_vip_start_col: editForm.grand_vip_start_col, grand_vip_end_col: editForm.grand_vip_end_col
     };
 
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'UPDATE_SETTINGS', adminPassword: password, payload })
-    });
+    const res = await authFetch('/api/admin/action', { action: 'UPDATE_SETTINGS', payload });
 
     const data = await res.json();
     if (!data.success) {
       alert("설정 저장 실패: " + data.error);
     } else {
       if (isVenueChanged) {
-        await fetch('/api/admin/action', {
-          method: 'POST',
-          body: JSON.stringify({ action: 'CLEAR_RESERVATIONS', adminPassword: password, payload: { movieDate: movieInfo.db_date } })
-        });
+        await authFetch('/api/admin/action', { action: 'CLEAR_RESERVATIONS', payload: { movieDate: movieInfo.db_date } });
         alert("🚨 상영관 변경 및 예매 내역 초기화가 완료되었습니다.");
       } else {
         alert("✅ 설정이 성공적으로 저장되었습니다!");
@@ -165,21 +169,16 @@ export default function AdminPage() {
 
     if (!confirm(`${ticket.student_name}님의 예매를 확정하시겠습니까?\n(입금 확인 금액: ${totalPrice.toLocaleString()}원)`)) return;
 
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'APPROVE_RESERVATION',
-        adminPassword: password,
-        payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
-      })
+    const res = await authFetch('/api/admin/action', {
+      action: 'APPROVE_RESERVATION',
+      payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
     });
 
     const data = await res.json();
     if (!data.success) return alert("승인 실패: " + data.error);
 
-    const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
-    if (userEmail) {
-      fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'confirmed', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl }) });
+    if (ticket.email) {
+      fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: ticket.email, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'confirmed', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl }) });
     }
     setReservations(prev => prev.map(r => r.id === ticket.id ? { ...r, payment_status: 'confirmed' } : r));
     alert("승인 완료 및 이메일 발송됨!");
@@ -188,24 +187,19 @@ export default function AdminPage() {
   const handleCancel = async (ticket: any) => {
     if (!confirm(`정말 ${ticket.student_name}님의 예매를 취소하시겠습니까?`)) return;
 
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'CANCEL_RESERVATION',
-        adminPassword: password,
-        payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
-      })
+    const res = await authFetch('/api/admin/action', {
+      action: 'CANCEL_RESERVATION',
+      payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
     });
 
     const data = await res.json();
     if (!data.success) return alert("취소 실패: " + data.error);
 
-    const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
-    if (userEmail) {
+    if (ticket.email) {
       const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
       fetch('/api/ticket', {
         method: 'POST',
-        body: JSON.stringify({ email: userEmail, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
+        body: JSON.stringify({ email: ticket.email, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
       });
     }
     setReservations(prev => prev.filter(r => r.id !== ticket.id));
@@ -215,13 +209,9 @@ export default function AdminPage() {
   const handleResetPrint = async (ticket: any) => {
     if (!confirm(`${ticket.student_name}님의 티켓 발권 상태를 '미발권'으로 초기화하시겠습니까?\n(학생이 현장 키오스크에서 다시 티켓을 출력할 수 있게 됩니다.)`)) return;
 
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'RESET_PRINT',
-        adminPassword: password,
-        payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
-      })
+    const res = await authFetch('/api/admin/action', {
+      action: 'RESET_PRINT',
+      payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
     });
 
     const data = await res.json();
@@ -236,50 +226,43 @@ export default function AdminPage() {
 
   const handleAddBlacklist = async () => {
     if (newBlackId.length !== 4) return alert("학번 4자리를 정확히 입력해주세요.");
-    const studentName = STUDENT_LIST[newBlackId];
-    if (!studentName) return alert("존재하지 않는 학번입니다.");
+    if (!newBlackName.trim()) return alert("이름을 입력해주세요.");
+    const studentName = newBlackName.trim();
 
     if (!confirm(`${studentName}(${newBlackId}) 학생을 블랙리스트에 추가하시겠습니까?\n(⚠️ 주의: 현재 진행 중이거나 완료된 예매 내역이 있다면 자동으로 취소됩니다.)`)) return;
 
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'ADD_BLACKLIST', adminPassword: password, payload: { studentId: newBlackId, studentName, movieDate: movieInfo.db_date } })
-    });
+    const res = await authFetch('/api/admin/action', { action: 'ADD_BLACKLIST', payload: { studentId: newBlackId, studentName, movieDate: movieInfo.db_date } });
     const data = await res.json();
     if (!data.success) return alert("추가 실패 (이미 등록된 학생일 수 있습니다.)");
 
-    const userEmail = USER_EMAILS[newBlackId];
-    if (data.canceledTicket && userEmail) {
+    if (data.canceledTicket && data.email) {
       const ticket = data.canceledTicket;
       const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
       fetch('/api/ticket', {
         method: 'POST',
-        body: JSON.stringify({ email: userEmail, name: studentName, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
+        body: JSON.stringify({ email: data.email, name: studentName, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
       });
     }
 
-    if (userEmail) {
-      fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: userEmail, name: studentName, action: 'added' }) });
+    if (data.email) {
+      fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: data.email, name: studentName, action: 'added' }) });
     }
 
     setBlacklist(prev => [...prev, { student_id: newBlackId, student_name: studentName }]);
     setReservations(prev => prev.filter(r => r.student_id !== newBlackId));
     setNewBlackId('');
-    alert("블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!");
+    setNewBlackName('');
+    alert("블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!" + (data.email ? '' : '\n(등록된 이메일이 없어 안내 메일은 발송되지 않았습니다.)'));
   };
 
   const handleRemoveBlacklist = async (studentId: string, studentName: string) => {
     if (!confirm(`${studentName}(${studentId}) 학생의 블랙리스트를 해제하시겠습니까?`)) return;
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'REMOVE_BLACKLIST', adminPassword: password, payload: { studentId } })
-    });
+    const res = await authFetch('/api/admin/action', { action: 'REMOVE_BLACKLIST', payload: { studentId } });
     const data = await res.json();
     if (!data.success) return alert("해제 실패");
-    const userEmail = USER_EMAILS[studentId];
-    if (userEmail) fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: userEmail, name: studentName, action: 'removed' }) });
+    if (data.email) fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: data.email, name: studentName, action: 'removed' }) });
     setBlacklist(prev => prev.filter(b => b.student_id !== studentId));
-    alert("해제 완료 및 안내 메일 발송!");
+    alert("해제 완료" + (data.email ? ' 및 안내 메일 발송!' : ' (등록된 이메일이 없어 안내 메일은 발송되지 않았습니다.)'));
   };
 
   const handleSendPromoClick = () => {
@@ -560,7 +543,8 @@ export default function AdminPage() {
       <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-red-600 mb-8">
         <h2 className="text-xl font-bold text-red-400 mb-4">🚫 블랙리스트 관리</h2>
         <div className="flex gap-2 mb-6">
-          <input type="text" maxLength={4} value={newBlackId} onChange={(e) => setNewBlackId(e.target.value)} placeholder="학번 4자리 입력" className="p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white w-48" />
+          <input type="text" maxLength={4} value={newBlackId} onChange={(e) => setNewBlackId(e.target.value)} placeholder="학번 4자리" className="p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white w-32" />
+          <input type="text" value={newBlackName} onChange={(e) => setNewBlackName(e.target.value)} placeholder="이름" className="p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white w-32" />
           <button onClick={handleAddBlacklist} className="bg-red-600 hover:bg-red-500 px-4 py-2 rounded font-bold transition-colors">추가하기</button>
         </div>
         <div className="flex flex-wrap gap-2">
