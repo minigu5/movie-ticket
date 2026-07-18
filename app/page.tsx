@@ -241,7 +241,9 @@ export default function Home() {
         return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.");
       }
       setSelectedSeat(seatId);
-      setMemberFormData({studentId: '', name: ''});
+      setMemberSearchQuery('');
+      setMemberSearchResults([]);
+      setSelectedMember(null);
       setIsGroupMemberModal(true);
       return;
     }

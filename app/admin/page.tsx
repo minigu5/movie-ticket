@@ -267,12 +267,12 @@ export default function AdminPage() {
     const res = await authFetch('/api/admin/action', { action: 'ADD_ADMIN', payload: { email } });
     const data = await res.json();
     if (!data.success) return alert("추가 실패: " + data.error);
-    setAdmins(prev => [{ email, added_by: profile.email, created_at: new Date().toISOString() }, ...prev]);
+    setAdmins(prev => [{ email, added_by: profile!.email, created_at: new Date().toISOString() }, ...prev]);
     setNewAdminEmail('');
   };
 
   const handleRemoveAdmin = async (email: string) => {
-    if (email === profile.email) return alert("본인 계정은 스스로 제거할 수 없습니다.");
+    if (email === profile!.email) return alert("본인 계정은 스스로 제거할 수 없습니다.");
     if (!confirm(`${email}의 관리자 권한을 제거하시겠습니까?`)) return;
     const res = await authFetch('/api/admin/action', { action: 'REMOVE_ADMIN', payload: { email } });
     const data = await res.json();
@@ -286,7 +286,7 @@ export default function AdminPage() {
     const res = await authFetch('/api/admin/action', { action: 'ADD_CLUB_MEMBER', payload: { studentId } });
     const data = await res.json();
     if (!data.success) return alert("추가 실패: " + data.error);
-    setClubMembers(prev => [{ student_id: studentId, added_by: profile.email, created_at: new Date().toISOString() }, ...prev]);
+    setClubMembers(prev => [{ student_id: studentId, added_by: profile!.email, created_at: new Date().toISOString() }, ...prev]);
     setNewClubStudentId('');
   };
 
