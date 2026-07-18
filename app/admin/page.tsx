@@ -2,16 +2,16 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
-import { USER_EMAILS } from '../../lib/emails';
+import { ensureProfile, signInWithGoogle, authFetch, DomainNotAllowedError, type AppProfile } from '../../lib/supabase-auth';
 import Link from 'next/link';
-
-import { STUDENT_LIST, CLUB_MEMBERS } from '../../lib/constants';
 
 const POPCORN_NAMES: Record<string, string> = { "original": "오리지널", "consomme": "콘소메", "caramel": "카라멜" };
 
 export default function AdminPage() {
-  const [password, setPassword] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [profile, setProfile] = useState<AppProfile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [reservations, setReservations] = useState<any[]>([]);
   const [movieInfo, setMovieInfo] = useState<any>(null);
   const [isLoadingUI, setIsLoadingUI] = useState(true); // 🌟 [추가됨] 로딩 상태 관리
@@ -35,7 +35,6 @@ export default function AdminPage() {
 
   const [baseUrl, setBaseUrl] = useState('');
   useEffect(() => setBaseUrl(window.location.origin), []);
-  const [skipAuth, setSkipAuth] = useState(false);
 
   // 🌟 (신규) 팝콘 통계 계산을 위한 함수
   const popcornStats = useMemo(() => {
@@ -53,51 +52,30 @@ export default function AdminPage() {
   }, [reservations]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && localStorage.getItem('skip_auth') === 'true') {
-      const savedPass = localStorage.getItem('admin_token');
-      if (savedPass) {
-        setPassword(savedPass);
-        setSkipAuth(true);
-        setIsAuthenticated(true);
-      } else {
-        localStorage.setItem('skip_auth', 'false');
+    let active = true;
+    const bootstrap = async () => {
+      try {
+        const p = await ensureProfile();
+        if (active) setProfile(p);
+      } catch (err) {
+        if (err instanceof DomainNotAllowedError) alert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
+      } finally {
+        if (active) setAuthLoading(false);
       }
-    }
+    };
+    bootstrap();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) fetchAdminData();
-    // password는 인증 시점 이후 변경되지 않으므로 의존성에서 제외
-  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (profile) checkAdminAndLoad();
+  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggleSkipAuth = async () => {
-    let currentPass = password;
-    if (!skipAuth) {
-      const pass = prompt("자동 로그인을 켜기 위해 관리자 비밀번호를 입력해주세요:");
-      const res = await fetch('/api/admin/action', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'LOGIN', adminPassword: pass })
-      });
-      const data = await res.json();
-      if (!data.success) {
-        alert("비밀번호가 틀렸습니다. 설정을 변경할 수 없습니다.");
-        return;
-      }
-      currentPass = pass || '';
-    }
-
-    const newVal = !skipAuth;
-    if (typeof window !== 'undefined') {
-      if (newVal) {
-        localStorage.setItem('skip_auth', 'true');
-        localStorage.setItem('admin_token', currentPass);
-      } else {
-        localStorage.setItem('skip_auth', 'false');
-        localStorage.removeItem('admin_token');
-      }
-    }
-    setSkipAuth(newVal);
-    alert(newVal ? "현재 브라우저에서 관리자/발권기 접속 시 비밀번호가 생략됩니다! (베타용)" : "비밀번호 생략이 해제되었습니다.");
+  const checkAdminAndLoad = async () => {
+    setCheckingAdmin(true);
+    const ok = await fetchAdminData();
+    setIsAdmin(ok);
+    setCheckingAdmin(false);
   };
 
   const fetchAdminData = async () => {
@@ -356,38 +334,38 @@ export default function AdminPage() {
     setIsSendingPromo(false); alert("✅ 홍보 메일 발송 완료!"); fetchAdminData();
   };
 
-  const handleAdminLogin = async () => {
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'LOGIN', adminPassword: password })
-    });
-    const data = await res.json();
-    if (data.success) {
-      setIsAuthenticated(true);
-    } else {
-      alert('비밀번호가 틀렸습니다.');
-    }
-  };
+  if (authLoading) return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <p className="text-white font-bold animate-pulse">로그인 확인 중...</p>
+    </div>
+  );
 
-  if (!isAuthenticated) return (
+  if (!profile) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-gray-700 shadow-2xl">
         <h1 className="text-2xl font-bold text-white mb-6">🔒 관리자 로그인</h1>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-          className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 mb-4 text-center outline-none focus:border-blue-500"
-          placeholder="비밀번호 입력"
-        />
+        <p className="text-gray-400 text-sm mb-6">학교(@ts.hs.kr) 구글 계정으로 로그인해주세요.</p>
         <button
-          onClick={handleAdminLogin}
-          className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold transition-colors"
+          onClick={() => signInWithGoogle().catch(() => alert('로그인에 실패했습니다.'))}
+          className="w-full py-3 bg-white hover:bg-gray-100 text-gray-900 rounded-lg font-bold transition-colors"
         >
-          접속하기
+          구글 계정으로 로그인
         </button>
+      </div>
+    </div>
+  );
 
+  if (checkingAdmin) return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <p className="text-white font-bold animate-pulse">권한 확인 중...</p>
+    </div>
+  );
+
+  if (!isAdmin) return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-red-700 shadow-2xl">
+        <h1 className="text-2xl font-bold text-red-400 mb-4">🚫 권한 없음</h1>
+        <p className="text-gray-400 text-sm">{profile.email} 계정은 관리자로 등록되어 있지 않습니다.</p>
       </div>
     </div>
   );
