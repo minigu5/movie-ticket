@@ -45,6 +45,7 @@ export default function Home() {
   // 🌟 [예매 후 UI] 내 예매 정보 + 자리 이동 모드
   const [myReservation, setMyReservation] = useState<{id: string, seat: string, status: string, popcorn?: string} | null>(null);
   const [isMovingSeat, setIsMovingSeat] = useState(false);
+  const [isAddPopcornMode, setIsAddPopcornMode] = useState(false); // 🍿 결제 대기 중 팝콘 추가 모드
 
   const [alertInfo, setAlertInfo] = useState<{message: string, isError: boolean} | null>(null);
   const [confirmInfo, setConfirmInfo] = useState<{message: string, onConfirm: () => void} | null>(null);
@@ -286,6 +287,48 @@ export default function Home() {
     const filtered = newList.filter(p => p !== 'none');
     filtered.push('none');
     setPopcornList(filtered);
+  };
+
+  const handleAddPopcornSubmit = async () => {
+    if (!profile || !myReservation) return;
+    const finalPopcornString = popcornList.filter(p => p !== 'none').join(',') || 'none';
+    const oldPopcorns = myReservation.popcorn && myReservation.popcorn !== 'none' ? myReservation.popcorn.split(',') : [];
+    const newPopcorns = finalPopcornString !== 'none' ? finalPopcornString.split(',') : [];
+
+    if (finalPopcornString === (myReservation.popcorn || 'none')) {
+      return showAlert("변경된 내용이 없습니다.");
+    }
+    if (newPopcorns.length < oldPopcorns.length) {
+      return showAlert("🚫 결제 혼선 방지를 위해 기존에 주문한 팝콘 수량을 취소/삭제할 수 없습니다. (맛 변경 및 추가만 가능)");
+    }
+
+    const addedCount = newPopcorns.length - oldPopcorns.length;
+    const confirmMsg = addedCount > 0
+      ? `팝콘 ${addedCount}개를 추가하시겠습니까?\n(추가 결제 금액: ${(addedCount * 2500).toLocaleString()}원)`
+      : `팝콘 주문 내용을 변경하시겠습니까?\n(맛 변경 사항이 저장됩니다)`;
+
+    showConfirm(confirmMsg, async () => {
+      const { error } = await supabase.from('reservations')
+        .update({ popcorn_order: finalPopcornString })
+        .eq('id', myReservation.id);
+      if (error) return showAlert("팝콘 추가 중 오류가 발생했습니다.");
+
+      await supabase.from('activity_logs').insert([{ student_id: profile.student_id, student_name: profile.name, description: `팝콘 추가 주문 (${myReservation.seat})` }]);
+
+      setMyReservation(prev => prev ? { ...prev, popcorn: finalPopcornString } : prev);
+      setSeatStatuses(prev => ({ ...prev, [myReservation.seat]: { ...prev[myReservation.seat], popcorn: finalPopcornString } }));
+      setIsModalOpen(false);
+      setIsAddPopcornMode(false);
+
+      const baseUrl = window.location.origin;
+      fetch('/api/ticket', { method: 'POST', body: JSON.stringify({
+        email: profile.email, name: profile.name, seat: myReservation.seat,
+        movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
+        statusType: 'pending', popcorn: finalPopcornString, ticketId: myReservation.id, baseUrl
+      }) });
+
+      showSuccess("🍿 팝콘 주문이 갱신되었습니다!", "QR코드로 갱신된 금액을 입금해주세요.");
+    });
   };
 
   const handleSubmit = async () => {
@@ -812,6 +855,25 @@ export default function Home() {
             {myReservation.popcorn && myReservation.popcorn !== 'none' && (
               <p className="text-slate-400 text-sm">🍿 팝콘 {myReservation.popcorn.split(',').length}개 주문됨</p>
             )}
+            {myReservation.status === 'pending' && (
+              <div className="bg-slate-900/60 border border-amber-500/30 rounded-xl p-4 text-left space-y-3">
+                <p className="text-amber-300 text-sm font-bold text-center">⏳ 아래 QR코드 또는 계좌로 입금을 완료해주세요.</p>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="bg-white p-3 rounded-xl inline-block"><img src="/qr.jpeg" alt="QR" loading="lazy" decoding="async" className="w-32 h-32 object-contain" /></div>
+                  <div className="w-full"><AccountInfo /></div>
+                </div>
+                <div className="bg-slate-800 rounded-lg p-3 text-sm">
+                  <p className="text-slate-300 mb-1">결제 금액: <span className="text-amber-400 font-bold">{((myReservation.popcorn && myReservation.popcorn !== 'none' ? myReservation.popcorn.split(',').length : 0) * 2500).toLocaleString()}원</span></p>
+                  <p className="text-slate-300">입금자명: <span className="text-indigo-400 font-bold">{profile.student_id ?? ''} {profile.name}</span></p>
+                </div>
+                <button onClick={() => {
+                  const existing = myReservation.popcorn && myReservation.popcorn !== 'none' ? myReservation.popcorn.split(',') : [];
+                  setPopcornList([...existing, 'none']);
+                  setIsAddPopcornMode(true);
+                  setIsModalOpen(true);
+                }} className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 border border-amber-500 rounded-lg text-white font-bold transition-all text-sm">🍿 팝콘 추가</button>
+              </div>
+            )}
             <div className="flex gap-3">
               <button onClick={() => { setIsMovingSeat(true); setSelectedSeat(null); }} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)]">🔄 자리 이동</button>
               <button onClick={handleCancelMyReservation} className="flex-1 py-3 bg-rose-600/90 hover:bg-rose-500 border border-rose-500 rounded-lg text-white font-bold transition-all">🚨 예매 취소</button>
@@ -843,13 +905,15 @@ export default function Home() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-50 overflow-y-auto duration-300">
           <div className="bg-slate-900/90 backdrop-blur-xl p-6 rounded-2xl w-full max-w-md border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] my-8">
-            <h2 className="text-2xl font-bold text-white mb-6">예매 정보 입력</h2>
+            <h2 className="text-2xl font-bold text-white mb-6">{isAddPopcornMode ? '🍿 팝콘 추가' : '예매 정보 입력'}</h2>
             <div className="space-y-4 text-left">
-              <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
-                <p className="text-slate-500 text-xs mb-1">예매자 (구글 계정으로 확인됨)</p>
-                <p className="text-white font-bold text-lg">{profile.name} <span className="text-slate-400 font-normal text-sm">{profile.student_id ?? '교직원'}</span></p>
-                <p className="text-slate-500 text-xs mt-1">{profile.email}</p>
-              </div>
+              {!isAddPopcornMode && (
+                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                  <p className="text-slate-500 text-xs mb-1">예매자 (구글 계정으로 확인됨)</p>
+                  <p className="text-white font-bold text-lg">{profile.name} <span className="text-slate-400 font-normal text-sm">{profile.student_id ?? '교직원'}</span></p>
+                  <p className="text-slate-500 text-xs mt-1">{profile.email}</p>
+                </div>
+              )}
 
               <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
                 <label className="block text-slate-300 mb-3 text-sm font-bold">🍿 팝콘 선택 (개당 2,500원)</label>
@@ -885,9 +949,15 @@ export default function Home() {
             </div>
             
             <div className="flex gap-3 mt-8">
-              <button onClick={() => setIsModalOpen(false)} className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all text-sm">취소</button>
-              <button onClick={handleSubmit} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] text-sm">예매 확정하기</button>
-              <button onClick={handleGroupStart} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] text-sm">단체 예매하기</button>
+              <button onClick={() => { setIsModalOpen(false); setIsAddPopcornMode(false); }} className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all text-sm">취소</button>
+              {isAddPopcornMode ? (
+                <button onClick={handleAddPopcornSubmit} className="flex-1 py-3 bg-amber-600 hover:bg-amber-500 border border-amber-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(217,119,6,0.3)] text-sm">추가하기</button>
+              ) : (
+                <>
+                  <button onClick={handleSubmit} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] text-sm">예매 확정하기</button>
+                  <button onClick={handleGroupStart} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] text-sm">단체 예매하기</button>
+                </>
+              )}
             </div>
           </div>
         </div>
