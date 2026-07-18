@@ -429,58 +429,41 @@ export default function Home() {
   };
 
   const handleGroupFinalize = async () => {
+    if (!profile) return showAlert("로그인이 필요합니다.");
     setIsGroupSummaryOpen(false);
     const leaderName = groupLeader!.name;
     const leaderSeat = groupLeader!.seat;
-    const leaderStudentId = groupLeader!.studentId;
     const memberCount = groupMembers.length;
     const groupId = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     const baseUrl = window.location.origin;
 
-    const { data: leaderTicket, error: leaderError } = await supabase.from('reservations')
-      .insert([{
-        movie_date: movieInfo.db_date, student_id: leaderStudentId, student_name: leaderName,
-        password: groupLeader!.password, seat_number: leaderSeat, popcorn_order: 'none',
-        payment_status: 'confirmed', group_id: groupId, is_group_leader: true, group_expires_at: expiresAt
-      }]).select('id').single();
-    if (leaderError) {
-      return showAlert("리더 좌석 예매 중 오류가 발생했습니다.\n(이미 선점된 좌석일 수 있습니다.)");
-    }
+    const res = await authFetch('/api/reservations', {
+      action: 'CREATE_GROUP',
+      payload: {
+        movieDate: movieInfo.db_date,
+        leaderSeat,
+        memberSeats: groupMembers.map(m => ({ profileId: m.profileId, seat: m.seat })),
+        groupId, expiresAt
+      }
+    });
+    const data = await res.json();
+    if (!data.success) return showAlert(data.error || "단체 예매 생성 중 오류가 발생했습니다.");
 
-    const memberInserts = groupMembers.map(m => ({
-      movie_date: movieInfo.db_date, student_id: m.studentId, student_name: m.name,
-      password: '', seat_number: m.seat, popcorn_order: 'none',
-      payment_status: 'group_pending', group_id: groupId, is_group_leader: false, group_expires_at: expiresAt
-    }));
-    const { data: memberTickets, error: memberError } = await supabase.from('reservations')
-      .insert(memberInserts).select('id, student_id, student_name, seat_number');
-    if (memberError) {
-      await supabase.from('reservations').delete().eq('id', leaderTicket.id);
-      return showAlert("멤버 좌석 예매 중 오류가 발생했습니다.\n(이미 선점된 좌석이 포함되어 있을 수 있습니다.)");
-    }
+    const { leaderTicket, memberTickets } = data;
 
-    await supabase.from('activity_logs').insert([{
-      student_id: leaderStudentId, student_name: leaderName,
-      description: `단체 예매 생성 (리더: ${leaderSeat}, 멤버 ${memberCount}명)`
-    }]);
+    fetch('/api/ticket', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: profile.email, name: leaderName, seat: leaderSeat,
+        movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
+        statusType: 'confirmed', popcorn: 'none', ticketId: leaderTicket.id, baseUrl
+      })
+    });
 
-    const leaderEmail = leaderStudentId === "교직원" ? USER_EMAILS[leaderName] : USER_EMAILS[leaderStudentId];
-    if (leaderEmail) {
-      fetch('/api/ticket', {
-        method: 'POST',
-        body: JSON.stringify({
-          email: leaderEmail, name: leaderName, seat: leaderSeat,
-          movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
-          statusType: 'confirmed', popcorn: 'none', ticketId: leaderTicket.id, baseUrl
-        })
-      });
-    }
-
-    setGroupSendingProgress({ current: 0, total: memberTickets!.length, sending: true });
-    const emailPayloads = memberTickets!.map(t => ({
-      email: t.student_id === "교직원" ? USER_EMAILS[t.student_name] : USER_EMAILS[t.student_id],
-      name: t.student_name, seat: t.seat_number, studentId: t.student_id, memberId: t.id
+    setGroupSendingProgress({ current: 0, total: memberTickets.length, sending: true });
+    const emailPayloads = memberTickets.map((t: any) => ({
+      memberId: t.id, name: t.student_name, seat: t.seat_number, studentId: t.student_id
     }));
     const CHUNK_SIZE = 5;
     for (let i = 0; i < emailPayloads.length; i += CHUNK_SIZE) {
