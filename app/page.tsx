@@ -303,20 +303,25 @@ export default function Home() {
     }
 
     const addedCount = newPopcorns.length - oldPopcorns.length;
-    const confirmMsg = addedCount > 0
+    const willNeedPayment = myReservation.status === 'confirmed' && finalPopcornString !== 'none';
+    const newStatus = finalPopcornString !== 'none' ? 'pending' : myReservation.status;
+    let confirmMsg = addedCount > 0
       ? `팝콘 ${addedCount}개를 추가하시겠습니까?\n(추가 결제 금액: ${(addedCount * 2500).toLocaleString()}원)`
       : `팝콘 주문 내용을 변경하시겠습니까?\n(맛 변경 사항이 저장됩니다)`;
+    if (willNeedPayment) {
+      confirmMsg += `\n\n⚠️ 결제 대기 상태로 전환되며, 입금 확인 전까지 예매 확정이 취소됩니다.`;
+    }
 
     showConfirm(confirmMsg, async () => {
       const { error } = await supabase.from('reservations')
-        .update({ popcorn_order: finalPopcornString })
+        .update({ popcorn_order: finalPopcornString, payment_status: newStatus })
         .eq('id', myReservation.id);
       if (error) return showAlert("팝콘 추가 중 오류가 발생했습니다.");
 
       await supabase.from('activity_logs').insert([{ student_id: profile.student_id, student_name: profile.name, description: `팝콘 추가 주문 (${myReservation.seat})` }]);
 
-      setMyReservation(prev => prev ? { ...prev, popcorn: finalPopcornString } : prev);
-      setSeatStatuses(prev => ({ ...prev, [myReservation.seat]: { ...prev[myReservation.seat], popcorn: finalPopcornString } }));
+      setMyReservation(prev => prev ? { ...prev, popcorn: finalPopcornString, status: newStatus } : prev);
+      setSeatStatuses(prev => ({ ...prev, [myReservation.seat]: { ...prev[myReservation.seat], popcorn: finalPopcornString, status: newStatus } }));
       setIsModalOpen(false);
       setIsAddPopcornMode(false);
 
@@ -857,6 +862,13 @@ export default function Home() {
             <p className="text-lg text-slate-200">내 좌석: <span className="text-amber-400 font-bold text-3xl md:text-4xl ml-2 tracking-tighter drop-shadow-md">{myReservation.seat}</span></p>
             {myReservation.popcorn && myReservation.popcorn !== 'none' && (
               <p className="text-slate-400 text-sm">🍿 팝콘 {myReservation.popcorn.split(',').length}개 주문됨</p>
+            )}
+            {myReservation.status === 'confirmed' && (!myReservation.popcorn || myReservation.popcorn === 'none') && (
+              <button onClick={() => {
+                setPopcornList(['none']);
+                setIsAddPopcornMode(true);
+                setIsModalOpen(true);
+              }} className="w-full py-2.5 bg-amber-600/90 hover:bg-amber-500 border border-amber-500 rounded-lg text-white font-bold transition-all text-sm">🍿 팝콘 추가 (결제 필요)</button>
             )}
             {myReservation.status === 'pending' && (
               <div className="bg-slate-900/60 border border-amber-500/30 rounded-xl p-4 text-left space-y-3">
