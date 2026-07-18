@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { USER_EMAILS } from '../lib/emails';
+import { ensureProfile, signInWithGoogle, authFetch, authFetchGet, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
 
-
-import { STUDENT_LIST, STAFF_LIST, CLUB_MEMBERS } from '../lib/constants';
 import AccountInfo from '@/components/AccountInfo';
 
 interface SeatData {
@@ -38,10 +36,9 @@ export default function Home() {
     grand_vip_start_row: "A", grand_vip_end_row: "C", grand_vip_start_col: 10, grand_vip_end_col: 18
   });
   
-  const[formData, setFormData] = useState({ studentId: '', name: '', password: '' });
-  
-  const[showResetButton, setShowResetButton] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
+  const [profile, setProfile] = useState<AppProfile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [clubMemberIds, setClubMemberIds] = useState<string[]>([]);
   const [clickedSeatInfo, setClickedSeatInfo] = useState<{seatId: string, status: string, ticketId: string, popcorn?: string} | null>(null);
 
   const [alertInfo, setAlertInfo] = useState<{message: string, isError: boolean} | null>(null);
@@ -115,45 +112,55 @@ export default function Home() {
     return vips;
   }, [movieInfo, isGrandHall, rows, cols]);
 
-  const [inviteName, setInviteName] = useState("");
   const [isManualOpen, setIsManualOpen] = useState(false);
 
   // 🌟 [단체 예매] Group Mode 상태 관리
   const [isGroupMode, setIsGroupMode] = useState(false);
-  const [groupLeader, setGroupLeader] = useState<{studentId: string, name: string, password: string, seat: string} | null>(null);
-  const [groupMembers, setGroupMembers] = useState<{studentId: string, name: string, seat: string}[]>([]);
+  const [groupLeader, setGroupLeader] = useState<{profileId: string, studentId: string | null, name: string, seat: string} | null>(null);
+  const [groupMembers, setGroupMembers] = useState<{profileId: string, studentId: string | null, name: string, seat: string}[]>([]);
   const [isGroupMemberModal, setIsGroupMemberModal] = useState(false);
-  const [memberFormData, setMemberFormData] = useState({studentId: '', name: ''});
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [memberSearchResults, setMemberSearchResults] = useState<{id: string, student_id: string | null, name: string}[]>([]);
+  const [selectedMember, setSelectedMember] = useState<{id: string, student_id: string | null, name: string} | null>(null);
   const [isGroupSummaryOpen, setIsGroupSummaryOpen] = useState(false);
   const [isGroupSoloConfirmOpen, setIsGroupSoloConfirmOpen] = useState(false); // 🌟 [추가] 혼자 예매 선택 모달
   const [groupSendingProgress, setGroupSendingProgress] = useState({current: 0, total: 0, sending: false});
 
   useEffect(() => {
-    fetchInitialData();
-  },[]);
-
-  // 🌟 [추가됨] VIP 초청 링크를 통한 접근 시 데이터 자동 채우기
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('invite') === 'true') {
-        let paramId = params.get('id') || '';
-        let paramName = params.get('name') || '';
-        
-        if (paramId === 'undefined' || paramId === 'null') paramId = '';
-        if (paramName === 'undefined' || paramName === 'null') paramName = '';
-
-        if (paramId || paramName) {
-          // 🍎 [추가됨] 숫자가 아닌 학번(교직원/관리자 등)은 '교직원'으로 표시합니다.
-          const finalId = (paramId && isNaN(Number(paramId))) ? '교직원' : paramId;
-          setFormData(prev => ({ ...prev, studentId: finalId, name: paramName }));
-          if (paramName) setInviteName(paramName);
+    let active = true;
+    const bootstrap = async () => {
+      try {
+        const p = await ensureProfile();
+        if (active) setProfile(p);
+      } catch (err) {
+        if (err instanceof DomainNotAllowedError) {
+          showAlert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
         }
-        // 주소창에서 파라미터 숨기기 (깔끔한 UI 유지)
-        window.history.replaceState({}, '', window.location.pathname);
+      } finally {
+        if (active) setAuthLoading(false);
       }
-    }
+    };
+    bootstrap();
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session) { setProfile(null); return; }
+      try {
+        const p = await ensureProfile();
+        setProfile(p);
+      } catch (err) {
+        if (err instanceof DomainNotAllowedError) {
+          showAlert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
+        }
+        setProfile(null);
+      }
+    });
+
+    return () => { active = false; sub.subscription.unsubscribe(); };
   }, []);
+
+  useEffect(() => {
+    if (profile) fetchInitialData();
+  }, [profile]);
 
   // 🌟 [단체 예매] 이메일 발송 중 페이지 이탈 방지
   useEffect(() => {
@@ -166,10 +173,12 @@ export default function Home() {
 
   const fetchInitialData = async () => {
     try {
-      const [{ data: settingsData }, { data: bgData }] = await Promise.all([
+      const [{ data: settingsData }, { data: bgData }, { data: clubData }] = await Promise.all([
         supabase.from('movie_settings').select('*').eq('id', 1).single(),
         supabase.from('blacklist').select('student_id'),
+        supabase.from('club_members').select('student_id'),
       ]);
+      if (clubData) setClubMemberIds(clubData.map(c => c.student_id));
 
       let currentDbDate = "2026-04-18";
 
@@ -228,11 +237,13 @@ export default function Home() {
         return;
       }
       if (groupMembers.length >= 9) return showAlert("단체 예매는 리더를 포함하여 최대 10명까지 가능합니다.");
-      if (vipSeats.has(seatId) && groupLeader && !CLUB_MEMBERS.includes(groupLeader.studentId)) {
+      if (vipSeats.has(seatId) && groupLeader && (!groupLeader.studentId || !clubMemberIds.includes(groupLeader.studentId))) {
         return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.");
       }
       setSelectedSeat(seatId);
-      setMemberFormData({studentId: '', name: ''});
+      setMemberSearchQuery('');
+      setMemberSearchResults([]);
+      setSelectedMember(null);
       setIsGroupMemberModal(true);
       return;
     }
@@ -250,11 +261,6 @@ export default function Home() {
     setSelectedSeat(seatId);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
   const handlePopcornChange = (index: number, value: string) => {
     let newList = [...popcornList];
     newList[index] = value;
@@ -263,60 +269,14 @@ export default function Home() {
     setPopcornList(filtered);
   };
 
-  const handleRequestReset = async () => {
-    const cleanStudentId = formData.studentId.replace(/['"]/g, '').trim();
-    setIsResetting(true);
-    try {
-      const res = await fetch('/api/auth/request-reset', {
-        method: 'POST',
-        body: JSON.stringify({ studentId: cleanStudentId, studentName: formData.name, baseUrl: window.location.origin })
-      });
-      if (res.ok) {
-        showAlert("학교 이메일로 비밀번호 재설정 링크가 발송되었습니다.", false);
-        setShowResetButton(false);
-      } else { showAlert("발송에 실패했습니다."); }
-    } finally { setIsResetting(false); }
-  };
-
   const handleSubmit = async () => {
-    if (!formData.studentId || !formData.name || !formData.password) return showAlert("정보를 모두 입력해주세요!");
-    if (!/^[0-9]{4}$/.test(formData.password)) return showAlert("❌ 비밀번호는 4자리 '숫자'만 입력해주세요!");
+    if (!profile) return showAlert("로그인이 필요합니다.");
 
-    const cleanStudentId = formData.studentId.replace(/['"]/g, '').trim();
-
-    if (cleanStudentId === "교직원") {
-      if (!STAFF_LIST.includes(formData.name)) return showAlert("❌ 등록된 교직원 이름이 아닙니다.");
-    } else {
-      if (cleanStudentId.length !== 4) return showAlert("학번은 4자리 숫자로 입력해주세요.");
-      if (STUDENT_LIST[cleanStudentId] !== formData.name) return showAlert(`❌ 학번과 이름이 일치하지 않습니다.`);
-    }
-
-    if (blacklistedUsers.includes(cleanStudentId)) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
+    if (blacklistedUsers.includes(profile.student_id ?? '')) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
 
     if (selectedSeat && vipSeats.has(selectedSeat)) {
-      if (!CLUB_MEMBERS.includes(cleanStudentId)) {
+      if (!profile.student_id || !clubMemberIds.includes(profile.student_id)) {
         return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
-      }
-    }
-
-    const authKey = cleanStudentId === "교직원" ? formData.name : cleanStudentId;
-    const { data: authResult, error: authError } = await supabase.rpc('verify_student_password', { 
-      p_student_id: authKey, 
-      p_password: formData.password 
-    });
-
-    if (authError) return showAlert("네트워크 오류가 발생했습니다.");
-
-    if (!authResult.exists) {
-      // 신규 사용자: INSERT (RLS anon INSERT 허용됨)
-      await supabase.from('student_auth').insert({ student_id: authKey, password: formData.password });
-      setShowResetButton(false);
-    } else {
-      if (!authResult.success) {
-        setShowResetButton(true);
-        return showAlert("❌ 비밀번호가 일치하지 않습니다.");
-      } else {
-        setShowResetButton(false);
       }
     }
 
@@ -325,11 +285,10 @@ export default function Home() {
         const { data: existingTickets } = await supabase.from('reservations')
           .select('*')
           .eq('movie_date', movieInfo.db_date)
-          .eq('student_id', cleanStudentId)
-          .eq('student_name', formData.name);
+          .eq('user_id', profile.id);
 
         const baseUrl = window.location.origin;
-        const userEmail = cleanStudentId === "교직원" ? USER_EMAILS[formData.name] : USER_EMAILS[cleanStudentId];
+        const userEmail = profile.email;
         const finalPopcornString = popcornList.filter(p => p !== 'none').join(',') || 'none';
 
         if (existingTickets && existingTickets.length > 0) {
@@ -357,10 +316,10 @@ export default function Home() {
 
             if (updateError) return showAlert("변경 중 오류 발생 (이미 선점된 좌석일 수 있습니다).");
 
-            await supabase.from('activity_logs').insert([{ student_id: cleanStudentId, student_name: formData.name, description: `좌석 변경 (${myOldTicket.seat_number} ➡️ ${selectedSeat}) 및 팝콘 갱신` }]);
+            await supabase.from('activity_logs').insert([{ student_id: profile.student_id, student_name: profile.name, description: `좌석 변경 (${myOldTicket.seat_number} ➡️ ${selectedSeat}) 및 팝콘 갱신` }]);
 
             if (userEmail && updatedTicket) {
-              fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: formData.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'changed', popcorn: finalPopcornString, ticketId: updatedTicket.id, baseUrl }) });
+              fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: profile.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'changed', popcorn: finalPopcornString, ticketId: updatedTicket.id, baseUrl }) });
             }
             showSuccess("예매 변경 완료!", "✨ 좌석이 성공적으로 변경되었습니다.\n새로운 티켓이 학교 메일로 발송되었습니다.");
             fetchInitialData(); setIsModalOpen(false); setSelectedSeat(null);
@@ -370,7 +329,7 @@ export default function Home() {
 
         const finalStatus = finalPopcornString === 'none' ? 'confirmed' : 'pending';
         const { data: newTicket, error: insertError } = await supabase.from('reservations')
-          .insert([{ movie_date: movieInfo.db_date, student_id: cleanStudentId, student_name: formData.name, password: formData.password, seat_number: selectedSeat, popcorn_order: finalPopcornString, payment_status: finalStatus }])
+          .insert([{ movie_date: movieInfo.db_date, user_id: profile.id, student_id: profile.student_id, student_name: profile.name, email: profile.email, seat_number: selectedSeat, popcorn_order: finalPopcornString, payment_status: finalStatus }])
           .select('id').single();
 
         if (insertError) {
@@ -379,22 +338,22 @@ export default function Home() {
         }
 
         const logDesc = finalStatus === 'confirmed' ? `무료 예매 (${selectedSeat})` : `팝콘 포함 예매 대기 (${selectedSeat})`;
-        await supabase.from('activity_logs').insert([{ student_id: cleanStudentId, student_name: formData.name, description: logDesc }]);
+        await supabase.from('activity_logs').insert([{ student_id: profile.student_id, student_name: profile.name, description: logDesc }]);
 
-        setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: finalStatus, name: formData.name, ticketId: newTicket?.id || '' } }));
-        setIsModalOpen(false); 
+        setSeatStatuses((prev) => ({ ...prev,[selectedSeat as string]: { status: finalStatus, name: profile.name, ticketId: newTicket?.id || '' } }));
+        setIsModalOpen(false);
 
         if (userEmail && newTicket) {
-          fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: formData.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: finalStatus, popcorn: finalPopcornString, ticketId: newTicket.id, baseUrl }) });
+          fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: profile.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: finalStatus, popcorn: finalPopcornString, ticketId: newTicket.id, baseUrl }) });
         }
 
         if (finalStatus === 'confirmed') {
-          showSuccess("🎉 예매 성공!", `${formData.name}님 귀중한 예매 감사합니다! 📧\n입력하신 학교 이메일로 VIP 모바일 티켓이 발송되었습니다.`);
+          showSuccess("🎉 예매 성공!", `${profile.name}님 귀중한 예매 감사합니다! 📧\n학교 이메일로 VIP 모바일 티켓이 발송되었습니다.`);
           setSelectedSeat(null);
         } else {
           setIsPaymentModalOpen(true);
         }
-        
+
       } catch (err) {
         showAlert("네트워크 오류가 발생했습니다.");
       }
@@ -406,135 +365,102 @@ export default function Home() {
   // ===== 🌟 [단체 예매] Handler Functions =====
 
   const handleGroupStart = async () => {
-    if (!formData.studentId || !formData.name || !formData.password) return showAlert("정보를 모두 입력해주세요!");
-    if (!/^[0-9]{4}$/.test(formData.password)) return showAlert("❌ 비밀번호는 4자리 '숫자'만 입력해주세요!");
-    const cleanStudentId = formData.studentId.replace(/['\"]/g, '').trim();
-    if (cleanStudentId === "교직원") {
-      if (!STAFF_LIST.includes(formData.name)) return showAlert("❌ 등록된 교직원 이름이 아닙니다.");
-    } else {
-      if (cleanStudentId.length !== 4) return showAlert("학번은 4자리 숫자로 입력해주세요.");
-      if (STUDENT_LIST[cleanStudentId] !== formData.name) return showAlert(`❌ 학번과 이름이 일치하지 않습니다.`);
-    }
-    if (blacklistedUsers.includes(cleanStudentId)) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
-    if (selectedSeat && vipSeats.has(selectedSeat) && !CLUB_MEMBERS.includes(cleanStudentId)) {
+    if (!profile) return showAlert("로그인이 필요합니다.");
+
+    if (blacklistedUsers.includes(profile.student_id ?? '')) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
+    if (selectedSeat && vipSeats.has(selectedSeat) && (!profile.student_id || !clubMemberIds.includes(profile.student_id))) {
       return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
     }
-    const authKey = cleanStudentId === "교직원" ? formData.name : cleanStudentId;
-    const { data: authResult, error: authError } = await supabase.rpc('verify_student_password', { 
-      p_student_id: authKey, 
-      p_password: formData.password 
-    });
 
-    if (authError) return showAlert("네트워크 오류가 발생했습니다.");
-
-    if (!authResult.exists) {
-      await supabase.from('student_auth').insert({ student_id: authKey, password: formData.password });
-      setShowResetButton(false);
-    } else {
-      if (!authResult.success) {
-        setShowResetButton(true);
-        return showAlert("❌ 비밀번호가 일치하지 않습니다.");
-      } else {
-        setShowResetButton(false);
-      }
-    }
     const { data: existingTickets } = await supabase.from('reservations')
-      .select('id').eq('movie_date', movieInfo.db_date).eq('student_id', cleanStudentId);
+      .select('id').eq('movie_date', movieInfo.db_date).eq('user_id', profile.id);
     if (existingTickets && existingTickets.length > 0) {
       return showAlert("이미 예매 내역이 존재하는 학생은 단체 예매 리더가 될 수 없습니다.\n기존 예매를 취소한 뒤 다시 시도해주세요.");
     }
-    setGroupLeader({ studentId: cleanStudentId, name: formData.name, password: formData.password, seat: selectedSeat! });
+
+    setGroupLeader({ profileId: profile.id, studentId: profile.student_id, name: profile.name, seat: selectedSeat! });
     setGroupMembers([]);
     setIsGroupMode(true);
     setIsModalOpen(false);
-    setShowResetButton(false);
   };
 
+  useEffect(() => {
+    const q = memberSearchQuery.trim();
+    if (q.length < 1) { setMemberSearchResults([]); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await authFetchGet(`/api/profiles/search?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (data.success) setMemberSearchResults(data.results);
+      } catch { setMemberSearchResults([]); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [memberSearchQuery]);
+
   const handleAddGroupMember = async (andFinalize: boolean) => {
-    if (!memberFormData.studentId || !memberFormData.name) return showAlert("학번과 이름을 모두 입력해주세요!");
-    const cleanId = memberFormData.studentId.replace(/['\"]/g, '').trim();
-    if (cleanId === "교직원") {
-      if (!STAFF_LIST.includes(memberFormData.name)) return showAlert("❌ 등록된 교직원 이름이 아닙니다.");
-    } else {
-      if (cleanId.length !== 4) return showAlert("학번은 4자리 숫자로 입력해주세요.");
-      if (STUDENT_LIST[cleanId] !== memberFormData.name) return showAlert(`❌ 학번과 이름이 일치하지 않습니다.`);
-    }
-    if (blacklistedUsers.includes(cleanId)) return showAlert("🚫 블랙리스트에 등록되어 추가할 수 없습니다.");
-    if (groupLeader?.studentId === cleanId) return showAlert("리더 본인은 추가할 수 없습니다.");
-    if (groupMembers.some(m => m.studentId === cleanId)) return showAlert("이미 단체에 추가된 학생입니다.");
+    if (!selectedMember) return showAlert("추가할 사람을 검색해서 선택해주세요!");
+    if (blacklistedUsers.includes(selectedMember.student_id ?? '')) return showAlert("🚫 블랙리스트에 등록되어 추가할 수 없습니다.");
+    if (groupLeader?.profileId === selectedMember.id) return showAlert("리더 본인은 추가할 수 없습니다.");
+    if (groupMembers.some(m => m.profileId === selectedMember.id)) return showAlert("이미 단체에 추가된 사람입니다.");
+
     const { data: existing } = await supabase.from('reservations')
-      .select('id').eq('movie_date', movieInfo.db_date).eq('student_id', cleanId);
+      .select('id').eq('movie_date', movieInfo.db_date).eq('user_id', selectedMember.id);
     if (existing && existing.length > 0) return showAlert("이미 예매가 완료된 학생입니다.");
 
-    // 🌟 [추가] 동아리 전용 좌석 검증 (멤버 추가 시)
     if (selectedSeat && vipSeats.has(selectedSeat)) {
-      if (!CLUB_MEMBERS.includes(cleanId)) {
+      if (!selectedMember.student_id || !clubMemberIds.includes(selectedMember.student_id)) {
         return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n이 좌석에는 동아리 부원만 추가할 수 있습니다.");
       }
     }
 
-    const newMembers = [...groupMembers, { studentId: cleanId, name: memberFormData.name, seat: selectedSeat! }];
+    const newMembers = [...groupMembers, { profileId: selectedMember.id, studentId: selectedMember.student_id, name: selectedMember.name, seat: selectedSeat! }];
     setGroupMembers(newMembers);
     setIsGroupMemberModal(false);
     setSelectedSeat(null);
+    setMemberSearchQuery('');
+    setMemberSearchResults([]);
+    setSelectedMember(null);
     if (andFinalize) {
       setTimeout(() => setIsGroupSummaryOpen(true), 100);
     }
   };
 
   const handleGroupFinalize = async () => {
+    if (!profile) return showAlert("로그인이 필요합니다.");
     setIsGroupSummaryOpen(false);
     const leaderName = groupLeader!.name;
     const leaderSeat = groupLeader!.seat;
-    const leaderStudentId = groupLeader!.studentId;
     const memberCount = groupMembers.length;
     const groupId = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     const baseUrl = window.location.origin;
 
-    const { data: leaderTicket, error: leaderError } = await supabase.from('reservations')
-      .insert([{
-        movie_date: movieInfo.db_date, student_id: leaderStudentId, student_name: leaderName,
-        password: groupLeader!.password, seat_number: leaderSeat, popcorn_order: 'none',
-        payment_status: 'confirmed', group_id: groupId, is_group_leader: true, group_expires_at: expiresAt
-      }]).select('id').single();
-    if (leaderError) {
-      return showAlert("리더 좌석 예매 중 오류가 발생했습니다.\n(이미 선점된 좌석일 수 있습니다.)");
-    }
+    const res = await authFetch('/api/reservations', {
+      action: 'CREATE_GROUP',
+      payload: {
+        movieDate: movieInfo.db_date,
+        leaderSeat,
+        memberSeats: groupMembers.map(m => ({ profileId: m.profileId, seat: m.seat })),
+        groupId, expiresAt
+      }
+    });
+    const data = await res.json();
+    if (!data.success) return showAlert(data.error || "단체 예매 생성 중 오류가 발생했습니다.");
 
-    const memberInserts = groupMembers.map(m => ({
-      movie_date: movieInfo.db_date, student_id: m.studentId, student_name: m.name,
-      password: '', seat_number: m.seat, popcorn_order: 'none',
-      payment_status: 'group_pending', group_id: groupId, is_group_leader: false, group_expires_at: expiresAt
-    }));
-    const { data: memberTickets, error: memberError } = await supabase.from('reservations')
-      .insert(memberInserts).select('id, student_id, student_name, seat_number');
-    if (memberError) {
-      await supabase.from('reservations').delete().eq('id', leaderTicket.id);
-      return showAlert("멤버 좌석 예매 중 오류가 발생했습니다.\n(이미 선점된 좌석이 포함되어 있을 수 있습니다.)");
-    }
+    const { leaderTicket, memberTickets } = data;
 
-    await supabase.from('activity_logs').insert([{
-      student_id: leaderStudentId, student_name: leaderName,
-      description: `단체 예매 생성 (리더: ${leaderSeat}, 멤버 ${memberCount}명)`
-    }]);
+    fetch('/api/ticket', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: profile.email, name: leaderName, seat: leaderSeat,
+        movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
+        statusType: 'confirmed', popcorn: 'none', ticketId: leaderTicket.id, baseUrl
+      })
+    });
 
-    const leaderEmail = leaderStudentId === "교직원" ? USER_EMAILS[leaderName] : USER_EMAILS[leaderStudentId];
-    if (leaderEmail) {
-      fetch('/api/ticket', {
-        method: 'POST',
-        body: JSON.stringify({
-          email: leaderEmail, name: leaderName, seat: leaderSeat,
-          movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
-          statusType: 'confirmed', popcorn: 'none', ticketId: leaderTicket.id, baseUrl
-        })
-      });
-    }
-
-    setGroupSendingProgress({ current: 0, total: memberTickets!.length, sending: true });
-    const emailPayloads = memberTickets!.map(t => ({
-      email: t.student_id === "교직원" ? USER_EMAILS[t.student_name] : USER_EMAILS[t.student_id],
-      name: t.student_name, seat: t.seat_number, studentId: t.student_id, memberId: t.id
+    setGroupSendingProgress({ current: 0, total: memberTickets.length, sending: true });
+    const emailPayloads = memberTickets.map((t: any) => ({
+      memberId: t.id, name: t.student_name, seat: t.seat_number, studentId: t.student_id
     }));
     const CHUNK_SIZE = 5;
     for (let i = 0; i < emailPayloads.length; i += CHUNK_SIZE) {
@@ -565,6 +491,39 @@ export default function Home() {
       setSelectedSeat(null);
     });
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center select-none overflow-hidden">
+        <div className="relative flex flex-col items-center justify-center animate-pulse">
+          <div className="absolute w-48 h-48 md:w-64 md:h-64 bg-indigo-500/20 rounded-full blur-[80px] pointer-events-none"></div>
+          <div style={{ fontFamily: "var(--font-song-myung), serif" }} className="text-center flex flex-col leading-tight z-10 text-slate-100">
+            <span className="text-[60px] md:text-[80px] tracking-[0.1em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">영화</span>
+            <span className="text-[60px] md:text-[80px] tracking-[0.1em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">대교</span>
+          </div>
+          <p className="mt-8 text-amber-500/80 text-[10px] md:text-xs tracking-[0.4em] font-bold z-10 uppercase font-sans">로그인 확인 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center select-none p-4">
+        <div style={{ fontFamily: "var(--font-song-myung), serif" }} className="text-center flex flex-col leading-tight z-10 text-slate-100 mb-10">
+          <span className="text-[50px] md:text-[70px] tracking-[0.1em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">영화</span>
+          <span className="text-[50px] md:text-[70px] tracking-[0.1em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">대교</span>
+        </div>
+        <p className="text-slate-400 text-sm mb-8 text-center">학교(@ts.hs.kr) 구글 계정으로 로그인해주세요.</p>
+        <button
+          onClick={() => signInWithGoogle().catch(() => showAlert('로그인에 실패했습니다.'))}
+          className="flex items-center gap-3 bg-white hover:bg-slate-100 text-slate-800 font-bold py-4 px-8 rounded-xl shadow-lg transition-all"
+        >
+          구글 계정으로 로그인
+        </button>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -603,17 +562,6 @@ export default function Home() {
           <span className="text-[40px] md:text-[50px] tracking-[0.1em] drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">대교</span>
         </div>
       </div>
-
-      {inviteName && (
-        <div className="w-full max-w-4xl bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 border border-amber-500/30 rounded-2xl p-5 mb-6 text-center transform shadow-[0_0_30px_rgba(245,158,11,0.15)] animate-in fade-in slide-in-from-top-4 duration-700">
-          <div className="text-amber-400 font-bold text-lg md:text-xl tracking-wide flex items-center justify-center gap-2">
-            <span>✨</span>
-            <span><span className="text-white">{inviteName}</span>님, 특별 초청을 환영합니다!</span>
-            <span>✨</span>
-          </div>
-          <p className="text-slate-400 text-sm mt-2 font-light">예매 시 귀하의 학번과 이름이 자동으로 입력되어 있습니다.</p>
-        </div>
-      )}
 
       <div className="flex flex-col md:flex-row items-center gap-6 mb-12 bg-white/5 backdrop-blur-xl p-6 rounded-2xl w-full max-w-4xl shadow-2xl border border-white/10 transition-all duration-500 hover:border-white/20 hover:bg-white/10">
         <img src={movieInfo.poster_url} alt="영화 포스터" loading="lazy" decoding="async" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-slate-800" />
@@ -777,23 +725,10 @@ export default function Home() {
           <div className="bg-slate-900/90 backdrop-blur-xl p-6 rounded-2xl w-full max-w-md border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] my-8">
             <h2 className="text-2xl font-bold text-white mb-6">예매 정보 입력</h2>
             <div className="space-y-4 text-left">
-              <div>
-                <label className="block text-slate-300 mb-1 text-sm">학번</label>
-                <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-slate-800/80 text-white border border-white/10 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all" placeholder="예: 2703 (교직원은 '교직원')"/>
-              </div>
-              <div>
-                <label className="block text-slate-300 mb-1 text-sm">이름 (본명)</label>
-                <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-slate-800/80 text-white border border-white/10 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all" placeholder="이름을 정확히 입력하세요"/>
-              </div>
-              <div>
-                <label className="block text-slate-300 mb-1 text-sm">예매 확인용 비밀번호 (숫자 4자리)</label>
-                <input type="password" name="password" maxLength={4} value={formData.password} onChange={handleInputChange} className="w-full p-3 rounded-lg bg-slate-800/80 text-white border border-white/10 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all" placeholder="반드시 숫자 4자리 입력"/>
-                <p className="text-rose-400/90 text-xs mt-2 font-bold">* 좌석 변경 및 영화관 입장 확인 시 필요하므로 절대 잊어버리지 마세요!</p>
-                {showResetButton && (
-                  <button onClick={handleRequestReset} disabled={isResetting} className="mt-3 text-sm text-amber-400 hover:text-amber-300 underline underline-offset-4 font-bold block w-full text-left">
-                    {isResetting ? "메일 발송 중..." : "🚨 본인인데 비밀번호를 모르겠나요? (이메일로 재설정)"}
-                  </button>
-                )}
+              <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                <p className="text-slate-500 text-xs mb-1">예매자 (구글 계정으로 확인됨)</p>
+                <p className="text-white font-bold text-lg">{profile.name} <span className="text-slate-400 font-normal text-sm">{profile.student_id ?? '교직원'}</span></p>
+                <p className="text-slate-500 text-xs mt-1">{profile.email}</p>
               </div>
 
               <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
@@ -846,7 +781,7 @@ export default function Home() {
             <div className="mb-6"><AccountInfo /></div>
             <div className="bg-slate-800 rounded-xl p-4 text-left mb-6 border border-slate-700">
               <p className="text-sm text-slate-300 mb-1">결제 금액: <span className="text-amber-400 font-bold text-xl">{(popcornList.filter(p => p !== 'none').length * 2500).toLocaleString()}원</span></p>
-              <p className="text-sm text-slate-300">입금자명: <span className="text-indigo-400 font-bold">{formData.studentId} {formData.name}</span></p>
+              <p className="text-sm text-slate-300">입금자명: <span className="text-indigo-400 font-bold">{profile.student_id ?? ''} {profile.name}</span></p>
             </div>
             <button onClick={() => { setIsPaymentModalOpen(false); setSelectedSeat(null); }} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold transition-all text-sm">닫기</button>
           </div>
@@ -906,13 +841,13 @@ export default function Home() {
             <div className="space-y-6 text-slate-300 text-sm md:text-base">
               <div>
                 <h3 className="font-bold text-white text-lg mb-1">1. 좌석 선택 및 예매</h3>
-                <p>배치도에서 원하는 좌석을 누른 후, 화면 하단의 <span className="text-indigo-400 font-bold">예매하기</span> 버튼을 클릭하세요. 본인의 학번, 이름, 그리고 예매 확인용 4자리 비밀번호를 입력하면 예약이 확정됩니다.</p>
+                <p>배치도에서 원하는 좌석을 누른 후, 화면 하단의 <span className="text-indigo-400 font-bold">예매하기</span> 버튼을 클릭하면, 로그인된 구글 계정 정보로 바로 예약이 확정됩니다.</p>
                 <div className="mt-3 bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-xl text-sm">
                   <div className="flex items-start gap-3">
                     <span className="text-xl">💡</span>
                     <p className="text-indigo-200 leading-relaxed">
-                      <span className="font-bold text-indigo-300">4자리 비밀번호는 영구적으로 유지되며,</span><br/>
-                      티켓 출력 및 좌석 변경 시 반드시 필요하니 꼭 기억해 주세요!
+                      <span className="font-bold text-indigo-300">학번/이름은 구글 계정 이름에서 자동으로 인식됩니다.</span><br/>
+                      정보가 잘못 표시되면 동아리 관리자에게 문의해주세요.
                     </p>
                   </div>
                 </div>
@@ -980,10 +915,6 @@ export default function Home() {
                 </ul>
               </div>
 
-              <div>
-                <h3 className="font-bold text-white text-lg mb-1">6. 비밀번호를 잊으셨을 경우</h3>
-                <p>예매창 하단의 <span className="text-rose-400 font-bold">비밀번호 찾기</span>를 누르면 학교 이메일로 비밀번호 재설정 링크가 즉시 전송됩니다.</p>
-              </div>
             </div>
 
             <button onClick={() => setIsManualOpen(false)} className="w-full mt-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all border border-slate-600 shadow-md">
@@ -997,21 +928,40 @@ export default function Home() {
         <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900/90 backdrop-blur-xl p-6 rounded-2xl w-full max-w-md border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
             <h2 className="text-2xl font-bold text-white mb-2">단체 멤버 추가</h2>
-            <p className="text-slate-400 text-sm mb-6">좌석 <span className="text-sky-400 font-bold">{selectedSeat}</span>에 앉을 학생 정보를 입력하세요.</p>
+            <p className="text-slate-400 text-sm mb-6">좌석 <span className="text-sky-400 font-bold">{selectedSeat}</span>에 앉을 사람을 검색하세요. <span className="text-amber-400">한 번이라도 로그인한 적이 있어야</span> 검색됩니다.</p>
             <div className="space-y-4 text-left">
               <div>
-                <label className="block text-slate-300 mb-1 text-sm">학번</label>
-                <input type="text" value={memberFormData.studentId} onChange={e => setMemberFormData(prev => ({...prev, studentId: e.target.value}))} className="w-full p-3 rounded-lg bg-slate-800/80 text-white border border-white/10 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all" placeholder="예: 2703 (교직원은 '교직원')"/>
+                <label className="block text-slate-300 mb-1 text-sm">이름 또는 학번으로 검색</label>
+                <input
+                  type="text"
+                  value={memberSearchQuery}
+                  onChange={e => { setMemberSearchQuery(e.target.value); setSelectedMember(null); }}
+                  className="w-full p-3 rounded-lg bg-slate-800/80 text-white border border-white/10 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all"
+                  placeholder="예: 신민규 또는 2208"
+                />
               </div>
-              <div>
-                <label className="block text-slate-300 mb-1 text-sm">이름 (본명)</label>
-                <input type="text" value={memberFormData.name} onChange={e => setMemberFormData(prev => ({...prev, name: e.target.value}))} className="w-full p-3 rounded-lg bg-slate-800/80 text-white border border-white/10 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-all" placeholder="이름을 정확히 입력하세요"/>
-              </div>
+              {memberSearchQuery.trim().length > 0 && (
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {memberSearchResults.length === 0 && (
+                    <p className="text-slate-500 text-xs px-1">검색 결과가 없습니다. 아직 로그인한 적이 없는 사람일 수 있어요.</p>
+                  )}
+                  {memberSearchResults.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => { setSelectedMember(r); setMemberSearchQuery(r.name); setMemberSearchResults([]); }}
+                      className={`w-full text-left p-3 rounded-lg border transition-all ${selectedMember?.id === r.id ? 'bg-sky-600/30 border-sky-500' : 'bg-slate-800/60 border-white/10 hover:bg-slate-700/60'}`}
+                    >
+                      <span className="text-white font-bold">{r.name}</span>
+                      {r.student_id && <span className="text-slate-400 text-sm ml-2">{r.student_id}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex gap-3 mt-8">
-              <button onClick={() => { setIsGroupMemberModal(false); setSelectedSeat(null); }} className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all text-sm">취소</button>
-              <button onClick={() => handleAddGroupMember(false)} className="flex-1 py-3 bg-sky-600 hover:bg-sky-500 border border-sky-500 rounded-lg text-white font-bold transition-all text-sm">계속하기</button>
-              <button onClick={() => handleAddGroupMember(true)} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 rounded-lg text-white font-bold transition-all text-sm">완료하기</button>
+              <button onClick={() => { setIsGroupMemberModal(false); setSelectedSeat(null); setMemberSearchQuery(''); setMemberSearchResults([]); setSelectedMember(null); }} className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-slate-300 font-bold transition-all text-sm">취소</button>
+              <button onClick={() => handleAddGroupMember(false)} disabled={!selectedMember} className="flex-1 py-3 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed border border-sky-500 rounded-lg text-white font-bold transition-all text-sm">계속하기</button>
+              <button onClick={() => handleAddGroupMember(true)} disabled={!selectedMember} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed border border-emerald-500 rounded-lg text-white font-bold transition-all text-sm">완료하기</button>
             </div>
           </div>
         </div>

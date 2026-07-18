@@ -2,16 +2,16 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
-import { USER_EMAILS } from '../../lib/emails';
+import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, DomainNotAllowedError, type AppProfile } from '../../lib/supabase-auth';
 import Link from 'next/link';
-
-import { STUDENT_LIST, CLUB_MEMBERS } from '../../lib/constants';
 
 const POPCORN_NAMES: Record<string, string> = { "original": "오리지널", "consomme": "콘소메", "caramel": "카라멜" };
 
 export default function AdminPage() {
-  const [password, setPassword] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [profile, setProfile] = useState<AppProfile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [reservations, setReservations] = useState<any[]>([]);
   const [movieInfo, setMovieInfo] = useState<any>(null);
   const [isLoadingUI, setIsLoadingUI] = useState(true); // 🌟 [추가됨] 로딩 상태 관리
@@ -23,19 +23,21 @@ export default function AdminPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [showLogs, setShowLogs] = useState(false);
 
-  const [promoTargets, setPromoTargets] = useState({ grade1: false, grade2: false, grade3: false, staff: false, club: true });
-  const [singleTarget, setSingleTarget] = useState("");
-  const [isSendingPromo, setIsSendingPromo] = useState(false);
-  const [promoProgress, setPromoProgress] = useState({ current: 0, total: 0 });
-  const [showPromoWarning, setShowPromoWarning] = useState(false);
-  const [pendingPromoRecipients, setPendingPromoRecipients] = useState<any[]>([]);
-
   const [blacklist, setBlacklist] = useState<any[]>([]);
   const [newBlackId, setNewBlackId] = useState('');
+  const [newBlackName, setNewBlackName] = useState('');
+
+  const [admins, setAdmins] = useState<{email: string, added_by: string | null, created_at: string}[]>([]);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [clubMembers, setClubMembers] = useState<{student_id: string, added_by: string | null, created_at: string}[]>([]);
+  const [newClubStudentId, setNewClubStudentId] = useState('');
+  const [kioskPasswordInput, setKioskPasswordInput] = useState('');
+  const [profileSearchQuery, setProfileSearchQuery] = useState('');
+  const [profileSearchResults, setProfileSearchResults] = useState<{id: string, email: string, student_id: string | null, name: string, role: string}[]>([]);
+  const [editingProfile, setEditingProfile] = useState<{id: string, email: string, student_id: string, name: string, role: string} | null>(null);
 
   const [baseUrl, setBaseUrl] = useState('');
   useEffect(() => setBaseUrl(window.location.origin), []);
-  const [skipAuth, setSkipAuth] = useState(false);
 
   // 🌟 (신규) 팝콘 통계 계산을 위한 함수
   const popcornStats = useMemo(() => {
@@ -53,69 +55,46 @@ export default function AdminPage() {
   }, [reservations]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && localStorage.getItem('skip_auth') === 'true') {
-      const savedPass = localStorage.getItem('admin_token');
-      if (savedPass) {
-        setPassword(savedPass);
-        setSkipAuth(true);
-        setIsAuthenticated(true);
-      } else {
-        localStorage.setItem('skip_auth', 'false');
+    let active = true;
+    const bootstrap = async () => {
+      try {
+        const p = await ensureProfile();
+        if (active) setProfile(p);
+      } catch (err) {
+        if (err instanceof DomainNotAllowedError) alert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
+      } finally {
+        if (active) setAuthLoading(false);
       }
-    }
+    };
+    bootstrap();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) fetchAdminData();
-    // password는 인증 시점 이후 변경되지 않으므로 의존성에서 제외
-  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (profile) checkAdminAndLoad();
+  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggleSkipAuth = async () => {
-    let currentPass = password;
-    if (!skipAuth) {
-      const pass = prompt("자동 로그인을 켜기 위해 관리자 비밀번호를 입력해주세요:");
-      const res = await fetch('/api/admin/action', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'LOGIN', adminPassword: pass })
-      });
-      const data = await res.json();
-      if (!data.success) {
-        alert("비밀번호가 틀렸습니다. 설정을 변경할 수 없습니다.");
-        return;
-      }
-      currentPass = pass || '';
-    }
-
-    const newVal = !skipAuth;
-    if (typeof window !== 'undefined') {
-      if (newVal) {
-        localStorage.setItem('skip_auth', 'true');
-        localStorage.setItem('admin_token', currentPass);
-      } else {
-        localStorage.setItem('skip_auth', 'false');
-        localStorage.removeItem('admin_token');
-      }
-    }
-    setSkipAuth(newVal);
-    alert(newVal ? "현재 브라우저에서 관리자/발권기 접속 시 비밀번호가 생략됩니다! (베타용)" : "비밀번호 생략이 해제되었습니다.");
+  const checkAdminAndLoad = async () => {
+    setCheckingAdmin(true);
+    const ok = await fetchAdminData();
+    setIsAdmin(ok);
+    setCheckingAdmin(false);
   };
 
-  const fetchAdminData = async () => {
+  const fetchAdminData = async (): Promise<boolean> => {
     setIsLoadingUI(true);
     try {
-      const res = await fetch('/api/admin/action', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'FETCH_INITIAL_DATA', adminPassword: password })
-      });
+      const res = await authFetch('/api/admin/action', { action: 'FETCH_INITIAL_DATA' });
       const { data, success, error } = await res.json();
 
       if (!success) {
-        if (res.status === 401) setIsAuthenticated(false);
+        if (res.status === 401 || res.status === 403) return false;
         alert(`데이터 불러오기 실패: ${error}`);
-        return console.error("데이터 로드 실패:", error);
+        console.error("데이터 로드 실패:", error);
+        return true;
       }
 
-      const { movieData, resData, blData, logData } = data;
+      const { movieData, resData, blData, logData, adminData, clubData, kioskPassword } = data;
       if (movieData) {
         setMovieInfo(movieData);
         setEditForm({
@@ -134,8 +113,13 @@ export default function AdminPage() {
       if (resData) setReservations(resData);
       if (blData) setBlacklist(blData);
       if (logData) setLogs(logData);
+      if (adminData) setAdmins(adminData);
+      if (clubData) setClubMembers(clubData);
+      if (typeof kioskPassword === 'string') setKioskPasswordInput(kioskPassword);
+      return true;
     } catch (err) {
       console.error("데이터 불러오기 오류:", err);
+      return true;
     } finally {
       setIsLoadingUI(false);
     }
@@ -159,20 +143,14 @@ export default function AdminPage() {
       grand_vip_start_col: editForm.grand_vip_start_col, grand_vip_end_col: editForm.grand_vip_end_col
     };
 
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'UPDATE_SETTINGS', adminPassword: password, payload })
-    });
+    const res = await authFetch('/api/admin/action', { action: 'UPDATE_SETTINGS', payload });
 
     const data = await res.json();
     if (!data.success) {
       alert("설정 저장 실패: " + data.error);
     } else {
       if (isVenueChanged) {
-        await fetch('/api/admin/action', {
-          method: 'POST',
-          body: JSON.stringify({ action: 'CLEAR_RESERVATIONS', adminPassword: password, payload: { movieDate: movieInfo.db_date } })
-        });
+        await authFetch('/api/admin/action', { action: 'CLEAR_RESERVATIONS', payload: { movieDate: movieInfo.db_date } });
         alert("🚨 상영관 변경 및 예매 내역 초기화가 완료되었습니다.");
       } else {
         alert("✅ 설정이 성공적으로 저장되었습니다!");
@@ -187,21 +165,16 @@ export default function AdminPage() {
 
     if (!confirm(`${ticket.student_name}님의 예매를 확정하시겠습니까?\n(입금 확인 금액: ${totalPrice.toLocaleString()}원)`)) return;
 
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'APPROVE_RESERVATION',
-        adminPassword: password,
-        payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
-      })
+    const res = await authFetch('/api/admin/action', {
+      action: 'APPROVE_RESERVATION',
+      payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
     });
 
     const data = await res.json();
     if (!data.success) return alert("승인 실패: " + data.error);
 
-    const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
-    if (userEmail) {
-      fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'confirmed', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl }) });
+    if (ticket.email) {
+      fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: ticket.email, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'confirmed', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl }) });
     }
     setReservations(prev => prev.map(r => r.id === ticket.id ? { ...r, payment_status: 'confirmed' } : r));
     alert("승인 완료 및 이메일 발송됨!");
@@ -210,24 +183,19 @@ export default function AdminPage() {
   const handleCancel = async (ticket: any) => {
     if (!confirm(`정말 ${ticket.student_name}님의 예매를 취소하시겠습니까?`)) return;
 
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'CANCEL_RESERVATION',
-        adminPassword: password,
-        payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
-      })
+    const res = await authFetch('/api/admin/action', {
+      action: 'CANCEL_RESERVATION',
+      payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
     });
 
     const data = await res.json();
     if (!data.success) return alert("취소 실패: " + data.error);
 
-    const userEmail = ticket.student_id === "교직원" ? USER_EMAILS[ticket.student_name] : USER_EMAILS[ticket.student_id];
-    if (userEmail) {
+    if (ticket.email) {
       const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
       fetch('/api/ticket', {
         method: 'POST',
-        body: JSON.stringify({ email: userEmail, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
+        body: JSON.stringify({ email: ticket.email, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
       });
     }
     setReservations(prev => prev.filter(r => r.id !== ticket.id));
@@ -237,13 +205,9 @@ export default function AdminPage() {
   const handleResetPrint = async (ticket: any) => {
     if (!confirm(`${ticket.student_name}님의 티켓 발권 상태를 '미발권'으로 초기화하시겠습니까?\n(학생이 현장 키오스크에서 다시 티켓을 출력할 수 있게 됩니다.)`)) return;
 
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'RESET_PRINT',
-        adminPassword: password,
-        payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
-      })
+    const res = await authFetch('/api/admin/action', {
+      action: 'RESET_PRINT',
+      payload: { id: ticket.id, studentId: ticket.student_id, studentName: ticket.student_name, seatNumber: ticket.seat_number }
     });
 
     const data = await res.json();
@@ -258,148 +222,156 @@ export default function AdminPage() {
 
   const handleAddBlacklist = async () => {
     if (newBlackId.length !== 4) return alert("학번 4자리를 정확히 입력해주세요.");
-    const studentName = STUDENT_LIST[newBlackId];
-    if (!studentName) return alert("존재하지 않는 학번입니다.");
+    if (!newBlackName.trim()) return alert("이름을 입력해주세요.");
+    const studentName = newBlackName.trim();
 
     if (!confirm(`${studentName}(${newBlackId}) 학생을 블랙리스트에 추가하시겠습니까?\n(⚠️ 주의: 현재 진행 중이거나 완료된 예매 내역이 있다면 자동으로 취소됩니다.)`)) return;
 
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'ADD_BLACKLIST', adminPassword: password, payload: { studentId: newBlackId, studentName, movieDate: movieInfo.db_date } })
-    });
+    const res = await authFetch('/api/admin/action', { action: 'ADD_BLACKLIST', payload: { studentId: newBlackId, studentName, movieDate: movieInfo.db_date } });
     const data = await res.json();
     if (!data.success) return alert("추가 실패 (이미 등록된 학생일 수 있습니다.)");
 
-    const userEmail = USER_EMAILS[newBlackId];
-    if (data.canceledTicket && userEmail) {
+    if (data.canceledTicket && data.email) {
       const ticket = data.canceledTicket;
       const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
       fetch('/api/ticket', {
         method: 'POST',
-        body: JSON.stringify({ email: userEmail, name: studentName, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
+        body: JSON.stringify({ email: data.email, name: studentName, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
       });
     }
 
-    if (userEmail) {
-      fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: userEmail, name: studentName, action: 'added' }) });
+    if (data.email) {
+      fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: data.email, name: studentName, action: 'added' }) });
     }
 
     setBlacklist(prev => [...prev, { student_id: newBlackId, student_name: studentName }]);
     setReservations(prev => prev.filter(r => r.student_id !== newBlackId));
     setNewBlackId('');
-    alert("블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!");
+    setNewBlackName('');
+    alert("블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!" + (data.email ? '' : '\n(등록된 이메일이 없어 안내 메일은 발송되지 않았습니다.)'));
   };
 
   const handleRemoveBlacklist = async (studentId: string, studentName: string) => {
     if (!confirm(`${studentName}(${studentId}) 학생의 블랙리스트를 해제하시겠습니까?`)) return;
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'REMOVE_BLACKLIST', adminPassword: password, payload: { studentId } })
-    });
+    const res = await authFetch('/api/admin/action', { action: 'REMOVE_BLACKLIST', payload: { studentId } });
     const data = await res.json();
     if (!data.success) return alert("해제 실패");
-    const userEmail = USER_EMAILS[studentId];
-    if (userEmail) fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: userEmail, name: studentName, action: 'removed' }) });
+    if (data.email) fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: data.email, name: studentName, action: 'removed' }) });
     setBlacklist(prev => prev.filter(b => b.student_id !== studentId));
-    alert("해제 완료 및 안내 메일 발송!");
+    alert("해제 완료" + (data.email ? ' 및 안내 메일 발송!' : ' (등록된 이메일이 없어 안내 메일은 발송되지 않았습니다.)'));
   };
 
-  const handleSendPromoClick = () => {
-    const recipientMap = new Map();
-    if (promoTargets.club) {
-      CLUB_MEMBERS.forEach(id => {
-        if (USER_EMAILS[id]) recipientMap.set(id, { studentId: id, email: USER_EMAILS[id], name: STUDENT_LIST[id] || "학생" });
-      });
-    }
-    if (singleTarget && USER_EMAILS[singleTarget]) {
-      const name = isNaN(Number(singleTarget)) ? singleTarget : STUDENT_LIST[singleTarget] || "학생";
-      recipientMap.set(singleTarget, { studentId: singleTarget, email: USER_EMAILS[singleTarget], name });
-    }
-    Object.keys(USER_EMAILS).forEach(key => {
-      let shouldAdd = false;
-      if (promoTargets.grade1 && key.startsWith('1') && key.length === 4) shouldAdd = true;
-      if (promoTargets.grade2 && key.startsWith('2') && key.length === 4) shouldAdd = true;
-      if (promoTargets.grade3 && key.startsWith('3') && key.length === 4) shouldAdd = true;
-      if (promoTargets.staff && isNaN(Number(key))) shouldAdd = true;
-      if (shouldAdd) recipientMap.set(key, { studentId: key, email: USER_EMAILS[key], name: isNaN(Number(key)) ? key : STUDENT_LIST[key] || "학생" });
-    });
-
-    const recipients = Array.from(recipientMap.values());
-    if (recipients.length === 0) return alert("선택된 발송 대상이 없습니다.");
-
-    setPendingPromoRecipients(recipients);
-    setShowPromoWarning(true);
+  const handleAddAdmin = async () => {
+    const email = newAdminEmail.trim().toLowerCase();
+    if (!email.endsWith('@ts.hs.kr')) return alert("@ts.hs.kr 이메일만 등록할 수 있습니다.");
+    const res = await authFetch('/api/admin/action', { action: 'ADD_ADMIN', payload: { email } });
+    const data = await res.json();
+    if (!data.success) return alert("추가 실패: " + data.error);
+    setAdmins(prev => [{ email, added_by: profile!.email, created_at: new Date().toISOString() }, ...prev]);
+    setNewAdminEmail('');
   };
 
-  const executeSendPromo = async () => {
-    setShowPromoWarning(false); setIsSendingPromo(true);
-    const recipients = pendingPromoRecipients;
-    setPromoProgress({ current: 0, total: recipients.length });
-
-    const CHUNK_SIZE = 15;
-    for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
-      const chunk = recipients.slice(i, i + CHUNK_SIZE);
-      try { await fetch('/api/promo', { method: 'POST', body: JSON.stringify({ chunk, movieInfo, baseUrl }) }); } catch (err) { console.error(err); }
-      setPromoProgress({ current: Math.min(i + CHUNK_SIZE, recipients.length), total: recipients.length });
-      await new Promise(res => setTimeout(res, 1000));
-    }
-
-    await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'LOG_ACTION',
-        adminPassword: password,
-        payload: { studentId: "관리자", studentName: "-", description: `홍보 이메일 발송 완료 (${recipients.length}명)` }
-      })
-    });
-
-    setIsSendingPromo(false); alert("✅ 홍보 메일 발송 완료!"); fetchAdminData();
+  const handleRemoveAdmin = async (email: string) => {
+    if (email === profile!.email) return alert("본인 계정은 스스로 제거할 수 없습니다.");
+    if (!confirm(`${email}의 관리자 권한을 제거하시겠습니까?`)) return;
+    const res = await authFetch('/api/admin/action', { action: 'REMOVE_ADMIN', payload: { email } });
+    const data = await res.json();
+    if (!data.success) return alert("제거 실패: " + data.error);
+    setAdmins(prev => prev.filter(a => a.email !== email));
   };
 
-  const handleAdminLogin = async () => {
-    const res = await fetch('/api/admin/action', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'LOGIN', adminPassword: password })
+  const handleAddClubMember = async () => {
+    const studentId = newClubStudentId.trim();
+    if (!/^\d{4}$/.test(studentId)) return alert("학번은 4자리 숫자로 입력해주세요.");
+    const res = await authFetch('/api/admin/action', { action: 'ADD_CLUB_MEMBER', payload: { studentId } });
+    const data = await res.json();
+    if (!data.success) return alert("추가 실패: " + data.error);
+    setClubMembers(prev => [{ student_id: studentId, added_by: profile!.email, created_at: new Date().toISOString() }, ...prev]);
+    setNewClubStudentId('');
+  };
+
+  const handleRemoveClubMember = async (studentId: string) => {
+    if (!confirm(`${studentId} 학생을 동아리원(VIP)에서 제거하시겠습니까?`)) return;
+    const res = await authFetch('/api/admin/action', { action: 'REMOVE_CLUB_MEMBER', payload: { studentId } });
+    const data = await res.json();
+    if (!data.success) return alert("제거 실패: " + data.error);
+    setClubMembers(prev => prev.filter(c => c.student_id !== studentId));
+  };
+
+  const handleUpdateKioskPassword = async () => {
+    if (!kioskPasswordInput.trim()) return alert("키오스크 비밀번호를 입력해주세요.");
+    const res = await authFetch('/api/admin/action', { action: 'UPDATE_KIOSK_PASSWORD', payload: { password: kioskPasswordInput.trim() } });
+    const data = await res.json();
+    if (!data.success) return alert("변경 실패: " + data.error);
+    alert("✅ 키오스크 잠금 비밀번호가 변경되었습니다.");
+  };
+
+  const handleSearchProfile = async () => {
+    const res = await authFetch('/api/admin/action', { action: 'SEARCH_PROFILE', payload: { query: profileSearchQuery } });
+    const data = await res.json();
+    if (data.success) setProfileSearchResults(data.data);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editingProfile) return;
+    if (editingProfile.role === 'student' && !/^\d{4}$/.test(editingProfile.student_id)) {
+      return alert("학생은 학번 4자리가 필요합니다.");
+    }
+    const res = await authFetch('/api/admin/action', {
+      action: 'UPDATE_PROFILE',
+      payload: { id: editingProfile.id, studentId: editingProfile.student_id, name: editingProfile.name, role: editingProfile.role }
     });
     const data = await res.json();
-    if (data.success) {
-      setIsAuthenticated(true);
-    } else {
-      alert('비밀번호가 틀렸습니다.');
-    }
+    if (!data.success) return alert("저장 실패: " + data.error);
+    alert("✅ 저장되었습니다.");
+    setEditingProfile(null);
+    setProfileSearchResults([]);
+    setProfileSearchQuery('');
   };
 
-  if (!isAuthenticated) return (
+  if (authLoading) return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <p className="text-white font-bold animate-pulse">로그인 확인 중...</p>
+    </div>
+  );
+
+  if (!profile) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-gray-700 shadow-2xl">
         <h1 className="text-2xl font-bold text-white mb-6">🔒 관리자 로그인</h1>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-          className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 mb-4 text-center outline-none focus:border-blue-500"
-          placeholder="비밀번호 입력"
-        />
+        <p className="text-gray-400 text-sm mb-6">학교(@ts.hs.kr) 구글 계정으로 로그인해주세요.</p>
         <button
-          onClick={handleAdminLogin}
-          className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold transition-colors"
+          onClick={() => signInWithGoogle().catch(() => alert('로그인에 실패했습니다.'))}
+          className="w-full py-3 bg-white hover:bg-gray-100 text-gray-900 rounded-lg font-bold transition-colors"
         >
-          접속하기
+          구글 계정으로 로그인
         </button>
+      </div>
+    </div>
+  );
 
+  if (checkingAdmin) return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <p className="text-white font-bold animate-pulse">권한 확인 중...</p>
+    </div>
+  );
+
+  if (!isAdmin) return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-red-700 shadow-2xl">
+        <h1 className="text-2xl font-bold text-red-400 mb-4">🚫 권한 없음</h1>
+        <p className="text-gray-400 text-sm">{profile.email} 계정은 관리자로 등록되어 있지 않습니다.</p>
       </div>
     </div>
   );
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8 relative">
-      <div className="w-full flex flex-wrap justify-end gap-3 mb-6 z-20">
-        {isAuthenticated && (
-          <button onClick={toggleSkipAuth} className={`px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-colors shadow-lg border ${skipAuth ? 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/50 text-amber-400' : 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-400'}`}>
-            {skipAuth ? "🔓 자동 로그인 (ON)" : "🔒 자동 로그인 (OFF)"}
-          </button>
-        )}
+      <div className="w-full flex flex-wrap justify-end items-center gap-3 mb-6 z-20">
+        <span className="text-xs md:text-sm text-gray-500">{profile.email}</span>
+        <button onClick={() => signOutAndClear().then(() => window.location.reload())} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-xs md:text-sm text-slate-400 font-bold transition-colors shadow-lg">
+          🚪 로그아웃
+        </button>
         <Link href="/" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🏠 메인 홈</Link>
         <Link href="/print" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors shadow-lg">🖨️ 현장 발권기</Link>
       </div>
@@ -416,31 +388,6 @@ export default function AdminPage() {
             <div className="flex gap-4">
               <button onClick={() => setShowVenueWarning(false)} className="flex-1 py-4 bg-gray-700 hover:bg-gray-600 rounded-xl text-white font-bold text-lg">돌아가기 (취소)</button>
               <button onClick={() => proceedSave(true)} className="flex-1 py-4 bg-red-600 hover:bg-red-500 rounded-xl text-white font-bold text-lg shadow-[0_0_15px_rgba(239,68,68,0.8)]">초기화 및 변경</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPromoWarning && (
-        <div className="fixed inset-0 bg-blue-900/90 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
-          <div className="bg-gray-900 p-8 rounded-2xl max-w-lg w-full border-4 border-blue-500 shadow-[0_0_50px_rgba(59,130,246,0.5)] text-center">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-4 animate-pulse">📧 대량 메일 발송 확인</h2>
-            <div className="text-blue-200 text-base md:text-lg font-bold space-y-4 mb-8">
-              <p>현재 선택된 그룹을 바탕으로 명단을 추출했습니다.</p>
-              <div className="bg-blue-950 p-6 rounded-xl text-white border border-blue-800 shadow-inner">
-                <p className="text-sm text-blue-300 mb-2">발송 예정 총 인원</p>
-                <p className="text-6xl text-yellow-400 font-black drop-shadow-md">
-                  {pendingPromoRecipients.length}<span className="text-2xl text-white ml-2 font-bold">명</span>
-                </p>
-              </div>
-              <p className="text-sm text-gray-400 font-normal leading-relaxed">
-                (발송 중에는 창을 닫거나 새로고침하지 말고,<br />로딩 게이지가 다 찰 때까지 잠시만 기다려 주세요.)
-              </p>
-              <p className="text-white">위 인원에게 홍보 메일을 발송하시겠습니까?</p>
-            </div>
-            <div className="flex gap-4">
-              <button onClick={() => setShowPromoWarning(false)} className="flex-1 py-4 bg-gray-700 hover:bg-gray-600 rounded-xl text-white font-bold text-lg transition-colors">돌아가기</button>
-              <button onClick={executeSendPromo} className="flex-1 py-4 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold text-lg shadow-[0_0_15px_rgba(59,130,246,0.8)] transition-colors">발송 시작 🚀</button>
             </div>
           </div>
         </div>
@@ -548,41 +495,91 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-blue-600 mb-8">
-        <h2 className="text-xl font-bold text-blue-400 mb-4">📧 상영작 홍보 메일 발송</h2>
-        <div className="flex flex-wrap gap-6 mb-6">
-          <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={promoTargets.grade1} onChange={e => setPromoTargets({ ...promoTargets, grade1: e.target.checked })} className="w-5 h-5 accent-blue-600" /> <span className="text-gray-300 font-bold">1학년</span></label>
-          <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={promoTargets.grade2} onChange={e => setPromoTargets({ ...promoTargets, grade2: e.target.checked })} className="w-5 h-5 accent-blue-600" /> <span className="text-gray-300 font-bold">2학년</span></label>
-          <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={promoTargets.grade3} onChange={e => setPromoTargets({ ...promoTargets, grade3: e.target.checked })} className="w-5 h-5 accent-blue-600" /> <span className="text-gray-300 font-bold">3학년</span></label>
-          <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={promoTargets.staff} onChange={e => setPromoTargets({ ...promoTargets, staff: e.target.checked })} className="w-5 h-5 accent-blue-600" /> <span className="text-gray-300 font-bold">교직원</span></label>
-          <label className="flex items-center gap-2 cursor-pointer border-l-2 border-gray-600 pl-6 ml-2"><input type="checkbox" checked={promoTargets.club} onChange={e => setPromoTargets({ ...promoTargets, club: e.target.checked })} className="w-5 h-5 accent-purple-600" /> <span className="text-purple-400 font-bold">테스트용 (동아리부원 10명)</span></label>
-        </div>
-
-        <div className="mb-6 p-4 bg-gray-700/50 rounded-xl border border-gray-600">
-          <label className="block text-gray-300 mb-2 text-sm font-bold">🎯 특정 1인에게만 보내기 (선택)</label>
-          <select value={singleTarget} onChange={e => setSingleTarget(e.target.value)} className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 outline-none focus:border-blue-500">
-            <option value="">-- 개인 발송 안 함 (위에 체크된 그룹에게만 발송) --</option>
-            <optgroup label="👩‍🏫 교직원">{Object.keys(USER_EMAILS).filter(k => isNaN(Number(k))).sort().map(staff => <option key={staff} value={staff}>{staff}</option>)}</optgroup>
-            <optgroup label="🎓 1학년">{Object.keys(USER_EMAILS).filter(k => k.startsWith('1') && k.length === 4).sort().map(id => <option key={id} value={id}>{id} {STUDENT_LIST[id]}</option>)}</optgroup>
-            <optgroup label="🎓 2학년">{Object.keys(USER_EMAILS).filter(k => k.startsWith('2') && k.length === 4).sort().map(id => <option key={id} value={id}>{id} {STUDENT_LIST[id]}</option>)}</optgroup>
-            <optgroup label="🎓 3학년">{Object.keys(USER_EMAILS).filter(k => k.startsWith('3') && k.length === 4).sort().map(id => <option key={id} value={id}>{id} {STUDENT_LIST[id]}</option>)}</optgroup>
-          </select>
-        </div>
-
-        {isSendingPromo ? (
-          <div className="w-full bg-gray-700 rounded-full h-8 relative overflow-hidden border border-gray-600">
-            <div className="bg-blue-600 h-8 transition-all duration-300 flex items-center justify-center" style={{ width: `${(promoProgress.current / promoProgress.total) * 100}%` }}></div>
-            <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow-md">안전 발송 중... ({promoProgress.current} / {promoProgress.total})</span>
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-emerald-600 mb-8 grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div>
+          <h2 className="text-lg font-bold text-emerald-400 mb-3">👑 관리자 목록</h2>
+          <div className="flex gap-2 mb-3">
+            <input type="text" value={newAdminEmail} onChange={e => setNewAdminEmail(e.target.value)} placeholder="xxxx@ts.hs.kr" className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
+            <button onClick={handleAddAdmin} className="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded font-bold text-sm">추가</button>
           </div>
-        ) : (
-          <button onClick={handleSendPromoClick} className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg rounded-xl shadow-lg transition-colors">🚀 체크한 대상에게 홍보 메일 발송하기</button>
-        )}
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {admins.map(a => (
+              <div key={a.email} className="flex items-center justify-between bg-gray-700/50 rounded px-2 py-1 text-xs">
+                <span className="text-gray-200">{a.email}</span>
+                <button onClick={() => handleRemoveAdmin(a.email)} className="text-red-400 hover:text-red-300 font-bold">×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-bold text-indigo-400 mb-3">🎟️ 동아리원(VIP) 목록</h2>
+          <div className="flex gap-2 mb-3">
+            <input type="text" maxLength={4} value={newClubStudentId} onChange={e => setNewClubStudentId(e.target.value)} placeholder="학번 4자리" className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
+            <button onClick={handleAddClubMember} className="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded font-bold text-sm">추가</button>
+          </div>
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {clubMembers.map(c => (
+              <div key={c.student_id} className="flex items-center justify-between bg-gray-700/50 rounded px-2 py-1 text-xs">
+                <span className="text-gray-200">{c.student_id}</span>
+                <button onClick={() => handleRemoveClubMember(c.student_id)} className="text-red-400 hover:text-red-300 font-bold">×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-bold text-yellow-400 mb-3">🖨️ 키오스크 잠금 비밀번호</h2>
+          <div className="flex gap-2">
+            <input type="text" value={kioskPasswordInput} onChange={e => setKioskPasswordInput(e.target.value)} className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
+            <button onClick={handleUpdateKioskPassword} className="bg-yellow-600 hover:bg-yellow-500 px-3 py-2 rounded font-bold text-sm text-black">변경</button>
+          </div>
+          <p className="text-gray-500 text-xs mt-2">현장 키오스크(/print) 진입 시 입력하는 비밀번호입니다.</p>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-bold text-pink-400 mb-3">🛠️ 사용자 프로필 수정</h2>
+          <p className="text-gray-500 text-xs mb-2">구글 이름이 잘못 인식된 경우 여기서 고칩니다.</p>
+          <div className="flex gap-2 mb-3">
+            <input type="text" value={profileSearchQuery} onChange={e => setProfileSearchQuery(e.target.value)} placeholder="이메일/이름/학번" className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
+            <button onClick={handleSearchProfile} className="bg-pink-600 hover:bg-pink-500 px-3 py-2 rounded font-bold text-sm">검색</button>
+          </div>
+          <div className="space-y-1 max-h-32 overflow-y-auto mb-3">
+            {profileSearchResults.map(p => (
+              <button
+                key={p.id}
+                onClick={() => setEditingProfile({ id: p.id, email: p.email, student_id: p.student_id ?? '', name: p.name, role: p.role })}
+                className="w-full text-left bg-gray-700/50 hover:bg-gray-700 rounded px-2 py-1 text-xs text-gray-200"
+              >
+                {p.email} — {p.name} ({p.student_id ?? '교직원'})
+              </button>
+            ))}
+          </div>
+          {editingProfile && (
+            <div className="bg-gray-900 p-3 rounded-lg border border-pink-700 space-y-2">
+              <p className="text-xs text-gray-400">{editingProfile.email}</p>
+              <select value={editingProfile.role} onChange={e => setEditingProfile({ ...editingProfile, role: e.target.value })} className="w-full p-1.5 bg-gray-700 rounded border border-gray-600 text-white text-xs">
+                <option value="student">학생</option>
+                <option value="staff">교직원</option>
+              </select>
+              {editingProfile.role === 'student' && (
+                <input type="text" maxLength={4} value={editingProfile.student_id} onChange={e => setEditingProfile({ ...editingProfile, student_id: e.target.value })} placeholder="학번 4자리" className="w-full p-1.5 bg-gray-700 rounded border border-gray-600 text-white text-xs" />
+              )}
+              <input type="text" value={editingProfile.name} onChange={e => setEditingProfile({ ...editingProfile, name: e.target.value })} placeholder="이름" className="w-full p-1.5 bg-gray-700 rounded border border-gray-600 text-white text-xs" />
+              <div className="flex gap-2">
+                <button onClick={() => setEditingProfile(null)} className="flex-1 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold">취소</button>
+                <button onClick={handleSaveProfile} className="flex-1 py-1.5 bg-pink-600 hover:bg-pink-500 rounded text-xs font-bold">저장</button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-red-600 mb-8">
         <h2 className="text-xl font-bold text-red-400 mb-4">🚫 블랙리스트 관리</h2>
         <div className="flex gap-2 mb-6">
-          <input type="text" maxLength={4} value={newBlackId} onChange={(e) => setNewBlackId(e.target.value)} placeholder="학번 4자리 입력" className="p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white w-48" />
+          <input type="text" maxLength={4} value={newBlackId} onChange={(e) => setNewBlackId(e.target.value)} placeholder="학번 4자리" className="p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white w-32" />
+          <input type="text" value={newBlackName} onChange={(e) => setNewBlackName(e.target.value)} placeholder="이름" className="p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white w-32" />
           <button onClick={handleAddBlacklist} className="bg-red-600 hover:bg-red-500 px-4 py-2 rounded font-bold transition-colors">추가하기</button>
         </div>
         <div className="flex flex-wrap gap-2">

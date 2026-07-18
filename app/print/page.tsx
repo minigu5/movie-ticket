@@ -2,26 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { USER_EMAILS } from '@/lib/emails';
 import Link from 'next/link';
-
-// (STUDENT_LIST, STAFF_LIST 명단은 기존 그대로 유지)
-
-import { STUDENT_LIST, STAFF_LIST } from '../../lib/constants';
 
 
 export default function KioskPrintPage() {
   const [isAdminAuth, setIsAdminAuth] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
 
-  const [formData, setFormData] = useState({ studentId: '', name: '', password: '' });
+  const [formData, setFormData] = useState({ studentId: '', name: '' });
   const [movieInfo, setMovieInfo] = useState<any>(null);
 
   const [ticketData, setTicketData] = useState<any>(null);
   const [isPrinting, setIsPrinting] = useState(false);
-
-  const [showResetButton, setShowResetButton] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('skip_auth') === 'true') {
@@ -50,7 +42,7 @@ export default function KioskPrintPage() {
   useEffect(() => {
     const handleAfterPrint = () => {
       setTicketData(null);
-      setFormData({ studentId: '', name: '', password: '' });
+      setFormData({ studentId: '', name: '' });
     };
     window.addEventListener('afterprint', handleAfterPrint);
     return () => window.removeEventListener('afterprint', handleAfterPrint);
@@ -60,62 +52,33 @@ export default function KioskPrintPage() {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleAdminLogin = () => {
-    if (adminPasswordInput === "영화대교최고") {
-      setIsAdminAuth(true);
-    } else {
-      alert("관리자 비밀번호가 틀렸습니다.");
-      setAdminPasswordInput('');
-    }
-  };
-
-  const handleRequestReset = async () => {
-    const cleanId = formData.studentId.replace(/['"]/g, '').trim();
-    setIsResetting(true);
+  const handleAdminLogin = async () => {
     try {
-      const res = await fetch('/api/auth/request-reset', {
+      const res = await fetch('/api/kiosk', {
         method: 'POST',
-        body: JSON.stringify({ studentId: cleanId, studentName: formData.name, baseUrl: window.location.origin, returnUrl: '/print' })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'KIOSK_LOGIN', payload: { password: adminPasswordInput } })
       });
-      if (res.ok) {
-        alert("학교 이메일로 비밀번호 재설정 링크가 발송되었습니다. 폰에서 확인해주세요!");
-        setShowResetButton(false);
+      const data = await res.json();
+      if (data.success) {
+        setIsAdminAuth(true);
       } else {
-        alert("이메일 발송에 실패했습니다.");
+        alert("관리자 비밀번호가 틀렸습니다.");
+        setAdminPasswordInput('');
       }
-    } finally {
-      setIsResetting(false);
+    } catch {
+      alert("네트워크 오류가 발생했습니다.");
     }
   };
 
   const handlePrintSubmit = async () => {
-    if (!formData.studentId || !formData.name || !formData.password) return alert("정보를 모두 입력해주세요.");
+    if (!formData.studentId || !formData.name) return alert("학번과 이름을 모두 입력해주세요.");
     const cleanId = formData.studentId.replace(/['"]/g, '').trim();
-
-    if (cleanId === "교직원") {
-      if (!STAFF_LIST.includes(formData.name)) return alert("등록된 교직원 이름이 아닙니다.");
-    } else {
-      if (cleanId.length !== 4) return alert("학번은 4자리 숫자로 입력해주세요.");
-      if (STUDENT_LIST[cleanId] !== formData.name) return alert("학번과 이름이 일치하지 않습니다.");
-    }
 
     if (isPrinting) return;
     setIsPrinting(true);
 
     try {
-      const authKey = cleanId === "교직원" ? formData.name : cleanId;
-      const { data: authResult, error: authError } = await supabase.rpc('verify_student_password', { 
-        p_student_id: authKey, 
-        p_password: formData.password 
-      });
-
-      if (authError || !authResult.success) {
-        setShowResetButton(true);
-        return alert("❌ 비밀번호가 일치하지 않습니다.");
-      } else {
-        setShowResetButton(false);
-      }
-
       const { data: ticket } = await supabase.from('reservations')
         .select('*')
         .eq('student_id', cleanId)
@@ -123,29 +86,28 @@ export default function KioskPrintPage() {
         .eq('movie_date', movieInfo.db_date)
         .single();
 
-      if (!ticket) return alert("예매 내역이 존재하지 않습니다.");
+      if (!ticket) return alert("예매 내역이 존재하지 않습니다. 학번/이름을 다시 확인해주세요.");
 
       if (ticket.is_printed) {
         return alert("⚠️ 이미 현장에서 발권이 완료된 티켓입니다! (1인 1매 원칙)\n오류인 경우 관리자에게 문의하세요.");
       }
 
-      // 🌟 [수정됨] RLS(보안) 정책에 의해 클라이언트 직접 수정이 막히는 문제를 해결하기 위해 안전한 서버 API 호출로 업데이트
       const apiRes = await fetch('/api/kiosk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'PRINT_TICKET',
-          payload: { ticketId: ticket.id, studentId: cleanId, studentName: formData.name, password: formData.password, seatNumber: ticket.seat_number }
+          payload: { ticketId: ticket.id, studentId: cleanId, studentName: formData.name, seatNumber: ticket.seat_number }
         })
       });
       const apiData = await apiRes.json();
-      
+
       if (!apiData.success) {
         alert("⚠️ 서버 오류로 발권 기록 업데이트에 실패했습니다. 관리자에게 문의하세요.");
         return;
       }
 
-      ticket.is_printed = true; // 화면 반영을 위한 상태 업데이트
+      ticket.is_printed = true;
       setTicketData(ticket);
 
     } catch (err) {
@@ -221,15 +183,6 @@ export default function KioskPrintPage() {
                 <div>
                   <label className="block text-gray-300 mb-1 text-sm font-bold">이름</label>
                   <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-lg" placeholder="본명 입력" />
-                </div>
-                <div>
-                  <label className="block text-gray-300 mb-1 text-sm font-bold">예매 비밀번호 (숫자 4자리)</label>
-                  <input type="password" name="password" maxLength={4} value={formData.password} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-center text-2xl tracking-widest" placeholder="****" />
-                  {showResetButton && (
-                    <button onClick={handleRequestReset} disabled={isResetting} className="mt-3 text-sm text-red-400 hover:text-red-300 underline font-bold block w-full text-left">
-                      {isResetting ? "메일 발송 중..." : "🚨 비밀번호를 잊으셨나요? (폰으로 재설정 링크 받기)"}
-                    </button>
-                  )}
                 </div>
               </div>
 
