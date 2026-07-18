@@ -890,7 +890,12 @@ export default function Home() {
               </div>
             )}
             <div className="flex gap-3">
-              <button onClick={() => { setIsMovingSeat(true); setSelectedSeat(null); }} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)]">🔄 자리 이동</button>
+              <button onClick={() => {
+                const existing = myReservation.popcorn && myReservation.popcorn !== 'none' ? myReservation.popcorn.split(',') : [];
+                setPopcornList([...existing, 'none']);
+                setIsMovingSeat(true);
+                setSelectedSeat(null);
+              }} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)]">🔄 자리 이동</button>
               {myReservation.status === 'confirmed' && myReservation.popcorn && myReservation.popcorn !== 'none' ? (
                 <button disabled title="팝콘 결제가 완료된 예매는 취소할 수 없습니다." className="flex-1 py-3 bg-slate-700/40 border border-slate-600 rounded-lg text-slate-500 font-bold cursor-not-allowed">🚨 예매 취소 불가</button>
               ) : (
@@ -904,7 +909,7 @@ export default function Home() {
               <p className="text-lg md:text-xl mb-6 text-slate-200">이동할 좌석: <span className="text-amber-400 font-bold text-3xl md:text-4xl ml-2 tracking-tighter drop-shadow-md">{selectedSeat}</span></p>
               <div className="flex gap-3">
                 <button onClick={() => { setIsMovingSeat(false); setSelectedSeat(null); }} className="py-4 px-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-300 font-bold transition-all">취소</button>
-                <button onClick={() => setIsModalOpen(true)} className="flex-1 bg-indigo-600 hover:bg-indigo-500 hover:scale-[1.02] transition-all text-white font-bold py-4 px-8 rounded-xl text-lg border border-indigo-500">이 자리로 이동하기</button>
+                <button onClick={handleSubmit} className="flex-1 bg-indigo-600 hover:bg-indigo-500 hover:scale-[1.02] transition-all text-white font-bold py-4 px-8 rounded-xl text-lg border border-indigo-500">이 자리로 이동하기</button>
               </div>
             </>
           ) : (
