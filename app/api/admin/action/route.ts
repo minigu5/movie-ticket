@@ -25,10 +25,10 @@ export async function POST(req: Request) {
             .select('id, seat_number, payment_status, student_name, student_id, email, popcorn_order, is_printed, is_group_leader')
             .eq('movie_date', movieData?.db_date)
             .order('created_at', { ascending: false }),
-          supabaseAdmin.from('blacklist').select('student_id, student_name').order('created_at', { ascending: false }),
+          supabaseAdmin.from('blacklist').select('email, created_at').order('created_at', { ascending: false }),
           supabaseAdmin.from('activity_logs').select('id, created_at, student_id, student_name, description').order('created_at', { ascending: false }).limit(100),
           supabaseAdmin.from('admins').select('email, added_by, created_at').order('created_at', { ascending: false }),
-          supabaseAdmin.from('club_members').select('student_id, added_by, created_at').order('created_at', { ascending: false }),
+          supabaseAdmin.from('club_members').select('email, added_by, created_at').order('created_at', { ascending: false }),
           supabaseAdmin.from('kiosk_settings').select('password').eq('id', 1).single()
         ]);
 
@@ -100,45 +100,63 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true });
       }
 
-      case 'ADD_BLACKLIST': {
-        const { studentId, studentName, movieDate } = payload;
+      case 'ADD_BLACKLIST_BULK': {
+        const { emails, movieDate } = payload;
+        const cleanEmails = Array.from(new Set((emails as string[] || [])
+          .map(e => String(e).trim().toLowerCase())
+          .filter(e => e.endsWith('@ts.hs.kr'))));
 
-        const { error: blError } = await supabaseAdmin.from('blacklist').insert([{ student_id: studentId, student_name: studentName }]);
+        if (cleanEmails.length === 0) {
+          return NextResponse.json({ success: false, error: '@ts.hs.kr 이메일이 없습니다.' }, { status: 400 });
+        }
+
+        type ReservationRow = {
+          id: string; seat_number: string; student_id: string | null; student_name: string;
+          email: string; popcorn_order: string; payment_status: string;
+        };
+        const results: { email: string; name: string; canceledTicket: ReservationRow | null }[] = [];
+
+        for (const email of cleanEmails) {
+          const { data: existingTickets } = await supabaseAdmin.from('reservations')
+            .select('*')
+            .eq('email', email)
+            .eq('movie_date', movieDate);
+
+          let canceledTicket: ReservationRow | null = null;
+          let name: string;
+
+          if (existingTickets && existingTickets.length > 0) {
+            const ticket = existingTickets[0] as ReservationRow;
+            canceledTicket = ticket;
+            name = ticket.student_name;
+            await supabaseAdmin.from('reservations').delete().eq('id', ticket.id);
+            await supabaseAdmin.from('activity_logs').insert([{
+              student_id: ticket.student_id, student_name: ticket.student_name,
+              description: `블랙리스트 등록 및 예매 자동 취소 (${ticket.seat_number})`
+            }]);
+          } else {
+            const { data: prof } = await supabaseAdmin.from('profiles').select('name').eq('email', email).maybeSingle();
+            name = prof?.name ?? email;
+          }
+
+          results.push({ email, name, canceledTicket });
+        }
+
+        const { error: blError } = await supabaseAdmin
+          .from('blacklist')
+          .upsert(cleanEmails.map(email => ({ email })), { onConflict: 'email', ignoreDuplicates: true });
         if (blError) throw blError;
 
-        const { data: existingTickets } = await supabaseAdmin.from('reservations')
-          .select('*')
-          .eq('student_id', studentId)
-          .eq('movie_date', movieDate);
-
-        let canceledTicket = null;
-        if (existingTickets && existingTickets.length > 0) {
-          canceledTicket = existingTickets[0];
-          await supabaseAdmin.from('reservations').delete().eq('id', canceledTicket.id);
-          await supabaseAdmin.from('activity_logs').insert([{
-            student_id: studentId, student_name: studentName,
-            description: `블랙리스트 등록 및 예매 자동 취소 (${canceledTicket.seat_number})`
-          }]);
-        }
-
-        // 취소된 예약이 없으면(아직 로그인/예매한 적 없는 학생 선제 등록), profiles에서 이메일을 찾아본다.
-        // 둘 다 없으면 안내 메일 발송은 그냥 건너뛴다(email: null).
-        let email: string | null = canceledTicket?.email ?? null;
-        if (!email) {
-          const { data: prof } = await supabaseAdmin.from('profiles').select('email').eq('student_id', studentId).maybeSingle();
-          email = prof?.email ?? null;
-        }
-
-        return NextResponse.json({ success: true, canceledTicket, email });
+        return NextResponse.json({ success: true, results });
       }
 
       case 'REMOVE_BLACKLIST': {
-        const { studentId } = payload;
-        const { error } = await supabaseAdmin.from('blacklist').delete().eq('student_id', studentId);
+        const { email } = payload;
+        const { error } = await supabaseAdmin.from('blacklist').delete().eq('email', email);
         if (error) throw error;
 
-        const { data: prof } = await supabaseAdmin.from('profiles').select('email').eq('student_id', studentId).maybeSingle();
-        return NextResponse.json({ success: true, email: prof?.email ?? null });
+        const { data: prof } = await supabaseAdmin.from('profiles').select('name').eq('email', email).maybeSingle();
+        return NextResponse.json({ success: true, name: prof?.name ?? email });
       }
 
       case 'LIST_ADMINS': {
@@ -169,25 +187,31 @@ export async function POST(req: Request) {
       }
 
       case 'LIST_CLUB_MEMBERS': {
-        const { data, error } = await supabaseAdmin.from('club_members').select('student_id, added_by, created_at').order('created_at', { ascending: false });
+        const { data, error } = await supabaseAdmin.from('club_members').select('email, added_by, created_at').order('created_at', { ascending: false });
         if (error) throw error;
         return NextResponse.json({ success: true, data });
       }
 
-      case 'ADD_CLUB_MEMBER': {
-        const { studentId } = payload;
-        const cleanId = String(studentId || '').trim();
-        if (!/^\d{4}$/.test(cleanId)) {
-          return NextResponse.json({ success: false, error: '학번은 4자리 숫자여야 합니다.' }, { status: 400 });
+      case 'ADD_CLUB_MEMBERS': {
+        const { emails } = payload;
+        const cleanEmails = Array.from(new Set((emails as string[] || [])
+          .map(e => String(e).trim().toLowerCase())
+          .filter(e => e.endsWith('@ts.hs.kr'))));
+
+        if (cleanEmails.length === 0) {
+          return NextResponse.json({ success: false, error: '@ts.hs.kr 이메일이 없습니다.' }, { status: 400 });
         }
-        const { error } = await supabaseAdmin.from('club_members').insert([{ student_id: cleanId, added_by: adminEmail }]);
+
+        const { error } = await supabaseAdmin
+          .from('club_members')
+          .upsert(cleanEmails.map(email => ({ email, added_by: adminEmail })), { onConflict: 'email', ignoreDuplicates: true });
         if (error) throw error;
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, added: cleanEmails.length });
       }
 
       case 'REMOVE_CLUB_MEMBER': {
-        const { studentId } = payload;
-        const { error } = await supabaseAdmin.from('club_members').delete().eq('student_id', studentId);
+        const { email } = payload;
+        const { error } = await supabaseAdmin.from('club_members').delete().eq('email', email);
         if (error) throw error;
         return NextResponse.json({ success: true });
       }

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, DomainNotAllowedError, type AppProfile } from '../../lib/supabase-auth';
 import Link from 'next/link';
+import { extractSchoolEmails } from '../../lib/parseEmails';
 
 const POPCORN_NAMES: Record<string, string> = { "original": "오리지널", "consomme": "콘소메", "caramel": "카라멜" };
 
@@ -23,14 +24,13 @@ export default function AdminPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [showLogs, setShowLogs] = useState(false);
 
-  const [blacklist, setBlacklist] = useState<any[]>([]);
-  const [newBlackId, setNewBlackId] = useState('');
-  const [newBlackName, setNewBlackName] = useState('');
+  const [blacklist, setBlacklist] = useState<{email: string, created_at: string}[]>([]);
+  const [newBlacklistText, setNewBlacklistText] = useState('');
 
   const [admins, setAdmins] = useState<{email: string, added_by: string | null, created_at: string}[]>([]);
   const [newAdminEmail, setNewAdminEmail] = useState('');
-  const [clubMembers, setClubMembers] = useState<{student_id: string, added_by: string | null, created_at: string}[]>([]);
-  const [newClubStudentId, setNewClubStudentId] = useState('');
+  const [clubMembers, setClubMembers] = useState<{email: string, added_by: string | null, created_at: string}[]>([]);
+  const [newClubMembersText, setNewClubMembersText] = useState('');
   const [kioskPasswordInput, setKioskPasswordInput] = useState('');
   const [profileSearchQuery, setProfileSearchQuery] = useState('');
   const [profileSearchResults, setProfileSearchResults] = useState<{id: string, email: string, student_id: string | null, name: string, role: string}[]>([]);
@@ -53,6 +53,9 @@ export default function AdminPage() {
     });
     return { original, consomme, caramel, none, cash };
   }, [reservations]);
+
+  const clubEmailPreviewCount = useMemo(() => extractSchoolEmails(newClubMembersText).length, [newClubMembersText]);
+  const blacklistEmailPreviewCount = useMemo(() => extractSchoolEmails(newBlacklistText).length, [newBlacklistText]);
 
   useEffect(() => {
     let active = true;
@@ -220,45 +223,40 @@ export default function AdminPage() {
     alert("✅ 발권 상태가 초기화되었습니다.");
   };
 
-  const handleAddBlacklist = async () => {
-    if (newBlackId.length !== 4) return alert("학번 4자리를 정확히 입력해주세요.");
-    if (!newBlackName.trim()) return alert("이름을 입력해주세요.");
-    const studentName = newBlackName.trim();
+  const handleAddBlacklistBulk = async () => {
+    const emails = extractSchoolEmails(newBlacklistText);
+    if (emails.length === 0) return alert("추가할 @ts.hs.kr 이메일이 없습니다.");
+    if (!confirm(`${emails.length}명을 블랙리스트에 추가하시겠습니까?\n(⚠️ 주의: 현재 진행 중이거나 완료된 예매 내역이 있다면 자동으로 취소됩니다.)`)) return;
 
-    if (!confirm(`${studentName}(${newBlackId}) 학생을 블랙리스트에 추가하시겠습니까?\n(⚠️ 주의: 현재 진행 중이거나 완료된 예매 내역이 있다면 자동으로 취소됩니다.)`)) return;
-
-    const res = await authFetch('/api/admin/action', { action: 'ADD_BLACKLIST', payload: { studentId: newBlackId, studentName, movieDate: movieInfo.db_date } });
+    const res = await authFetch('/api/admin/action', { action: 'ADD_BLACKLIST_BULK', payload: { emails, movieDate: movieInfo.db_date } });
     const data = await res.json();
-    if (!data.success) return alert("추가 실패 (이미 등록된 학생일 수 있습니다.)");
+    if (!data.success) return alert("추가 실패: " + (data.error || ''));
 
-    if (data.canceledTicket && data.email) {
-      const ticket = data.canceledTicket;
-      const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
-      fetch('/api/ticket', {
-        method: 'POST',
-        body: JSON.stringify({ email: data.email, name: studentName, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
-      });
-    }
+    data.results.forEach((r: any) => {
+      if (r.canceledTicket) {
+        const ticket = r.canceledTicket;
+        const isRefundNeeded = ticket.popcorn_order !== 'none' && ticket.payment_status === 'confirmed';
+        fetch('/api/ticket', {
+          method: 'POST',
+          body: JSON.stringify({ email: r.email, name: r.name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'canceled', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl, isRefundNeeded })
+        });
+      }
+      fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: r.email, name: r.name, action: 'added' }) });
+    });
 
-    if (data.email) {
-      fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: data.email, name: studentName, action: 'added' }) });
-    }
-
-    setBlacklist(prev => [...prev, { student_id: newBlackId, student_name: studentName }]);
-    setReservations(prev => prev.filter(r => r.student_id !== newBlackId));
-    setNewBlackId('');
-    setNewBlackName('');
-    alert("블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!" + (data.email ? '' : '\n(등록된 이메일이 없어 안내 메일은 발송되지 않았습니다.)'));
+    setNewBlacklistText('');
+    fetchAdminData();
+    alert(`✅ ${emails.length}명 블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!`);
   };
 
-  const handleRemoveBlacklist = async (studentId: string, studentName: string) => {
-    if (!confirm(`${studentName}(${studentId}) 학생의 블랙리스트를 해제하시겠습니까?`)) return;
-    const res = await authFetch('/api/admin/action', { action: 'REMOVE_BLACKLIST', payload: { studentId } });
+  const handleRemoveBlacklist = async (email: string) => {
+    if (!confirm(`${email} 블랙리스트를 해제하시겠습니까?`)) return;
+    const res = await authFetch('/api/admin/action', { action: 'REMOVE_BLACKLIST', payload: { email } });
     const data = await res.json();
     if (!data.success) return alert("해제 실패");
-    if (data.email) fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email: data.email, name: studentName, action: 'removed' }) });
-    setBlacklist(prev => prev.filter(b => b.student_id !== studentId));
-    alert("해제 완료" + (data.email ? ' 및 안내 메일 발송!' : ' (등록된 이메일이 없어 안내 메일은 발송되지 않았습니다.)'));
+    fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email, name: data.name, action: 'removed' }) });
+    fetchAdminData();
+    alert("✅ 해제 완료 및 안내 메일 발송!");
   };
 
   const handleAddAdmin = async () => {
@@ -280,22 +278,23 @@ export default function AdminPage() {
     setAdmins(prev => prev.filter(a => a.email !== email));
   };
 
-  const handleAddClubMember = async () => {
-    const studentId = newClubStudentId.trim();
-    if (!/^\d{4}$/.test(studentId)) return alert("학번은 4자리 숫자로 입력해주세요.");
-    const res = await authFetch('/api/admin/action', { action: 'ADD_CLUB_MEMBER', payload: { studentId } });
+  const handleAddClubMembers = async () => {
+    const emails = extractSchoolEmails(newClubMembersText);
+    if (emails.length === 0) return alert("추가할 @ts.hs.kr 이메일이 없습니다.");
+    const res = await authFetch('/api/admin/action', { action: 'ADD_CLUB_MEMBERS', payload: { emails } });
     const data = await res.json();
     if (!data.success) return alert("추가 실패: " + data.error);
-    setClubMembers(prev => [{ student_id: studentId, added_by: profile!.email, created_at: new Date().toISOString() }, ...prev]);
-    setNewClubStudentId('');
+    setNewClubMembersText('');
+    fetchAdminData();
+    alert(`✅ ${emails.length}명 동아리원(VIP)으로 추가되었습니다.`);
   };
 
-  const handleRemoveClubMember = async (studentId: string) => {
-    if (!confirm(`${studentId} 학생을 동아리원(VIP)에서 제거하시겠습니까?`)) return;
-    const res = await authFetch('/api/admin/action', { action: 'REMOVE_CLUB_MEMBER', payload: { studentId } });
+  const handleRemoveClubMember = async (email: string) => {
+    if (!confirm(`${email} 학생을 동아리원(VIP)에서 제거하시겠습니까?`)) return;
+    const res = await authFetch('/api/admin/action', { action: 'REMOVE_CLUB_MEMBER', payload: { email } });
     const data = await res.json();
     if (!data.success) return alert("제거 실패: " + data.error);
-    setClubMembers(prev => prev.filter(c => c.student_id !== studentId));
+    fetchAdminData();
   };
 
   const handleUpdateKioskPassword = async () => {
@@ -495,8 +494,8 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-emerald-600 mb-8 grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div>
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-emerald-600 mb-8 grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+        <div className="bg-gray-900/60 rounded-lg border border-emerald-800/40 p-4 flex flex-col">
           <h2 className="text-lg font-bold text-emerald-400 mb-3">👑 관리자 목록</h2>
           <div className="flex gap-2 mb-3">
             <input type="text" value={newAdminEmail} onChange={e => setNewAdminEmail(e.target.value)} placeholder="xxxx@ts.hs.kr" className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
@@ -512,23 +511,30 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div>
+        <div className="bg-gray-900/60 rounded-lg border border-indigo-800/40 p-4 flex flex-col">
           <h2 className="text-lg font-bold text-indigo-400 mb-3">🎟️ 동아리원(VIP) 목록</h2>
-          <div className="flex gap-2 mb-3">
-            <input type="text" maxLength={4} value={newClubStudentId} onChange={e => setNewClubStudentId(e.target.value)} placeholder="학번 4자리" className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
-            <button onClick={handleAddClubMember} className="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded font-bold text-sm">추가</button>
+          <textarea
+            value={newClubMembersText}
+            onChange={e => setNewClubMembersText(e.target.value)}
+            placeholder={"이름과 이메일을 붙여넣으면 이메일만 자동 인식됩니다.\n예) 2208 신민규 <ts250024@ts.hs.kr>"}
+            rows={3}
+            className="w-full p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm resize-none mb-1"
+          />
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-gray-500 text-xs">{clubEmailPreviewCount}개 이메일 인식됨</span>
+            <button onClick={handleAddClubMembers} className="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded font-bold text-sm">일괄 추가</button>
           </div>
           <div className="space-y-1 max-h-40 overflow-y-auto">
             {clubMembers.map(c => (
-              <div key={c.student_id} className="flex items-center justify-between bg-gray-700/50 rounded px-2 py-1 text-xs">
-                <span className="text-gray-200">{c.student_id}</span>
-                <button onClick={() => handleRemoveClubMember(c.student_id)} className="text-red-400 hover:text-red-300 font-bold">×</button>
+              <div key={c.email} className="flex items-center justify-between bg-gray-700/50 rounded px-2 py-1 text-xs">
+                <span className="text-gray-200">{c.email}</span>
+                <button onClick={() => handleRemoveClubMember(c.email)} className="text-red-400 hover:text-red-300 font-bold">×</button>
               </div>
             ))}
           </div>
         </div>
 
-        <div>
+        <div className="bg-gray-900/60 rounded-lg border border-yellow-800/40 p-4 flex flex-col">
           <h2 className="text-lg font-bold text-yellow-400 mb-3">🖨️ 키오스크 잠금 비밀번호</h2>
           <div className="flex gap-2">
             <input type="text" value={kioskPasswordInput} onChange={e => setKioskPasswordInput(e.target.value)} className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
@@ -537,7 +543,7 @@ export default function AdminPage() {
           <p className="text-gray-500 text-xs mt-2">현장 키오스크(/print) 진입 시 입력하는 비밀번호입니다.</p>
         </div>
 
-        <div>
+        <div className="bg-gray-900/60 rounded-lg border border-pink-800/40 p-4 flex flex-col">
           <h2 className="text-lg font-bold text-pink-400 mb-3">🛠️ 사용자 프로필 수정</h2>
           <p className="text-gray-500 text-xs mb-2">구글 이름이 잘못 인식된 경우 여기서 고칩니다.</p>
           <div className="flex gap-2 mb-3">
@@ -556,7 +562,7 @@ export default function AdminPage() {
             ))}
           </div>
           {editingProfile && (
-            <div className="bg-gray-900 p-3 rounded-lg border border-pink-700 space-y-2">
+            <div className="bg-gray-900 p-3 rounded-lg border border-pink-700 space-y-2 max-h-64 overflow-y-auto">
               <p className="text-xs text-gray-400">{editingProfile.email}</p>
               <select value={editingProfile.role} onChange={e => setEditingProfile({ ...editingProfile, role: e.target.value })} className="w-full p-1.5 bg-gray-700 rounded border border-gray-600 text-white text-xs">
                 <option value="student">학생</option>
@@ -577,17 +583,25 @@ export default function AdminPage() {
 
       <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-red-600 mb-8">
         <h2 className="text-xl font-bold text-red-400 mb-4">🚫 블랙리스트 관리</h2>
-        <div className="flex gap-2 mb-6">
-          <input type="text" maxLength={4} value={newBlackId} onChange={(e) => setNewBlackId(e.target.value)} placeholder="학번 4자리" className="p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white w-32" />
-          <input type="text" value={newBlackName} onChange={(e) => setNewBlackName(e.target.value)} placeholder="이름" className="p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white w-32" />
-          <button onClick={handleAddBlacklist} className="bg-red-600 hover:bg-red-500 px-4 py-2 rounded font-bold transition-colors">추가하기</button>
+        <div className="flex flex-col md:flex-row gap-2 mb-6">
+          <textarea
+            value={newBlacklistText}
+            onChange={(e) => setNewBlacklistText(e.target.value)}
+            placeholder={"이름과 이메일을 붙여넣으면 이메일만 자동 인식됩니다.\n예) 2208 신민규 <ts250024@ts.hs.kr>"}
+            rows={2}
+            className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm resize-none"
+          />
+          <div className="flex md:flex-col justify-between md:justify-center items-center gap-2">
+            <span className="text-gray-500 text-xs whitespace-nowrap">{blacklistEmailPreviewCount}개 인식됨</span>
+            <button onClick={handleAddBlacklistBulk} className="bg-red-600 hover:bg-red-500 px-4 py-2 rounded font-bold transition-colors whitespace-nowrap">일괄 추가</button>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {blacklist.length === 0 && <p className="text-gray-500 text-sm">등록된 블랙리스트가 없습니다.</p>}
           {blacklist.map((user) => (
-            <div key={user.student_id} className="bg-red-900/40 border border-red-800 rounded-full px-4 py-1 flex items-center gap-2">
-              <span className="text-red-200 text-sm">{user.student_id} {user.student_name}</span>
-              <button onClick={() => handleRemoveBlacklist(user.student_id, user.student_name)} className="text-red-400 hover:text-white font-bold ml-2">×</button>
+            <div key={user.email} className="bg-red-900/40 border border-red-800 rounded-full px-4 py-1 flex items-center gap-2">
+              <span className="text-red-200 text-sm">{user.email}</span>
+              <button onClick={() => handleRemoveBlacklist(user.email)} className="text-red-400 hover:text-white font-bold ml-2">×</button>
             </div>
           ))}
         </div>

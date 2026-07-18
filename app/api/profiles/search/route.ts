@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 
   const { data, error } = await supabaseAdmin
     .from('profiles')
-    .select('id, student_id, name')
+    .select('id, student_id, name, email')
     .neq('id', user.id)
     .or(`name.ilike.%${q}%,student_id.eq.${q}`)
     .limit(10);

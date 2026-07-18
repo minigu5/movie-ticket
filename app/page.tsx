@@ -116,15 +116,16 @@ export default function Home() {
 
   // 🌟 [단체 예매] Group Mode 상태 관리
   const [isGroupMode, setIsGroupMode] = useState(false);
-  const [groupLeader, setGroupLeader] = useState<{profileId: string, studentId: string | null, name: string, seat: string} | null>(null);
+  const [groupLeader, setGroupLeader] = useState<{profileId: string, studentId: string | null, name: string, seat: string, email: string} | null>(null);
   const [groupMembers, setGroupMembers] = useState<{profileId: string, studentId: string | null, name: string, seat: string}[]>([]);
   const [isGroupMemberModal, setIsGroupMemberModal] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
-  const [memberSearchResults, setMemberSearchResults] = useState<{id: string, student_id: string | null, name: string}[]>([]);
-  const [selectedMember, setSelectedMember] = useState<{id: string, student_id: string | null, name: string} | null>(null);
+  const [memberSearchResults, setMemberSearchResults] = useState<{id: string, student_id: string | null, name: string, email: string}[]>([]);
+  const [selectedMember, setSelectedMember] = useState<{id: string, student_id: string | null, name: string, email: string} | null>(null);
   const [isGroupSummaryOpen, setIsGroupSummaryOpen] = useState(false);
   const [isGroupSoloConfirmOpen, setIsGroupSoloConfirmOpen] = useState(false); // 🌟 [추가] 혼자 예매 선택 모달
   const [groupSendingProgress, setGroupSendingProgress] = useState({current: 0, total: 0, sending: false});
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -162,6 +163,16 @@ export default function Home() {
     if (profile) fetchInitialData();
   }, [profile]);
 
+  useEffect(() => {
+    if (!profile) { setIsAdmin(false); return; }
+    let active = true;
+    authFetchGet('/api/admin/check')
+      .then(res => res.json())
+      .then(data => { if (active && data.success) setIsAdmin(data.isAdmin); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [profile]);
+
   // 🌟 [단체 예매] 이메일 발송 중 페이지 이탈 방지
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -175,10 +186,10 @@ export default function Home() {
     try {
       const [{ data: settingsData }, { data: bgData }, { data: clubData }] = await Promise.all([
         supabase.from('movie_settings').select('*').eq('id', 1).single(),
-        supabase.from('blacklist').select('student_id'),
-        supabase.from('club_members').select('student_id'),
+        supabase.from('blacklist').select('email'),
+        supabase.from('club_members').select('email'),
       ]);
-      if (clubData) setClubMemberIds(clubData.map(c => c.student_id));
+      if (clubData) setClubMemberIds(clubData.map(c => c.email));
 
       let currentDbDate = "2026-04-18";
 
@@ -187,7 +198,7 @@ export default function Home() {
         currentDbDate = settingsData.db_date;
         if (new Date() > new Date(settingsData.deadline_date)) setIsClosed(true);
       }
-      if (bgData) setBlacklistedUsers(bgData.map(b => b.student_id));
+      if (bgData) setBlacklistedUsers(bgData.map(b => b.email));
 
       const { data: resData } = await supabase.from('reservations')
         .select('id, seat_number, payment_status, student_name, student_id, group_expires_at, popcorn_order')
@@ -237,7 +248,7 @@ export default function Home() {
         return;
       }
       if (groupMembers.length >= 9) return showAlert("단체 예매는 리더를 포함하여 최대 10명까지 가능합니다.");
-      if (vipSeats.has(seatId) && groupLeader && (!groupLeader.studentId || !clubMemberIds.includes(groupLeader.studentId))) {
+      if (vipSeats.has(seatId) && groupLeader && !clubMemberIds.includes(groupLeader.email)) {
         return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.");
       }
       setSelectedSeat(seatId);
@@ -272,10 +283,10 @@ export default function Home() {
   const handleSubmit = async () => {
     if (!profile) return showAlert("로그인이 필요합니다.");
 
-    if (blacklistedUsers.includes(profile.student_id ?? '')) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
+    if (blacklistedUsers.includes(profile.email)) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
 
     if (selectedSeat && vipSeats.has(selectedSeat)) {
-      if (!profile.student_id || !clubMemberIds.includes(profile.student_id)) {
+      if (!clubMemberIds.includes(profile.email)) {
         return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
       }
     }
@@ -367,8 +378,8 @@ export default function Home() {
   const handleGroupStart = async () => {
     if (!profile) return showAlert("로그인이 필요합니다.");
 
-    if (blacklistedUsers.includes(profile.student_id ?? '')) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
-    if (selectedSeat && vipSeats.has(selectedSeat) && (!profile.student_id || !clubMemberIds.includes(profile.student_id))) {
+    if (blacklistedUsers.includes(profile.email)) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
+    if (selectedSeat && vipSeats.has(selectedSeat) && !clubMemberIds.includes(profile.email)) {
       return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
     }
 
@@ -378,7 +389,7 @@ export default function Home() {
       return showAlert("이미 예매 내역이 존재하는 학생은 단체 예매 리더가 될 수 없습니다.\n기존 예매를 취소한 뒤 다시 시도해주세요.");
     }
 
-    setGroupLeader({ profileId: profile.id, studentId: profile.student_id, name: profile.name, seat: selectedSeat! });
+    setGroupLeader({ profileId: profile.id, studentId: profile.student_id, name: profile.name, seat: selectedSeat!, email: profile.email });
     setGroupMembers([]);
     setIsGroupMode(true);
     setIsModalOpen(false);
@@ -399,7 +410,7 @@ export default function Home() {
 
   const handleAddGroupMember = async (andFinalize: boolean) => {
     if (!selectedMember) return showAlert("추가할 사람을 검색해서 선택해주세요!");
-    if (blacklistedUsers.includes(selectedMember.student_id ?? '')) return showAlert("🚫 블랙리스트에 등록되어 추가할 수 없습니다.");
+    if (blacklistedUsers.includes(selectedMember.email)) return showAlert("🚫 블랙리스트에 등록되어 추가할 수 없습니다.");
     if (groupLeader?.profileId === selectedMember.id) return showAlert("리더 본인은 추가할 수 없습니다.");
     if (groupMembers.some(m => m.profileId === selectedMember.id)) return showAlert("이미 단체에 추가된 사람입니다.");
 
@@ -408,7 +419,7 @@ export default function Home() {
     if (existing && existing.length > 0) return showAlert("이미 예매가 완료된 학생입니다.");
 
     if (selectedSeat && vipSeats.has(selectedSeat)) {
-      if (!selectedMember.student_id || !clubMemberIds.includes(selectedMember.student_id)) {
+      if (!clubMemberIds.includes(selectedMember.email)) {
         return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n이 좌석에는 동아리 부원만 추가할 수 있습니다.");
       }
     }
@@ -547,12 +558,16 @@ export default function Home() {
         <button onClick={() => setIsManualOpen(true)} className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/50 rounded-lg text-xs md:text-sm text-indigo-300 font-bold transition-all shadow-lg">
           📖 이용 안내
         </button>
-        <Link href="/admin" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-slate-300 font-bold transition-all shadow-lg hover:shadow-white/5">
-          ⚙️ 관리자
-        </Link>
-        <Link href="/print" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-slate-300 font-bold transition-all shadow-lg hover:shadow-white/5">
-          🖨️ 발권기
-        </Link>
+        {isAdmin && (
+          <>
+            <Link href="/admin" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-slate-300 font-bold transition-all shadow-lg hover:shadow-white/5">
+              ⚙️ 관리자
+            </Link>
+            <Link href="/print" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-slate-300 font-bold transition-all shadow-lg hover:shadow-white/5">
+              🖨️ 발권기
+            </Link>
+          </>
+        )}
       </div>
 
       <div className="relative flex flex-col items-center justify-center mb-10 mt-4 select-none group">
