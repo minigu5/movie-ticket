@@ -258,6 +258,51 @@ export default function AdminPage() {
     alert("해제 완료" + (data.email ? ' 및 안내 메일 발송!' : ' (등록된 이메일이 없어 안내 메일은 발송되지 않았습니다.)'));
   };
 
+  const handleAddAdmin = async () => {
+    const email = newAdminEmail.trim().toLowerCase();
+    if (!email.endsWith('@ts.hs.kr')) return alert("@ts.hs.kr 이메일만 등록할 수 있습니다.");
+    const res = await authFetch('/api/admin/action', { action: 'ADD_ADMIN', payload: { email } });
+    const data = await res.json();
+    if (!data.success) return alert("추가 실패: " + data.error);
+    setAdmins(prev => [{ email, added_by: profile.email, created_at: new Date().toISOString() }, ...prev]);
+    setNewAdminEmail('');
+  };
+
+  const handleRemoveAdmin = async (email: string) => {
+    if (email === profile.email) return alert("본인 계정은 스스로 제거할 수 없습니다.");
+    if (!confirm(`${email}의 관리자 권한을 제거하시겠습니까?`)) return;
+    const res = await authFetch('/api/admin/action', { action: 'REMOVE_ADMIN', payload: { email } });
+    const data = await res.json();
+    if (!data.success) return alert("제거 실패: " + data.error);
+    setAdmins(prev => prev.filter(a => a.email !== email));
+  };
+
+  const handleAddClubMember = async () => {
+    const studentId = newClubStudentId.trim();
+    if (!/^\d{4}$/.test(studentId)) return alert("학번은 4자리 숫자로 입력해주세요.");
+    const res = await authFetch('/api/admin/action', { action: 'ADD_CLUB_MEMBER', payload: { studentId } });
+    const data = await res.json();
+    if (!data.success) return alert("추가 실패: " + data.error);
+    setClubMembers(prev => [{ student_id: studentId, added_by: profile.email, created_at: new Date().toISOString() }, ...prev]);
+    setNewClubStudentId('');
+  };
+
+  const handleRemoveClubMember = async (studentId: string) => {
+    if (!confirm(`${studentId} 학생을 동아리원(VIP)에서 제거하시겠습니까?`)) return;
+    const res = await authFetch('/api/admin/action', { action: 'REMOVE_CLUB_MEMBER', payload: { studentId } });
+    const data = await res.json();
+    if (!data.success) return alert("제거 실패: " + data.error);
+    setClubMembers(prev => prev.filter(c => c.student_id !== studentId));
+  };
+
+  const handleUpdateKioskPassword = async () => {
+    if (!kioskPasswordInput.trim()) return alert("키오스크 비밀번호를 입력해주세요.");
+    const res = await authFetch('/api/admin/action', { action: 'UPDATE_KIOSK_PASSWORD', payload: { password: kioskPasswordInput.trim() } });
+    const data = await res.json();
+    if (!data.success) return alert("변경 실패: " + data.error);
+    alert("✅ 키오스크 잠금 비밀번호가 변경되었습니다.");
+  };
+
   if (authLoading) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <p className="text-white font-bold animate-pulse">로그인 확인 중...</p>
@@ -423,6 +468,49 @@ export default function AdminPage() {
           <div className="md:col-span-2 mt-4 text-right"><button onClick={handleSaveSettingsClick} className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg">💾 변경사항 저장</button></div>
         </div>
       )}
+
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-emerald-600 mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <h2 className="text-lg font-bold text-emerald-400 mb-3">👑 관리자 목록</h2>
+          <div className="flex gap-2 mb-3">
+            <input type="text" value={newAdminEmail} onChange={e => setNewAdminEmail(e.target.value)} placeholder="xxxx@ts.hs.kr" className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
+            <button onClick={handleAddAdmin} className="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded font-bold text-sm">추가</button>
+          </div>
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {admins.map(a => (
+              <div key={a.email} className="flex items-center justify-between bg-gray-700/50 rounded px-2 py-1 text-xs">
+                <span className="text-gray-200">{a.email}</span>
+                <button onClick={() => handleRemoveAdmin(a.email)} className="text-red-400 hover:text-red-300 font-bold">×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-bold text-indigo-400 mb-3">🎟️ 동아리원(VIP) 목록</h2>
+          <div className="flex gap-2 mb-3">
+            <input type="text" maxLength={4} value={newClubStudentId} onChange={e => setNewClubStudentId(e.target.value)} placeholder="학번 4자리" className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
+            <button onClick={handleAddClubMember} className="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded font-bold text-sm">추가</button>
+          </div>
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {clubMembers.map(c => (
+              <div key={c.student_id} className="flex items-center justify-between bg-gray-700/50 rounded px-2 py-1 text-xs">
+                <span className="text-gray-200">{c.student_id}</span>
+                <button onClick={() => handleRemoveClubMember(c.student_id)} className="text-red-400 hover:text-red-300 font-bold">×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-bold text-yellow-400 mb-3">🖨️ 키오스크 잠금 비밀번호</h2>
+          <div className="flex gap-2">
+            <input type="text" value={kioskPasswordInput} onChange={e => setKioskPasswordInput(e.target.value)} className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
+            <button onClick={handleUpdateKioskPassword} className="bg-yellow-600 hover:bg-yellow-500 px-3 py-2 rounded font-bold text-sm text-black">변경</button>
+          </div>
+          <p className="text-gray-500 text-xs mt-2">현장 키오스크(/print) 진입 시 입력하는 비밀번호입니다.</p>
+        </div>
+      </div>
 
       <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-red-600 mb-8">
         <h2 className="text-xl font-bold text-red-400 mb-4">🚫 블랙리스트 관리</h2>
