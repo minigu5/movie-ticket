@@ -167,10 +167,14 @@ export default function Home() {
     [pastMovie, isPastGrandHall, pastRows, pastCols]
   );
 
+  // 🌟 카드 전환 슬라이드 애니메이션 방향 ('older': 왼쪽에서 등장, 'newer': 오른쪽에서 등장)
+  const [navDirection, setNavDirection] = useState<'older' | 'newer'>('older');
+
   // 과거 회차로 이동(왼쪽 화살표): 현재 상영작 -> 가장 최근 과거 회차 -> ... -> 가장 오래된 회차
   const goToOlderMovie = () => {
     if (pastMovies.length === 0) return;
     setSelectedSeat(null);
+    setNavDirection('older');
     setPastIndex(prev => {
       if (prev === null) return 0;
       return prev < pastMovies.length - 1 ? prev + 1 : prev;
@@ -180,6 +184,7 @@ export default function Home() {
   // 현재 상영작 방향으로 이동(오른쪽 화살표)
   const goToNewerMovie = () => {
     setSelectedSeat(null);
+    setNavDirection('newer');
     setPastIndex(prev => {
       if (prev === null) return null;
       return prev === 0 ? null : prev - 1;
@@ -808,12 +813,15 @@ export default function Home() {
           onClick={goToOlderMovie}
           disabled={pastMovies.length === 0 || (pastIndex !== null && pastIndex >= pastMovies.length - 1)}
           aria-label="이전 상영 회차 보기"
-          className="shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full bg-white/5 border border-white/10 text-slate-300 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all disabled:opacity-0 disabled:pointer-events-none"
+          className="shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/5 text-slate-300 flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.08)] transition-[transform,opacity,box-shadow,background-color] duration-200 ease-out hover:bg-white/10 hover:text-white hover:shadow-[0_2px_10px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.16)] hover:-translate-x-0.5 active:scale-[0.96] disabled:opacity-0 disabled:pointer-events-none"
         >
-          ◀
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
 
-        <div className="flex flex-col md:flex-row items-center gap-6 bg-white/5 backdrop-blur-xl p-6 rounded-2xl w-full shadow-2xl border border-white/10 transition-all duration-500 hover:border-white/20 hover:bg-white/10">
+        <div
+          key={viewingPast ? `past-${pastIndex}` : 'current'}
+          className={`flex flex-col md:flex-row items-center gap-6 bg-white/5 backdrop-blur-xl p-6 rounded-2xl w-full shadow-2xl border border-white/10 transition-colors duration-500 hover:border-white/20 hover:bg-white/10 ${navDirection === 'older' ? 'movie-card-enter-from-left' : 'movie-card-enter-from-right'}`}
+        >
           <img src={displayMovie.poster_url} alt="영화 포스터" loading="lazy" decoding="async" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-slate-800" />
           <div className="flex flex-col text-center md:text-left w-full">
             {viewingPast ? (
@@ -849,9 +857,9 @@ export default function Home() {
           onClick={goToNewerMovie}
           disabled={pastIndex === null}
           aria-label="다음 상영 회차 보기"
-          className="shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full bg-white/5 border border-white/10 text-slate-300 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all disabled:opacity-0 disabled:pointer-events-none"
+          className="shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/5 text-slate-300 flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.08)] transition-[transform,opacity,box-shadow,background-color] duration-200 ease-out hover:bg-white/10 hover:text-white hover:shadow-[0_2px_10px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.16)] hover:translate-x-0.5 active:scale-[0.96] disabled:opacity-0 disabled:pointer-events-none"
         >
-          ▶
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
         </button>
       </div>
 

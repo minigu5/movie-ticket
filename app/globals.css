@@ -23,3 +23,19 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+/* 🌟 [과거 상영 회차 열람] 영화 카드 좌우 전환 시 화면 가장자리에서 슬라이드해 들어오는 연출 */
+@keyframes movie-card-slide-from-right {
+  from { transform: translateX(48px); opacity: 0; filter: blur(4px); }
+  to { transform: translateX(0); opacity: 1; filter: blur(0px); }
+}
+@keyframes movie-card-slide-from-left {
+  from { transform: translateX(-48px); opacity: 0; filter: blur(4px); }
+  to { transform: translateX(0); opacity: 1; filter: blur(0px); }
+}
+.movie-card-enter-from-right {
+  animation: movie-card-slide-from-right 380ms cubic-bezier(0.2, 0, 0, 1);
+}
+.movie-card-enter-from-left {
+  animation: movie-card-slide-from-left 380ms cubic-bezier(0.2, 0, 0, 1);
+}
