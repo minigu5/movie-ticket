@@ -12,8 +12,8 @@ export async function POST(req: Request) {
 
     switch (action) {
       case 'CREATE_GROUP': {
-        const { movieDate, leaderSeat, memberSeats, groupId, expiresAt } = payload as {
-          movieDate: string; leaderSeat: string;
+        const { movieDate, movieSettingsId, leaderSeat, memberSeats, groupId, expiresAt } = payload as {
+          movieDate: string; movieSettingsId: number; leaderSeat: string;
           memberSeats: { profileId: string; seat: string }[];
           groupId: string; expiresAt: string;
         };
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
         }
 
         const { data: leaderTicket, error: leaderError } = await supabaseAdmin.from('reservations').insert([{
-          movie_date: movieDate, user_id: leaderProfile.id, student_id: leaderProfile.student_id,
+          movie_date: movieDate, movie_settings_id: movieSettingsId, user_id: leaderProfile.id, student_id: leaderProfile.student_id,
           student_name: leaderProfile.name, email: leaderProfile.email, seat_number: leaderSeat,
           popcorn_order: 'none', payment_status: 'confirmed', group_id: groupId,
           is_group_leader: true, group_expires_at: expiresAt
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
         const memberInserts = memberSeats.map(m => {
           const p = profileById.get(m.profileId);
           return {
-            movie_date: movieDate, user_id: m.profileId, student_id: p?.student_id ?? null,
+            movie_date: movieDate, movie_settings_id: movieSettingsId, user_id: m.profileId, student_id: p?.student_id ?? null,
             student_name: p?.name ?? '', email: p?.email ?? '', seat_number: m.seat,
             popcorn_order: 'none', payment_status: 'group_pending', group_id: groupId,
             is_group_leader: false, group_expires_at: expiresAt

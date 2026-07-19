@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
     switch (action) {
       case 'FETCH_INITIAL_DATA': {
-        const { data: movieData, error: e1 } = await supabaseAdmin.from('movie_settings').select('*').eq('id', 1).single();
+        const { data: movieData, error: e1 } = await supabaseAdmin.from('movie_settings').select('*').eq('is_active', true).single();
         if (e1) throw e1;
 
         const [resQ, blQ, logQ, adminQ, clubQ, kioskQ] = await Promise.all([
@@ -49,16 +49,40 @@ export async function POST(req: Request) {
       }
 
       case 'UPDATE_SETTINGS': {
-        const { error } = await supabaseAdmin.from('movie_settings').update(payload).eq('id', 1);
+        const { error } = await supabaseAdmin.from('movie_settings').update(payload).eq('is_active', true);
         if (error) throw error;
         return NextResponse.json({ success: true });
       }
 
-      case 'CLEAR_RESERVATIONS': {
-        const { movieDate } = payload;
-        const { error } = await supabaseAdmin.from('reservations').delete().eq('movie_date', movieDate);
+      // 새 회차 시작: 현재 상영중인 영화를 이력으로 보존(is_active=false)하고
+      // 새 movie_settings 행을 활성 상태로 생성한다. 예매(reservations)는 movie_settings_id로
+      // 이전 회차에 계속 연결되어 있으므로 삭제하지 않는다(과거 CLEAR_RESERVATIONS 완전 대체).
+      case 'START_NEW_MOVIE': {
+        const { error: deactivateError } = await supabaseAdmin.from('movie_settings').update({ is_active: false }).eq('is_active', true);
+        if (deactivateError) throw deactivateError;
+
+        const { data: newMovie, error: insertError } = await supabaseAdmin.from('movie_settings')
+          .insert([{ ...payload, is_active: true }]).select('*').single();
+        if (insertError) throw insertError;
+
+        return NextResponse.json({ success: true, data: newMovie });
+      }
+
+      case 'LIST_MOVIE_HISTORY': {
+        const { data, error } = await supabaseAdmin.from('movie_settings')
+          .select('*').eq('is_active', false).order('created_at', { ascending: false });
         if (error) throw error;
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, data });
+      }
+
+      case 'FETCH_HISTORY_RESERVATIONS': {
+        const { movieSettingsId } = payload;
+        const { data, error } = await supabaseAdmin.from('reservations')
+          .select('id, seat_number, payment_status, student_name, student_id, email, popcorn_order, is_printed, is_group_leader')
+          .eq('movie_settings_id', movieSettingsId)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        return NextResponse.json({ success: true, data });
       }
 
       case 'APPROVE_RESERVATION': {

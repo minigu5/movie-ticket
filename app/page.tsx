@@ -14,7 +14,86 @@ interface SeatData {
   popcorn?: string;
 }
 
+// 🌟 [과거 상영 회차 열람] movie_settings 이력 행 (is_active=false)
+interface PastMovie {
+  id: number;
+  title: string;
+  date_string: string;
+  db_date: string;
+  venue: string;
+  age_rating: string;
+  poster_url: string;
+  mid_vip_start_row?: string; mid_vip_end_row?: string; mid_vip_start_col?: number; mid_vip_end_col?: number;
+  grand_vip_start_row?: string; grand_vip_end_row?: string; grand_vip_start_col?: number; grand_vip_end_col?: number;
+}
 
+// 🌟 좌석 배치 계산 로직(현재/과거 공용) — venue의 대강당 여부만 입력받는 순수 함수로 분리해 재사용
+function getGridRows(isGrandHall: boolean) {
+  return isGrandHall
+    ? ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R']
+    : ['A','B','C','D','E','F','G','H','I'];
+}
+
+function getGridCols(isGrandHall: boolean) {
+  return isGrandHall
+    ? Array.from({ length: 27 }, (_, i) => i + 1)
+    : Array.from({ length: 14 }, (_, i) => i + 1);
+}
+
+function computeSeatId(isGrandHall: boolean, rowIndex: number, colIndex: number): string | null {
+  if (!isGrandHall) {
+    if (colIndex < 7) {
+      const num = rowIndex * 7 + colIndex + 1;
+      return `A${String(num).padStart(2, '0')}`;
+    } else {
+      const num = rowIndex * 7 + (colIndex - 7) + 1;
+      if (num === 63) return null;
+      return `B${String(num).padStart(2, '0')}`;
+    }
+  } else {
+    if (colIndex < 9) {
+      const num = rowIndex * 9 + colIndex + 1;
+      return `A${String(num).padStart(3, '0')}`;
+    } else if (colIndex < 18) {
+      const num = rowIndex * 9 + (colIndex - 9) + 1;
+      return `B${String(num).padStart(3, '0')}`;
+    } else {
+      const num = rowIndex * 9 + (colIndex - 18) + 1;
+      return `C${String(num).padStart(3, '0')}`;
+    }
+  }
+}
+
+function computeVipSeats(
+  isGrandHall: boolean,
+  rows: string[],
+  cols: number[],
+  vipConfig: {
+    mid_vip_start_row?: string; mid_vip_end_row?: string; mid_vip_start_col?: number; mid_vip_end_col?: number;
+    grand_vip_start_row?: string; grand_vip_end_row?: string; grand_vip_start_col?: number; grand_vip_end_col?: number;
+  }
+) {
+  const vips = new Set<string>();
+  rows.forEach((rowChar, rowIndex) => {
+    cols.forEach((colNum, colIndex) => {
+      const isVip = isGrandHall
+        ? rowChar.charCodeAt(0) >= (vipConfig.grand_vip_start_row || 'A').charCodeAt(0) &&
+          rowChar.charCodeAt(0) <= (vipConfig.grand_vip_end_row || 'C').charCodeAt(0) &&
+          colNum >= (vipConfig.grand_vip_start_col || 10) &&
+          colNum <= (vipConfig.grand_vip_end_col || 18)
+        : rowChar.charCodeAt(0) >= (vipConfig.mid_vip_start_row || 'A').charCodeAt(0) &&
+          rowChar.charCodeAt(0) <= (vipConfig.mid_vip_end_row || 'C').charCodeAt(0) &&
+          colNum >= (vipConfig.mid_vip_start_col || 5) &&
+          colNum <= (vipConfig.mid_vip_end_col || 10);
+
+      if (isVip) {
+        const seatId = computeSeatId(isGrandHall, rowIndex, colIndex);
+        if (seatId) vips.add(seatId);
+      }
+    });
+  });
+  return vips;
+}
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
@@ -57,66 +136,54 @@ export default function Home() {
 
   const isGrandHall = movieInfo.venue.includes('대강당');
 
-  const rows = useMemo(
-    () => isGrandHall
-      ? ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R']
-      : ['A','B','C','D','E','F','G','H','I'],
-    [isGrandHall]
+  const rows = useMemo(() => getGridRows(isGrandHall), [isGrandHall]);
+
+  const cols = useMemo(() => getGridCols(isGrandHall), [isGrandHall]);
+
+  const getSeatId = (rowIndex: number, colIndex: number) => computeSeatId(isGrandHall, rowIndex, colIndex);
+
+  const vipSeats = useMemo(
+    () => computeVipSeats(isGrandHall, rows, cols, movieInfo),
+    [movieInfo, isGrandHall, rows, cols]
   );
 
-  const cols = useMemo(
-    () => isGrandHall
-      ? Array.from({ length: 27 }, (_, i) => i + 1)
-      : Array.from({ length: 14 }, (_, i) => i + 1),
-    [isGrandHall]
+  // 🌟 [과거 상영 회차 열람] 과거 회차 목록/현재 보고 있는 인덱스(null=현재 상영작)/좌석 점유(익명) 상태
+  const [pastMovies, setPastMovies] = useState<PastMovie[]>([]);
+  const [pastIndex, setPastIndex] = useState<number | null>(null); // null: 현재 상영작, 0부터: pastMovies의 최신순 인덱스
+  const [pastSeatMap, setPastSeatMap] = useState<Record<string, string>>({}); // seat_number -> payment_status (이름/학번 등 개인정보 없음)
+  const [isPastSeatLoading, setIsPastSeatLoading] = useState(false);
+
+  const viewingPast = pastIndex !== null;
+  const pastMovie = viewingPast ? pastMovies[pastIndex as number] : null;
+  const displayMovie = pastMovie ?? movieInfo;
+
+  const isPastGrandHall = pastMovie ? pastMovie.venue.includes('대강당') : false;
+  const pastRows = useMemo(() => getGridRows(isPastGrandHall), [isPastGrandHall]);
+  const pastCols = useMemo(() => getGridCols(isPastGrandHall), [isPastGrandHall]);
+  const getPastSeatId = (rowIndex: number, colIndex: number) => computeSeatId(isPastGrandHall, rowIndex, colIndex);
+  const pastVipSeats = useMemo(
+    () => (pastMovie ? computeVipSeats(isPastGrandHall, pastRows, pastCols, pastMovie) : new Set<string>()),
+    [pastMovie, isPastGrandHall, pastRows, pastCols]
   );
 
-  const getSeatId = (rowIndex: number, colIndex: number) => {
-    if (!isGrandHall) { 
-      if (colIndex < 7) { 
-        const num = rowIndex * 7 + colIndex + 1;
-        return `A${String(num).padStart(2, '0')}`;
-      } else {
-        const num = rowIndex * 7 + (colIndex - 7) + 1;
-        if (num === 63) return null; 
-        return `B${String(num).padStart(2, '0')}`;
-      }
-    } else {
-      if (colIndex < 9) {
-        const num = rowIndex * 9 + colIndex + 1;
-        return `A${String(num).padStart(3, '0')}`;
-      } else if (colIndex < 18) {
-        const num = rowIndex * 9 + (colIndex - 9) + 1;
-        return `B${String(num).padStart(3, '0')}`;
-      } else {
-        const num = rowIndex * 9 + (colIndex - 18) + 1;
-        return `C${String(num).padStart(3, '0')}`;
-      }
-    }
+  // 과거 회차로 이동(왼쪽 화살표): 현재 상영작 -> 가장 최근 과거 회차 -> ... -> 가장 오래된 회차
+  const goToOlderMovie = () => {
+    if (pastMovies.length === 0) return;
+    setSelectedSeat(null);
+    setPastIndex(prev => {
+      if (prev === null) return 0;
+      return prev < pastMovies.length - 1 ? prev + 1 : prev;
+    });
   };
 
-  const vipSeats = useMemo(() => {
-    const vips = new Set<string>();
-    rows.forEach((rowChar, rowIndex) => {
-      cols.forEach((colNum, colIndex) => {
-        const isVip = isGrandHall
-          ? rowChar.charCodeAt(0) >= (movieInfo.grand_vip_start_row || 'A').charCodeAt(0) &&
-            rowChar.charCodeAt(0) <= (movieInfo.grand_vip_end_row || 'C').charCodeAt(0) &&
-            colNum >= (movieInfo.grand_vip_start_col || 10) &&
-            colNum <= (movieInfo.grand_vip_end_col || 18)
-          : rowChar.charCodeAt(0) >= (movieInfo.mid_vip_start_row || 'A').charCodeAt(0) &&
-            rowChar.charCodeAt(0) <= (movieInfo.mid_vip_end_row || 'C').charCodeAt(0) &&
-            colNum >= (movieInfo.mid_vip_start_col || 5) &&
-            colNum <= (movieInfo.mid_vip_end_col || 10);
-            
-        if (isVip) {
-          const seatId = getSeatId(rowIndex, colIndex);
-          if (seatId) vips.add(seatId);
-        }
-      });
+  // 현재 상영작 방향으로 이동(오른쪽 화살표)
+  const goToNewerMovie = () => {
+    setSelectedSeat(null);
+    setPastIndex(prev => {
+      if (prev === null) return null;
+      return prev === 0 ? null : prev - 1;
     });
-    return vips;
-  }, [movieInfo, isGrandHall, rows, cols]);
+  };
 
   const [isManualOpen, setIsManualOpen] = useState(false);
 
@@ -191,14 +258,40 @@ export default function Home() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [groupSendingProgress.sending]);
 
+  // 🌟 [과거 상영 회차 열람] 과거 회차를 보고 있을 때만 해당 회차의 좌석 점유 현황을 익명으로 조회
+  // (개인정보 보호: seat_number, payment_status 컬럼만 select — student_name/student_id/email/user_id 등은 절대 조회하지 않음)
+  useEffect(() => {
+    if (!viewingPast || !pastMovie) { setPastSeatMap({}); return; }
+    let active = true;
+    setIsPastSeatLoading(true);
+    supabase.from('reservations')
+      .select('seat_number, payment_status')
+      .eq('movie_settings_id', pastMovie.id)
+      .then(({ data }) => {
+        if (!active) return;
+        const map: Record<string, string> = {};
+        (data || []).forEach((r: { seat_number: string; payment_status: string }) => {
+          if (r.payment_status === 'confirmed' || r.payment_status === 'pending' || r.payment_status === 'group_pending') {
+            map[r.seat_number] = r.payment_status;
+          }
+        });
+        setPastSeatMap(map);
+        setIsPastSeatLoading(false);
+      });
+    return () => { active = false; };
+  }, [viewingPast, pastMovie]);
+
   const fetchInitialData = async () => {
     try {
-      const [{ data: settingsData }, { data: bgData }, { data: clubData }] = await Promise.all([
-        supabase.from('movie_settings').select('*').eq('id', 1).single(),
+      const [{ data: settingsData }, { data: bgData }, { data: clubData }, { data: pastData }] = await Promise.all([
+        supabase.from('movie_settings').select('*').eq('is_active', true).single(),
         supabase.from('blacklist').select('email'),
         supabase.from('club_members').select('email'),
+        // 🌟 [과거 상영 회차 열람] 과거 회차 목록(최신순) — movie_settings 자체 정보라 민감정보 아님
+        supabase.from('movie_settings').select('*').eq('is_active', false).order('created_at', { ascending: false }),
       ]);
       if (clubData) setClubMemberIds(clubData.map(c => c.email));
+      if (pastData) setPastMovies(pastData);
 
       let currentDbDate = "2026-04-18";
 
@@ -396,7 +489,7 @@ export default function Home() {
 
         const finalStatus = finalPopcornString === 'none' ? 'confirmed' : 'pending';
         const { data: newTicket, error: insertError } = await supabase.from('reservations')
-          .insert([{ movie_date: movieInfo.db_date, user_id: profile.id, student_id: profile.student_id, student_name: profile.name, email: profile.email, seat_number: selectedSeat, popcorn_order: finalPopcornString, payment_status: finalStatus }])
+          .insert([{ movie_date: movieInfo.db_date, movie_settings_id: (movieInfo as any).id, user_id: profile.id, student_id: profile.student_id, student_name: profile.name, email: profile.email, seat_number: selectedSeat, popcorn_order: finalPopcornString, payment_status: finalStatus }])
           .select('id').single();
 
         if (insertError) {
@@ -548,6 +641,7 @@ export default function Home() {
       action: 'CREATE_GROUP',
       payload: {
         movieDate: movieInfo.db_date,
+        movieSettingsId: (movieInfo as any).id,
         leaderSeat,
         memberSeats: groupMembers.map(m => ({ profileId: m.profileId, seat: m.seat })),
         groupId, expiresAt
@@ -705,26 +799,149 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row items-center gap-6 mb-12 bg-white/5 backdrop-blur-xl p-6 rounded-2xl w-full max-w-4xl shadow-2xl border border-white/10 transition-all duration-500 hover:border-white/20 hover:bg-white/10">
-        <img src={movieInfo.poster_url} alt="영화 포스터" loading="lazy" decoding="async" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-slate-800" />
-        <div className="flex flex-col text-center md:text-left w-full">
-          <span className="text-indigo-400 font-bold mb-1 text-sm tracking-wide">이달의 명작 상영작</span>
-          <div className="flex flex-col md:flex-row md:items-end gap-2 mb-2 justify-center md:justify-start">
-            <h2 className="text-2xl md:text-3xl font-bold text-white">{movieInfo.title}</h2>
-            <span className="text-slate-400 border border-slate-600/50 bg-slate-800/50 text-[10px] md:text-xs px-2 py-0.5 rounded-sm whitespace-nowrap w-fit mx-auto md:mx-0 mb-1">
-              관람가: {movieInfo.age_rating}
-            </span>
-          </div>
-          <p className="text-slate-300 mt-2 text-sm md:text-base font-light">📍 장소: {movieInfo.venue}</p>
-          <p className="text-slate-300 text-sm md:text-base font-light">⏰ 일시: {movieInfo.date_string}</p>
-          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/10">
-            <span className="text-rose-400 font-bold text-xs md:text-sm bg-rose-500/10 px-2 py-1 rounded-md">
-              🚨 마감: {new Date(movieInfo.deadline_date).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-            </span>
+      <div className="flex items-center gap-2 md:gap-4 mb-12 w-full max-w-4xl">
+        {/* 🌟 [과거 상영 회차 열람] 왼쪽 화살표: 더 과거 회차로 이동. 가장 오래된 회차거나 과거 이력이 없으면 숨김 */}
+        <button
+          type="button"
+          onClick={goToOlderMovie}
+          disabled={pastMovies.length === 0 || (pastIndex !== null && pastIndex >= pastMovies.length - 1)}
+          aria-label="이전 상영 회차 보기"
+          className="shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full bg-white/5 border border-white/10 text-slate-300 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all disabled:opacity-0 disabled:pointer-events-none"
+        >
+          ◀
+        </button>
+
+        <div className="flex flex-col md:flex-row items-center gap-6 bg-white/5 backdrop-blur-xl p-6 rounded-2xl w-full shadow-2xl border border-white/10 transition-all duration-500 hover:border-white/20 hover:bg-white/10">
+          <img src={displayMovie.poster_url} alt="영화 포스터" loading="lazy" decoding="async" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-slate-800" />
+          <div className="flex flex-col text-center md:text-left w-full">
+            {viewingPast ? (
+              <span className="text-slate-400 font-bold mb-1 text-sm tracking-wide bg-slate-700/40 border border-slate-600/50 px-2 py-0.5 rounded-sm w-fit mx-auto md:mx-0">📼 지난 상영작</span>
+            ) : (
+              <span className="text-indigo-400 font-bold mb-1 text-sm tracking-wide">이달의 명작 상영작</span>
+            )}
+            <div className="flex flex-col md:flex-row md:items-end gap-2 mb-2 justify-center md:justify-start">
+              <h2 className="text-2xl md:text-3xl font-bold text-white">{displayMovie.title}</h2>
+              <span className="text-slate-400 border border-slate-600/50 bg-slate-800/50 text-[10px] md:text-xs px-2 py-0.5 rounded-sm whitespace-nowrap w-fit mx-auto md:mx-0 mb-1">
+                관람가: {displayMovie.age_rating}
+              </span>
+            </div>
+            <p className="text-slate-300 mt-2 text-sm md:text-base font-light">📍 장소: {displayMovie.venue}</p>
+            <p className="text-slate-300 text-sm md:text-base font-light">⏰ 일시: {displayMovie.date_string}</p>
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/10">
+              {viewingPast ? (
+                <span className="text-slate-400 font-bold text-xs md:text-sm bg-slate-700/30 px-2 py-1 rounded-md">
+                  🔒 읽기 전용 · 좌석 배치도만 열람 가능
+                </span>
+              ) : (
+                <span className="text-rose-400 font-bold text-xs md:text-sm bg-rose-500/10 px-2 py-1 rounded-md">
+                  🚨 마감: {new Date(movieInfo.deadline_date).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* 🌟 [과거 상영 회차 열람] 오른쪽 화살표: 더 최근 회차로 이동. 현재 상영작을 보고 있으면 숨김 */}
+        <button
+          type="button"
+          onClick={goToNewerMovie}
+          disabled={pastIndex === null}
+          aria-label="다음 상영 회차 보기"
+          className="shrink-0 w-9 h-9 md:w-11 md:h-11 rounded-full bg-white/5 border border-white/10 text-slate-300 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all disabled:opacity-0 disabled:pointer-events-none"
+        >
+          ▶
+        </button>
       </div>
 
+      {/* 🌟 [과거 상영 회차 열람] 과거 회차를 보고 있을 때는 완전히 별도의 읽기 전용 좌석 배치도를 렌더링한다.
+          예매/팝콘/자리이동 등 인터랙션은 전부 제거되어 있고, 좌석 점유 표시에는 이름/학번 등 개인정보를 절대 노출하지 않는다. */}
+      {viewingPast && pastMovie ? (
+        <>
+          <div className="relative w-full overflow-x-auto pb-8">
+            {isPastSeatLoading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/60 rounded-xl">
+                <span className="text-slate-300 text-sm">좌석 정보를 불러오는 중...</span>
+              </div>
+            )}
+
+            <div className="flex flex-col items-center gap-1 md:gap-2 min-w-max px-4 pt-6 w-fit mx-auto relative">
+
+              <div className="w-[70%] h-8 md:h-10 rounded-t-3xl flex items-center justify-center mb-8 md:mb-12 border-t border-white/40 bg-slate-400/70 shadow-[0_-10px_30px_rgba(255,255,255,0.1)]">
+                <span className="font-black text-xs md:text-base ml-2 text-slate-900 tracking-[0.3em]">📼 지난 회차</span>
+              </div>
+
+              <div className="md:hidden absolute top-0 left-6 animate-bounce text-amber-400 font-bold text-xs flex items-center gap-1 z-10 pointer-events-none drop-shadow-md">
+                옆으로 밀어서 확인 <span className="text-lg">👉</span>
+              </div>
+
+              {pastRows.map((rowChar, rowIndex) => (
+                <div key={rowIndex} className={`flex items-center gap-1 md:gap-2 ${isPastGrandHall && rowChar === 'H' ? 'mb-8 md:mb-12' : ''}`}>
+                  <span className="w-6 md:w-8 text-center font-bold text-slate-500 text-xs md:text-sm">{rowChar}</span>
+
+                  <div className="flex gap-0.5 md:gap-1">
+                    {pastCols.map((colNum, colIndex) => {
+
+                      const seatId = getPastSeatId(rowIndex, colIndex);
+
+                      const isAisle = isPastGrandHall ? (colNum === 9 || colNum === 18) : (colNum === 7);
+                      const aisleMargin = isPastGrandHall ? 'mr-4 md:mr-8' : 'mr-8 md:mr-12';
+
+                      const btnSize = isPastGrandHall ? 'w-8 h-10 md:w-10 md:h-12' : 'w-10 h-12 md:w-12 md:h-14';
+
+                      if (!seatId) {
+                        return <div key={`empty-${colNum}`} className={`${isAisle ? aisleMargin : ''} ${btnSize}`} />;
+                      }
+
+                      // 🌟 개인정보 보호: pastSeatMap은 seat_number -> payment_status만 담고 있으며
+                      // 예매자 이름/학번 등은 절대 조회/표시하지 않는다. 좌석엔 seatId만 표시한다.
+                      const pastStatus = pastSeatMap[seatId];
+                      const isConfirmed = pastStatus === 'confirmed';
+                      const isGroupPending = pastStatus === 'group_pending';
+                      const isPending = pastStatus === 'pending';
+                      const isVipSeat = pastVipSeats.has(seatId);
+
+                      const textSize = isPastGrandHall ? 'text-[11px] md:text-[12px] tracking-tighter whitespace-nowrap' : 'text-[13px] md:text-[15px] tracking-tighter whitespace-nowrap';
+
+                      return (
+                        <div key={seatId} className={`flex ${isAisle ? aisleMargin : ''}`}>
+                          <button
+                            type="button"
+                            disabled
+                            aria-label={`${seatId} (읽기 전용)`}
+                            className={`${btnSize} ${textSize} rounded-t-xl rounded-b-md flex items-center justify-center font-bold px-0 overflow-hidden cursor-default
+                              ${isGroupPending ? 'bg-teal-900/40 text-teal-300 opacity-70'
+                                : isPending ? 'bg-yellow-600/20 border-yellow-600 text-yellow-500 opacity-80'
+                                : isConfirmed ? 'bg-slate-800/80 text-slate-500 opacity-80'
+                                : isVipSeat ? 'bg-indigo-900/60 text-indigo-300'
+                                : 'bg-white/10 text-slate-300'}
+                            `}
+                          >
+                            {seatId}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <span className="w-6 md:w-8 text-center font-bold text-slate-500 text-xs md:text-sm ml-1 md:ml-2">{rowChar}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap justify-center gap-6 text-sm text-slate-400">
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-white/10 border border-white/5 rounded-sm"></div>예매 가능했던 좌석</div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 border border-indigo-500/50 bg-indigo-900/60 rounded-sm"></div>동아리 전용석</div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-800/80 border border-white/5 rounded-sm"></div>예매 완료된 좌석</div>
+          </div>
+
+          <div className="mt-8 p-6 bg-white/5 backdrop-blur-xl rounded-2xl w-full max-w-xl text-center shadow-2xl border border-white/10">
+            <p className="text-slate-300 font-bold mb-1">🔒 지난 상영 회차 열람 모드</p>
+            <p className="text-slate-500 text-sm font-light">좌석 배치도는 읽기 전용이며 예매자 정보는 표시되지 않습니다.<br/>예매 관련 기능은 현재 상영작에서만 이용할 수 있습니다.</p>
+            <button onClick={goToNewerMovie} className="mt-4 py-2.5 px-6 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-bold text-sm transition-all">현재 상영작으로 돌아가기 ▶</button>
+          </div>
+        </>
+      ) : (
+      <>
       <div className="relative w-full overflow-x-auto pb-8">
         {isClosed && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/80 rounded-xl">
@@ -925,6 +1142,8 @@ export default function Home() {
           </>
         ) : <p className="text-slate-400 py-4 font-light">관람하실 좌석을 선택해주세요.</p>}
       </div>
+      </>
+      )}
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-50 overflow-y-auto duration-300">
@@ -1114,6 +1333,7 @@ export default function Home() {
                   <li>종류: 오리지널 버터, 콘소메맛, 카라멜맛</li>
                   <li>팝콘 선택 시 좌석은 <span className="text-yellow-400 font-bold">결제 대기(노란색)</span>로 표시</li>
                   <li>결제 확인 후 관리자가 <span className="text-white font-bold">예매 확정</span>으로 변경</li>
+                  <li>팝콘 없이 <span className="text-white font-bold">무료로 예매 확정</span>된 이후에도 <span className="text-amber-400 font-bold">팝콘 추가</span> 버튼으로 언제든 팝콘을 추가 주문할 수 있음 (추가 시 결제 대기로 전환)</li>
                 </ul>
               </div>
 
