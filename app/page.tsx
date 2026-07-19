@@ -1288,14 +1288,7 @@ export default function Home() {
       )}
 
       <footer className="w-full mt-16 border-t border-slate-800">
-        <div className="py-5 grid grid-cols-2 gap-8">
-          <div className="space-y-2">
-            <p className="text-xs text-slate-400"><span className="font-semibold text-slate-300 mr-1.5">개발자</span>신민규</p>
-            <p className="text-xs text-slate-400">
-              <span className="font-semibold text-slate-300 mr-1.5">Email</span>
-              <a href="mailto:seong381400@gmail.com" className="text-slate-300 hover:text-indigo-400 transition-colors">seong381400@gmail.com</a>
-            </p>
-          </div>
+        <div className="py-5 grid grid-cols-1 gap-8">
           <div className="space-y-2">
             <p className="text-xs text-slate-400">
               <span className="font-semibold text-slate-300 mr-1.5">다른 사이트</span>
