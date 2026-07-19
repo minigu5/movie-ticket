@@ -657,24 +657,24 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-emerald-600 mb-8 grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
-        <div className="bg-gray-900/60 rounded-lg border border-emerald-800/40 p-4 flex flex-col">
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-emerald-600 mb-8 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 items-start">
+        <div className="bg-gray-900/60 rounded-lg border border-emerald-800/40 p-4 flex flex-col min-w-0">
           <h2 className="text-lg font-bold text-emerald-400 mb-3">👑 관리자 목록</h2>
           <div className="flex gap-2 mb-3">
-            <input type="text" value={newAdminEmail} onChange={e => setNewAdminEmail(e.target.value)} placeholder="xxxx@ts.hs.kr" className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
+            <input type="text" value={newAdminEmail} onChange={e => setNewAdminEmail(e.target.value)} placeholder="xxxx@ts.hs.kr" className="flex-1 min-w-0 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
             <button onClick={handleAddAdmin} className="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded font-bold text-sm">추가</button>
           </div>
           <div className="space-y-1 max-h-40 overflow-y-auto">
             {admins.map(a => (
-              <div key={a.email} className="flex items-center justify-between bg-gray-700/50 rounded px-2 py-1 text-xs">
-                <span className="text-gray-200">{a.email}</span>
-                <button onClick={() => handleRemoveAdmin(a.email)} className="text-red-400 hover:text-red-300 font-bold">×</button>
+              <div key={a.email} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded px-2 py-1 text-xs">
+                <span className="text-gray-200 truncate">{a.email}</span>
+                <button onClick={() => handleRemoveAdmin(a.email)} className="shrink-0 text-red-400 hover:text-red-300 font-bold">×</button>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="bg-gray-900/60 rounded-lg border border-indigo-800/40 p-4 flex flex-col">
+        <div className="bg-gray-900/60 rounded-lg border border-indigo-800/40 p-4 flex flex-col min-w-0">
           <h2 className="text-lg font-bold text-indigo-400 mb-3">🎟️ 동아리원(VIP) 목록</h2>
           <textarea
             value={newClubMembersText}
@@ -689,28 +689,28 @@ export default function AdminPage() {
           </div>
           <div className="space-y-1 max-h-40 overflow-y-auto">
             {clubMembers.map(c => (
-              <div key={c.email} className="flex items-center justify-between bg-gray-700/50 rounded px-2 py-1 text-xs">
-                <span className="text-gray-200">{c.email}</span>
-                <button onClick={() => handleRemoveClubMember(c.email)} className="text-red-400 hover:text-red-300 font-bold">×</button>
+              <div key={c.email} className="flex items-center justify-between gap-2 bg-gray-700/50 rounded px-2 py-1 text-xs">
+                <span className="text-gray-200 truncate">{c.email}</span>
+                <button onClick={() => handleRemoveClubMember(c.email)} className="shrink-0 text-red-400 hover:text-red-300 font-bold">×</button>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="bg-gray-900/60 rounded-lg border border-yellow-800/40 p-4 flex flex-col">
+        <div className="bg-gray-900/60 rounded-lg border border-yellow-800/40 p-4 flex flex-col min-w-0">
           <h2 className="text-lg font-bold text-yellow-400 mb-3">🖨️ 키오스크 잠금 비밀번호</h2>
           <div className="flex gap-2">
-            <input type="text" value={kioskPasswordInput} onChange={e => setKioskPasswordInput(e.target.value)} className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
+            <input type="text" value={kioskPasswordInput} onChange={e => setKioskPasswordInput(e.target.value)} className="flex-1 min-w-0 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
             <button onClick={handleUpdateKioskPassword} className="bg-yellow-600 hover:bg-yellow-500 px-3 py-2 rounded font-bold text-sm text-black">변경</button>
           </div>
           <p className="text-gray-500 text-xs mt-2">현장 키오스크(/print) 진입 시 입력하는 비밀번호입니다.</p>
         </div>
 
-        <div className="bg-gray-900/60 rounded-lg border border-pink-800/40 p-4 flex flex-col">
+        <div className="bg-gray-900/60 rounded-lg border border-pink-800/40 p-4 flex flex-col min-w-0">
           <h2 className="text-lg font-bold text-pink-400 mb-3">🛠️ 사용자 프로필 수정</h2>
           <p className="text-gray-500 text-xs mb-2">구글 이름이 잘못 인식된 경우 여기서 고칩니다.</p>
           <div className="flex gap-2 mb-3">
-            <input type="text" value={profileSearchQuery} onChange={e => setProfileSearchQuery(e.target.value)} placeholder="이메일/이름/학번" className="flex-1 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
+            <input type="text" value={profileSearchQuery} onChange={e => setProfileSearchQuery(e.target.value)} placeholder="이메일/이름/학번" className="flex-1 min-w-0 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
             <button onClick={handleSearchProfile} className="bg-pink-600 hover:bg-pink-500 px-3 py-2 rounded font-bold text-sm">검색</button>
           </div>
           <div className="space-y-1 max-h-32 overflow-y-auto mb-3">
@@ -718,7 +718,7 @@ export default function AdminPage() {
               <button
                 key={p.id}
                 onClick={() => setEditingProfile({ id: p.id, email: p.email, student_id: p.student_id ?? '', name: p.name, role: p.role })}
-                className="w-full text-left bg-gray-700/50 hover:bg-gray-700 rounded px-2 py-1 text-xs text-gray-200"
+                className="w-full text-left bg-gray-700/50 hover:bg-gray-700 rounded px-2 py-1 text-xs text-gray-200 truncate block"
               >
                 {p.email} — {p.name} ({p.student_id ?? '교직원'})
               </button>
