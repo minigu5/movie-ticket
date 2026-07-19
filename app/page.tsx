@@ -1288,15 +1288,7 @@ export default function Home() {
       )}
 
       <footer className="w-full mt-16 border-t border-slate-800">
-        <div className="py-5 grid grid-cols-1 gap-8">
-          <div className="space-y-2">
-            <p className="text-xs text-slate-400">
-              <span className="font-semibold text-slate-300 mr-1.5">다른 사이트</span>
-              <a href="https://hwip.vercel.app/" target="_blank" rel="noopener" className="text-slate-300 hover:text-indigo-400 transition-colors">휩 — LaTeX to HWP ↗</a>
-            </p>
-          </div>
-        </div>
-        <div className="border-t border-slate-800 bg-slate-900/50 -mx-4 md:-mx-8 px-4 md:px-8">
+        <div className="bg-slate-900/50 -mx-4 md:-mx-8 px-4 md:px-8">
           <div className="py-4 flex items-center justify-center gap-2.5 text-[11px] text-slate-500 flex-wrap">
             <a href="/privacy" className="hover:text-slate-400 transition-colors">개인정보처리방침</a>
             <span className="opacity-40">·</span>
