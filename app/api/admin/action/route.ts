@@ -58,12 +58,18 @@ export async function POST(req: Request) {
       // 새 movie_settings 행을 활성 상태로 생성한다. 예매(reservations)는 movie_settings_id로
       // 이전 회차에 계속 연결되어 있으므로 삭제하지 않는다(과거 CLEAR_RESERVATIONS 완전 대체).
       case 'START_NEW_MOVIE': {
+        const { data: prevActive } = await supabaseAdmin.from('movie_settings').select('id').eq('is_active', true).maybeSingle();
+
         const { error: deactivateError } = await supabaseAdmin.from('movie_settings').update({ is_active: false }).eq('is_active', true);
         if (deactivateError) throw deactivateError;
 
         const { data: newMovie, error: insertError } = await supabaseAdmin.from('movie_settings')
           .insert([{ ...payload, is_active: true }]).select('*').single();
-        if (insertError) throw insertError;
+        if (insertError) {
+          // 새 행 생성 실패 시 활성 회차가 하나도 없는 상태로 남지 않도록 이전 회차를 복구.
+          if (prevActive) await supabaseAdmin.from('movie_settings').update({ is_active: true }).eq('id', prevActive.id);
+          throw insertError;
+        }
 
         return NextResponse.json({ success: true, data: newMovie });
       }
