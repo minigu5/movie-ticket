@@ -160,10 +160,8 @@ export default function AdminPage() {
   const handleStartNewMovieClick = () => {
     if (!confirm(`현재 회차 [${movieInfo?.title}]를 이력으로 보존하고 새로운 영화 예매를 시작합니다.\n계속하시겠습니까?`)) return;
     setNewMovieForm({
-      title: '', date_string: '', db_date: '',
-      venue: '대구과학고등학교 중강당', poster_url: '', deadline_date: '', age_rating: '전체관람가',
-      mid_vip_start_row: 'A', mid_vip_end_row: 'C', mid_vip_start_col: 5, mid_vip_end_col: 10,
-      grand_vip_start_row: 'A', grand_vip_end_row: 'C', grand_vip_start_col: 10, grand_vip_end_col: 18,
+      ...movieInfo,
+      title: '', poster_url: '',
     });
     setIsEditingSettings(false);
     setIsStartingNewMovie(true);
