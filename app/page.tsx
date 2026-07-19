@@ -152,6 +152,7 @@ export default function Home() {
   const [pastIndex, setPastIndex] = useState<number | null>(null); // null: 현재 상영작, 0부터: pastMovies의 최신순 인덱스
   const [pastSeatMap, setPastSeatMap] = useState<Record<string, string>>({}); // seat_number -> payment_status (이름/학번 등 개인정보 없음)
   const [isPastSeatLoading, setIsPastSeatLoading] = useState(false);
+  const [pastHasReservations, setPastHasReservations] = useState(true); // 예매 정보가 아예 없는(수동 등록한) 과거 영화는 좌석 배치도 자체를 숨김
 
   const viewingPast = pastIndex !== null;
   const pastMovie = viewingPast ? pastMovies[pastIndex as number] : null;
@@ -261,7 +262,7 @@ export default function Home() {
   // 🌟 [과거 상영 회차 열람] 과거 회차를 보고 있을 때만 해당 회차의 좌석 점유 현황을 익명으로 조회
   // (개인정보 보호: seat_number, payment_status 컬럼만 select — student_name/student_id/email/user_id 등은 절대 조회하지 않음)
   useEffect(() => {
-    if (!viewingPast || !pastMovie) { setPastSeatMap({}); return; }
+    if (!viewingPast || !pastMovie) { setPastSeatMap({}); setPastHasReservations(true); return; }
     let active = true;
     setIsPastSeatLoading(true);
     supabase.from('reservations')
@@ -276,6 +277,7 @@ export default function Home() {
           }
         });
         setPastSeatMap(map);
+        setPastHasReservations((data || []).length > 0);
         setIsPastSeatLoading(false);
       });
     return () => { active = false; };
@@ -855,15 +857,13 @@ export default function Home() {
 
       {/* 🌟 [과거 상영 회차 열람] 과거 회차를 보고 있을 때는 완전히 별도의 읽기 전용 좌석 배치도를 렌더링한다.
           예매/팝콘/자리이동 등 인터랙션은 전부 제거되어 있고, 좌석 점유 표시에는 이름/학번 등 개인정보를 절대 노출하지 않는다. */}
-      {viewingPast && pastMovie ? (
+      {viewingPast && pastMovie && isPastSeatLoading ? (
+        <div className="w-full py-16 flex items-center justify-center">
+          <span className="text-slate-300 text-sm">좌석 정보를 불러오는 중...</span>
+        </div>
+      ) : viewingPast && pastMovie && !pastHasReservations ? null : viewingPast && pastMovie ? (
         <>
           <div className="relative w-full overflow-x-auto pb-8">
-            {isPastSeatLoading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/60 rounded-xl">
-                <span className="text-slate-300 text-sm">좌석 정보를 불러오는 중...</span>
-              </div>
-            )}
-
             <div className="flex flex-col items-center gap-1 md:gap-2 min-w-max px-4 pt-6 w-fit mx-auto relative">
 
               <div className="w-[70%] h-8 md:h-10 rounded-t-3xl flex items-center justify-center mb-8 md:mb-12 border-t border-white/40 bg-slate-400/70 shadow-[0_-10px_30px_rgba(255,255,255,0.1)]">
