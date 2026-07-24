@@ -113,8 +113,8 @@ export async function POST(req: Request) {
 
           ${statusType !== 'canceled' ? `
             <div style="margin-top: 35px; border-top: 1px dashed #ccc; padding-top: 20px; text-align: center;">
-              <p style="font-size: 13px; color: #555; margin-bottom: 12px;">본인이 예매하지 않으셨거나, 예매를 취소하고 싶으신가요?</p>
-              <a href="${baseUrl}/cancel?ticketId=${ticketId}" style="display: inline-block; background-color: #ef4444; color: white; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: bold;">🚨 비밀번호 변경 및 예매 취소</a>
+              <p style="font-size: 13px; color: #555; margin-bottom: 12px;">예매 내역 확인이나 변경은 아래에서 하실 수 있어요.</p>
+              <a href="${baseUrl}" style="display: inline-block; background-color: #E85D04; color: white; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: bold;">🎬 웹사이트에서 확인하기</a>
             </div>
           ` : ''}
         </div>
