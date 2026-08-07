@@ -3,8 +3,6 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/api-auth';
 
-export const runtime = 'edge';
-
 export async function POST(req: Request) {
   try {
     const auth = await requireAdmin(req);
