@@ -1,9 +1,10 @@
 // app/api/kiosk/route.ts
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(req: Request) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { action, payload } = await req.json();
 
     if (action === 'KIOSK_LOGIN') {

@@ -1,10 +1,11 @@
 // app/api/admin/action/route.ts
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/api-auth';
 
 export async function POST(req: Request) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const auth = await requireAdmin(req);
     if (!auth.ok) {
       return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });

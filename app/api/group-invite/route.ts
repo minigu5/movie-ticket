@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getTransporter } from '@/lib/mailer';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(req: Request) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { members, leaderName, movieTitle, movieDate, groupId, baseUrl } = await req.json();
 
     const { transporter, user: senderUser } = getTransporter();

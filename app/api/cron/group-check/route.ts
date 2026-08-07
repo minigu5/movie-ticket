@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getTransporter } from '@/lib/mailer';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const now = new Date().toISOString();
     // 1. 결과 메일이 발송되지 않았고 만료 시간이 지난 단체 리더 조회
     const { data: leadersToReport } = await supabaseAdmin

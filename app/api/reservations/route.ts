@@ -1,10 +1,11 @@
 // app/api/reservations/route.ts
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getUserFromRequest } from '@/lib/api-auth';
 
 export async function POST(req: Request) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const user = await getUserFromRequest(req);
     if (!user) return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
 
