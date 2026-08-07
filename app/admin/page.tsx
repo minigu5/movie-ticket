@@ -227,6 +227,7 @@ export default function AdminPage() {
       fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: ticket.email, name: ticket.student_name, seat: ticket.seat_number, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, statusType: 'confirmed', popcorn: ticket.popcorn_order, ticketId: ticket.id, baseUrl }) });
     }
     setReservations(prev => prev.map(r => r.id === ticket.id ? { ...r, payment_status: 'confirmed' } : r));
+    fetchAdminData();
     alert("승인 완료 및 이메일 발송됨!");
   };
 
@@ -249,6 +250,7 @@ export default function AdminPage() {
       });
     }
     setReservations(prev => prev.filter(r => r.id !== ticket.id));
+    fetchAdminData();
     alert("취소 완료 및 이메일 발송됨!");
   };
 
@@ -267,6 +269,7 @@ export default function AdminPage() {
     }
 
     setReservations(prev => prev.map(r => r.id === ticket.id ? { ...r, is_printed: false } : r));
+    fetchAdminData();
     alert("✅ 발권 상태가 초기화되었습니다.");
   };
 

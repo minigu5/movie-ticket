@@ -242,7 +242,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (profile) fetchInitialData();
+    fetchInitialData();
   }, [profile]);
 
   useEffect(() => {
@@ -717,24 +717,6 @@ export default function Home() {
     );
   }
 
-  if (!profile) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center select-none p-4">
-        <div style={{ fontFamily: "var(--font-song-myung), serif" }} className="text-center flex flex-col leading-tight z-10 text-slate-100 mb-10">
-          <span className="text-[50px] md:text-[70px] tracking-[0.1em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">영화</span>
-          <span className="text-[50px] md:text-[70px] tracking-[0.1em] drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">대교</span>
-        </div>
-        <p className="text-slate-400 text-sm mb-8 text-center">학교(@ts.hs.kr) 구글 계정으로 로그인해주세요.</p>
-        <button
-          onClick={() => signInWithGoogle().catch(() => showAlert('로그인에 실패했습니다.'))}
-          className="flex items-center gap-3 bg-white hover:bg-slate-100 text-slate-800 font-bold py-4 px-8 rounded-xl shadow-lg transition-all"
-        >
-          구글 계정으로 로그인
-        </button>
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center select-none overflow-hidden">
@@ -768,34 +750,36 @@ export default function Home() {
           </>
         )}
 
-        <div className="relative">
-          <button
-            onClick={() => setIsProfileMenuOpen(v => !v)}
-            aria-label="프로필 메뉴"
-            className="w-9 h-9 md:w-10 md:h-10 rounded-full overflow-hidden border border-white/20 bg-slate-800 hover:border-indigo-400/60 transition-all shadow-lg flex items-center justify-center shrink-0"
-          >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt={profile.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            ) : (
-              <span className="text-slate-300 font-bold text-sm">{profile.name.charAt(0)}</span>
-            )}
-          </button>
+        {profile && (
+          <div className="relative">
+            <button
+              onClick={() => setIsProfileMenuOpen(v => !v)}
+              aria-label="프로필 메뉴"
+              className="w-9 h-9 md:w-10 md:h-10 rounded-full overflow-hidden border border-white/20 bg-slate-800 hover:border-indigo-400/60 transition-all shadow-lg flex items-center justify-center shrink-0"
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={profile.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="text-slate-300 font-bold text-sm">{profile.name.charAt(0)}</span>
+              )}
+            </button>
 
-          {isProfileMenuOpen && (
-            <>
-              <div className="fixed inset-0 z-20" onClick={() => setIsProfileMenuOpen(false)} />
-              <div className="absolute right-0 mt-2 w-44 bg-slate-900 border border-white/10 rounded-xl shadow-2xl z-30 overflow-hidden">
-                <div className="px-3 py-3 border-b border-white/10">
-                  <p className="text-white text-sm font-bold truncate">{profile.name}</p>
-                  <p className="text-slate-500 text-xs truncate">{profile.email}</p>
+            {isProfileMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setIsProfileMenuOpen(false)} />
+                <div className="absolute right-0 mt-2 w-44 bg-slate-900 border border-white/10 rounded-xl shadow-2xl z-30 overflow-hidden">
+                  <div className="px-3 py-3 border-b border-white/10">
+                    <p className="text-white text-sm font-bold truncate">{profile.name}</p>
+                    <p className="text-slate-500 text-xs truncate">{profile.email}</p>
+                  </div>
+                  <button onClick={handleLogout} className="w-full text-left px-3 py-2.5 text-sm text-rose-400 hover:bg-white/5 font-bold transition-colors">
+                    🚪 로그아웃
+                  </button>
                 </div>
-                <button onClick={handleLogout} className="w-full text-left px-3 py-2.5 text-sm text-rose-400 hover:bg-white/5 font-bold transition-colors">
-                  🚪 로그아웃
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="relative flex flex-col items-center justify-center mb-10 mt-4 select-none group">
@@ -1104,7 +1088,7 @@ export default function Home() {
                 </div>
                 <div className="bg-slate-800 rounded-lg p-3 text-sm">
                   <p className="text-slate-300 mb-1">결제 금액: <span className="text-amber-400 font-bold">{((myReservation.popcorn && myReservation.popcorn !== 'none' ? myReservation.popcorn.split(',').length : 0) * 2500).toLocaleString()}원</span></p>
-                  <p className="text-slate-300">입금자명: <span className="text-indigo-400 font-bold">{profile.student_id ?? ''} {profile.name}</span></p>
+                  <p className="text-slate-300">입금자명: <span className="text-indigo-400 font-bold">{profile?.student_id ?? ''} {profile?.name}</span></p>
                 </div>
                 <button onClick={() => {
                   const existing = myReservation.popcorn && myReservation.popcorn !== 'none' ? myReservation.popcorn.split(',') : [];
@@ -1146,7 +1130,7 @@ export default function Home() {
         ) : selectedSeat ? (
           <>
             <p className="text-lg md:text-xl mb-6 text-slate-200">선택된 좌석: <span className="text-amber-400 font-bold text-3xl md:text-4xl ml-2 tracking-tighter drop-shadow-md">{selectedSeat}</span></p>
-            <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all text-white font-bold py-4 px-8 rounded-xl w-full text-lg border border-indigo-500">예매하기</button>
+            <button onClick={() => profile ? setIsModalOpen(true) : signInWithGoogle().catch(() => showAlert('로그인에 실패했습니다.'))} className="bg-indigo-600 hover:bg-indigo-500 hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all text-white font-bold py-4 px-8 rounded-xl w-full text-lg border border-indigo-500">예매하기</button>
           </>
         ) : <p className="text-slate-400 py-4 font-light">관람하실 좌석을 선택해주세요.</p>}
       </div>
@@ -1161,8 +1145,8 @@ export default function Home() {
               {!isAddPopcornMode && (
                 <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
                   <p className="text-slate-500 text-xs mb-1">예매자 (구글 계정으로 확인됨)</p>
-                  <p className="text-white font-bold text-lg">{profile.name} <span className="text-slate-400 font-normal text-sm">{profile.student_id ?? '교직원'}</span></p>
-                  <p className="text-slate-500 text-xs mt-1">{profile.email}</p>
+                  <p className="text-white font-bold text-lg">{profile?.name} <span className="text-slate-400 font-normal text-sm">{profile?.student_id ?? '교직원'}</span></p>
+                  <p className="text-slate-500 text-xs mt-1">{profile?.email}</p>
                 </div>
               )}
 
@@ -1222,7 +1206,7 @@ export default function Home() {
             <div className="mb-6"><AccountInfo /></div>
             <div className="bg-slate-800 rounded-xl p-4 text-left mb-6 border border-slate-700">
               <p className="text-sm text-slate-300 mb-1">결제 금액: <span className="text-amber-400 font-bold text-xl">{(popcornList.filter(p => p !== 'none').length * 2500).toLocaleString()}원</span></p>
-              <p className="text-sm text-slate-300">입금자명: <span className="text-indigo-400 font-bold">{profile.student_id ?? ''} {profile.name}</span></p>
+              <p className="text-sm text-slate-300">입금자명: <span className="text-indigo-400 font-bold">{profile?.student_id ?? ''} {profile?.name}</span></p>
             </div>
             <button onClick={() => { setIsPaymentModalOpen(false); setSelectedSeat(null); }} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold transition-all text-sm">닫기</button>
           </div>
