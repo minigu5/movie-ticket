@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getTransporter } from '@/lib/mailer';
+import { sendMail } from '@/lib/mailer';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(req: Request) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { members, leaderName, movieTitle, movieDate, groupId, baseUrl } = await req.json();
-
-    const { transporter, user: senderUser } = getTransporter();
 
     const memberIds = members.map((m: { memberId: string }) => m.memberId);
     const { data: rows } = await supabaseAdmin.from('reservations').select('id, email').in('id', memberIds);
@@ -63,8 +61,7 @@ export async function POST(req: Request) {
         </html>
       `;
 
-      return transporter.sendMail({
-        from: `"영화대교 예매시스템" <${senderUser}>`,
+      return sendMail({
         to: email,
         subject: `[영화대교] 🎬 ${member.name}님, 단체 관람에 초대되었습니다 - ${member.seat} 좌석`,
         html: htmlContent

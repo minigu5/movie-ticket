@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getTransporter } from '@/lib/mailer';
+import { sendMail } from '@/lib/mailer';
 
 export async function POST(req: Request) {
   try {
     const { email, name, seat, movieTitle, movieDate, statusType, popcorn, ticketId, baseUrl, isRefundNeeded } = await req.json();
-
-    const { transporter, user } = getTransporter();
 
     // 🌟 [추가됨] 다중 팝콘 분석 및 총액 계산
     const popcornArray = popcorn && popcorn !== 'none' ? popcorn.split(',') :[];
@@ -122,7 +120,7 @@ export async function POST(req: Request) {
       </html>
     `;
 
-    await transporter.sendMail({ from: `"영화대교 예매시스템" <${user}>`, to: email, subject, html: ticketHTML });
+    await sendMail({ to: email, subject, html: ticketHTML });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Mail Failed' }, { status: 500 });

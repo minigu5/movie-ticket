@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { getTransporter } from '@/lib/mailer';
+import { sendMail } from '@/lib/mailer';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +20,6 @@ export async function GET() {
       return NextResponse.json({ message: 'No groups to report found', processed: 0 });
     }
 
-    const { transporter, user: senderUser } = getTransporter();
     let processedGroups = 0;
 
     for (const leader of leadersToReport) {
@@ -51,8 +50,7 @@ export async function GET() {
         const email = getEmail(member);
         if (email) {
           try {
-            await transporter.sendMail({
-              from: `"영화대교 예매시스템" <${senderUser}>`,
+            await sendMail({
               to: email,
               subject: `[영화대교] 단체 예매 최종 결과 안내 (${confirmedMembers.length}명 확정)`,
               html: reportHtml
@@ -66,8 +64,7 @@ export async function GET() {
         const email = getEmail(expired);
         if (email) {
           try {
-            await transporter.sendMail({
-              from: `"영화대교 예매시스템" <${senderUser}>`,
+            await sendMail({
               to: email,
               subject: `[영화대교] ${expired.student_name}님의 단체 예매가 시간 초과로 취소되었습니다`,
               html: buildCancelEmail(expired.student_name, expired.seat_number, leader.student_name)

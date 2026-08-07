@@ -1,47 +1,49 @@
-import nodemailer from 'nodemailer';
+type SendMailParams = {
+  to: string;
+  subject: string;
+  html: string;
+};
 
-/**
- * [제로 코스트 이메일 로드 밸런싱]
- * Gmail SMTP의 500개/일 제한을 우회하기 위해 여러 계정을 랜덤하게 선택합니다.
- * 환경 변수: GMAIL_USER_1, GMAIL_APP_PASSWORD_1, GMAIL_USER_2... 순으로 로드합니다.
- */
-export function getTransporter() {
-  const accounts: { user: string; pass: string }[] = [];
-  let i = 1;
-  
-  // GMAIL_USER_1 부터 시작하여 번호가 매겨진 모든 계정 수집
-  while (process.env[`GMAIL_USER_${i}`]) {
-    accounts.push({
-      user: process.env[`GMAIL_USER_${i}`]!,
-      pass: process.env[`GMAIL_APP_PASSWORD_${i}`]!,
+const DEFAULT_FROM = '영화대교 예매시스템 <onboarding@resend.dev>';
+const MAX_ATTEMPTS = 4;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function sendMail({ to, subject, html }: SendMailParams): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error('❌ RESEND_API_KEY가 설정되지 않았습니다.');
+    throw new Error('No Resend API key configured.');
+  }
+
+  const from = process.env.RESEND_FROM_EMAIL || DEFAULT_FROM;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from, to, subject, html }),
     });
-    i++;
+
+    if (res.ok) return;
+
+    // Resend 무료 플랜은 초당 2건으로 제한됨. 429는 재시도하면 대부분 해결됨.
+    const isRateLimited = res.status === 429;
+    const isLastAttempt = attempt === MAX_ATTEMPTS;
+    if (!isRateLimited || isLastAttempt) {
+      const errorText = await res.text();
+      throw new Error(`Resend API error (${res.status}): ${errorText}`);
+    }
+
+    const retryAfterHeader = Number(res.headers.get('retry-after'));
+    const waitMs = Number.isFinite(retryAfterHeader) && retryAfterHeader > 0
+      ? retryAfterHeader * 1000
+      : 300 * attempt;
+    await sleep(waitMs);
   }
-
-  // 만약 번호가 매겨진 계정이 없으면 기존 GMAIL_USER 환경 변수 확인 (하위 호환성)
-  if (accounts.length === 0 && process.env.GMAIL_USER) {
-    accounts.push({
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD!,
-    });
-  }
-
-  if (accounts.length === 0) {
-    console.error("❌ 이메일 계정이 설정되지 않았습니다. (GMAIL_USER_1 등)");
-    throw new Error("No Gmail accounts configured for mailing.");
-  }
-
-  // 가용 계정 중 하나를 랜덤하게 선택
-  const randomIndex = Math.floor(Math.random() * accounts.length);
-  const selected = accounts[randomIndex];
-
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: selected.user,
-      pass: selected.pass,
-    },
-  });
-
-  return { transporter, user: selected.user };
 }
