@@ -51,3 +51,6 @@ next-env.d.ts
 .wrangler
 .dev.vars*
 !.dev.vars.example
+
+# supabase CLI local cache
+supabase/.temp/
