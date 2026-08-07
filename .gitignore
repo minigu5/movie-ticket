@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .superpowers/
+
+# git worktrees (local scratch, not real submodules)
+.claude/worktrees/
