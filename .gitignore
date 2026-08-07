@@ -43,3 +43,11 @@ next-env.d.ts
 
 # git worktrees (local scratch, not real submodules)
 .claude/worktrees/
+
+# OpenNext
+.open-next
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
