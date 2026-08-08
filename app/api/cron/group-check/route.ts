@@ -140,20 +140,20 @@ function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]):
   const isFullSuccess = expired.length === 0;
 
   const confirmedList = confirmed.map(m => `
-    <li style="margin:8px 0;padding:12px 14px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);border-radius:10px;list-style:none;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="color:#34d399;font-weight:700;">${escapeHtml(m.student_name)}</span>
-        <span style="background:#34d399;color:#052e1f;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700; font-variant-numeric: tabular-nums;">${escapeHtml(m.seat_number)}</span>
-      </div>
+    <li style="margin:8px 0;padding:0;list-style:none;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);border-radius:10px;"><tr>
+        <td style="padding:12px 14px; color:#34d399;font-weight:700;">${escapeHtml(m.student_name)}</td>
+        <td style="padding:12px 14px; text-align:right; white-space:nowrap;"><span style="background:#34d399;color:#052e1f;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700; font-variant-numeric: tabular-nums;">${escapeHtml(m.seat_number)}</span></td>
+      </tr></table>
     </li>
   `).join('');
 
   const expiredList = expired.map(m => `
-    <li style="margin:8px 0;padding:12px 14px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25);border-radius:10px;list-style:none;opacity:0.8;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="color:#f87171;font-weight:600;">${escapeHtml(m.student_name)}</span>
-        <span style="background:#ef4444;color:white;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700; font-variant-numeric: tabular-nums;">${escapeHtml(m.seat_number)}</span>
-      </div>
+    <li style="margin:8px 0;padding:0;list-style:none;opacity:0.8;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25);border-radius:10px;"><tr>
+        <td style="padding:12px 14px; color:#f87171;font-weight:600;">${escapeHtml(m.student_name)}</td>
+        <td style="padding:12px 14px; text-align:right; white-space:nowrap;"><span style="background:#ef4444;color:white;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700; font-variant-numeric: tabular-nums;">${escapeHtml(m.seat_number)}</span></td>
+      </tr></table>
     </li>
   `).join('');
 
