@@ -72,21 +72,21 @@ export async function POST(req: Request) {
             </div>
           </div>
 
-          <div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left;">
+          <div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161b26;">
 
-            <div style="background-color:#0b1120; background-image: linear-gradient(180deg, rgba(8,10,18,0.05) 0%, rgba(8,10,18,0.1) 22%, rgba(8,10,18,0.6) 42%, rgba(8,10,18,0.88) 62%, rgba(8,10,18,0.97) 82%, rgba(8,10,18,0.97) 100%), url('${posterSrc}'); background-size: 100% 100%, cover; background-position: top, top; background-repeat: no-repeat, no-repeat; padding: 18px 22px 26px 22px;">
+            <img src="${posterSrc}" alt="${safeMovieTitle}" width="380" style="display:block; width:100%; height:210px; object-fit:cover; object-position:top; background-color:#0b1120;" />
+
+            <div style="padding: 18px 22px 26px 22px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
                 <td style="vertical-align:top;">
-                  <span style="display:inline-block; background-color:rgba(0,0,0,0.45); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.5px; font-variant-numeric: tabular-nums;">🎫 판매번호 ${displayId}</span>
+                  <span style="display:inline-block; background-color:rgba(255,255,255,0.08); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.5px; font-variant-numeric: tabular-nums;">🎫 판매번호 ${displayId}</span>
                 </td>
                 <td style="width:44px; vertical-align:top; text-align:right;">
                   <span style="display:inline-block; width:44px; height:44px; background-color:#ffffff; border-radius:10px; text-align:center; line-height:44px; font-size:22px;">🎬</span>
                 </td>
               </tr></table>
 
-              <div style="height:170px; line-height:170px; font-size:1px;">&nbsp;</div>
-
-              <div style="color:#ffffff; font-size:23px; font-weight:800; line-height:1.3; text-shadow: 0 2px 10px rgba(0,0,0,0.5); margin-bottom: 6px;">${safeMovieTitle}</div>
+              <div style="color:#ffffff; font-size:23px; font-weight:800; line-height:1.3; margin-top: 16px; margin-bottom: 6px;">${safeMovieTitle}</div>
               <div style="color:#cbd5e1; font-size:12px; font-weight:600; letter-spacing:0.5px; margin-bottom: 20px;">2D · ${safeAgeRating || '전체관람가'}</div>
 
               <div style="margin-bottom: 10px;">
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
               </div>
               ${venue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600;">📍 ${safeVenue}</div>` : ''}
 
-              <div style="margin: 18px 0; padding: 12px 14px; background-color: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;">
+              <div style="margin: 18px 0; padding: 12px 14px; background-color: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;">
                 <div style="color:#e2e8f0; font-size:13px; font-weight:600; margin-bottom: 6px;">${popcornText}</div>
                 <div style="color:#94a3b8; font-size:12px; font-weight:600; font-variant-numeric: tabular-nums;">결제 금액 <span style="color:#e2e8f0; font-weight:700;">${priceText}</span></div>
               </div>
@@ -106,14 +106,14 @@ export async function POST(req: Request) {
                   <span style="color:#94a3b8; font-size:13px; font-weight:600; margin-left:8px;">${safeName} 님</span>
                 </td>
                 <td style="vertical-align:bottom; text-align:right; white-space:nowrap;">
-                  <span style="display:inline-block; padding: 7px 12px; background-color: rgba(0,0,0,0.6); border-radius: 8px; font-weight: 700; font-size: 12px; color: ${badgeColor}; border: 1px solid ${badgeColor};">
+                  <span style="display:inline-block; padding: 7px 12px; background-color: rgba(255,255,255,0.06); border-radius: 8px; font-weight: 700; font-size: 12px; color: ${badgeColor}; border: 1px solid ${badgeColor};">
                     ${badgeText}
                   </span>
                 </td>
               </tr></table>
             </div>
 
-            <div style="height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: rgba(8,10,18,0.97);"></div>
+            <div style="height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: #161b26;"></div>
           </div>
 
           ${statusType === 'pending' ? `

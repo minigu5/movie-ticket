@@ -44,21 +44,21 @@ export async function POST(req: Request) {
                 </div>
               </div>
 
-              <div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left;">
+              <div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161b26;">
 
-                <div style="background-color:#0b1120; background-image: linear-gradient(180deg, rgba(8,10,18,0.05) 0%, rgba(8,10,18,0.1) 22%, rgba(8,10,18,0.6) 42%, rgba(8,10,18,0.88) 62%, rgba(8,10,18,0.97) 82%, rgba(8,10,18,0.97) 100%), url('${posterSrc}'); background-size: 100% 100%, cover; background-position: top, top; background-repeat: no-repeat, no-repeat; padding: 18px 22px 26px 22px;">
-                  <span style="display:inline-block; background-color:rgba(0,0,0,0.45); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.5px;">🎬 단체 관람 초대장</span>
+                <img src="${posterSrc}" alt="${safeMovieTitle}" width="380" style="display:block; width:100%; height:210px; object-fit:cover; object-position:top; background-color:#0b1120;" />
 
-                  <div style="height:170px; line-height:170px; font-size:1px;">&nbsp;</div>
+                <div style="padding: 18px 22px 26px 22px;">
+                  <span style="display:inline-block; background-color:rgba(255,255,255,0.08); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.5px;">🎬 단체 관람 초대장</span>
 
-                  <div style="color:#ffffff; font-size:20px; font-weight:800; line-height:1.4; text-shadow: 0 2px 10px rgba(0,0,0,0.5); margin-bottom: 20px;">${safeMemberName}님, 단체 관람에<br/>초대되었습니다</div>
+                  <div style="color:#ffffff; font-size:20px; font-weight:800; line-height:1.4; margin-top: 16px; margin-bottom: 20px;">${safeMemberName}님, 단체 관람에<br/>초대되었습니다</div>
 
                   <div style="color:#f1f5f9; font-size:15px; font-weight:700; margin-bottom: 4px;">${safeMovieTitle}</div>
                   <div style="color:#94a3b8; font-size:13px; font-weight:600; margin-bottom: 4px;">${safeMovieDate}</div>
                   ${venue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600;">📍 ${safeVenue}</div>` : ''}
                   <div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px;">리더 ${safeLeaderName}님</div>
 
-                  <div style="margin: 18px 0; padding: 12px 14px; background-color: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.4); border-radius: 10px;">
+                  <div style="margin: 18px 0; padding: 12px 14px; background-color: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.4); border-radius: 10px;">
                     <div style="color:#fbbf24; font-size:13px; font-weight:700; margin-bottom: 4px;">⏰ 1시간 내로 예매를 확정해주세요</div>
                     <div style="color:#e5c07b; font-size:12px; font-weight:600;">미응답 시 좌석이 자동으로 해제됩니다.</div>
                   </div>
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
                   <div style="font-size: 44px; font-weight: 800; color: #ef4444; line-height: 1; font-variant-numeric: tabular-nums;">${safeMemberSeat}</div>
                 </div>
 
-                <div style="height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: rgba(8,10,18,0.97);"></div>
+                <div style="height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: #161b26;"></div>
               </div>
 
               <div style="margin-top: 30px;">
