@@ -77,8 +77,12 @@ async function assertSafeTarget(target: URL): Promise<void> {
   }
 
   const records = await lookup(hostname, { all: true });
-  if (records.length === 0) throw new Error('Could not resolve host');
-  for (const { address } of records) {
+  // workerd's node:dns lookup() polyfill can include CNAME chain entries
+  // alongside resolved A/AAAA records; isIP() rejects those, so filter to
+  // actual IP addresses before validating.
+  const ipRecords = records.filter((r) => isIP(r.address) !== 0);
+  if (ipRecords.length === 0) throw new Error('Could not resolve host');
+  for (const { address } of ipRecords) {
     if (!isPublicIp(address)) throw new Error('Target host is not allowed');
   }
 }
