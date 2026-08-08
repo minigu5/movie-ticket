@@ -101,18 +101,30 @@ function getEmail(reservation: any): string | null {
 
 function buildCancelEmail(name: string, seat: string, leaderName: string): string {
   return `
-    <!DOCTYPE html><html><head><meta name="color-scheme" content="light"></head>
-    <body style="margin:0;padding:0;">
-      <div style="background-color:#fceea7;padding:40px 10px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;text-align:center;">
-        <div style="max-width:380px;margin:0 auto;background-color:#2C3338;border-radius:16px;overflow:hidden;box-shadow:0 15px 25px rgba(0,0,0,0.2);">
-          <div style="padding:30px 25px;color:white;">
-            <p style="color:#ef4444;font-weight:bold;font-size:12px;letter-spacing:1px;margin:0 0 5px 0;">⏰ 시간 초과</p>
-            <h1 style="margin:0 0 20px 0;font-size:20px;line-height:1.4;">${name}님의 단체 예매가<br/>시간 초과로 취소되었습니다</h1>
-            <p style="color:#94a3b8;font-size:14px;">리더 ${leaderName}님의 단체 관람 초대에<br/>1시간 이내에 응답하지 않아 좌석(${seat})이 해제되었습니다.</p>
+    <!DOCTYPE html><html><head><meta name="color-scheme" content="light">
+      <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+        @import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');
+      </style>
+    </head>
+    <body style="margin:0;padding:0; -webkit-font-smoothing: antialiased;">
+      <div style="background-color:#0b1120;padding:40px 12px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;text-align:center;">
+
+        <div style="margin-bottom: 26px;">
+          <div style="font-family: 'Song Myung', serif; color: #f1f5f9; font-size: 28px; line-height: 1.15; letter-spacing: 0.1em; text-shadow: 0 0 18px rgba(255,255,255,0.25);">
+            영화<br/>대교
           </div>
-          <div style="background-color:#F3EFE6;padding:20px;text-align:center;">
-            <div style="font-size:36px;font-weight:900;color:#ef4444;text-decoration:line-through;">${seat}</div>
-            <div style="margin-top:10px;padding:8px;background-color:#FEE2E2;border-radius:8px;font-weight:bold;font-size:13px;color:#991B1B;border:1px solid #991B1B;">예매 취소됨</div>
+        </div>
+
+        <div style="max-width:380px;margin:0 auto;background-color:#161b26;border:1px solid #26303f;border-radius:20px;overflow:hidden;box-shadow:0 20px 45px rgba(0,0,0,0.55);text-align:left;">
+          <div style="padding:26px 24px;color:white;">
+            <p style="color:#f87171;font-weight:700;font-size:12px;letter-spacing:1px;margin:0 0 8px 0;">⏰ 시간 초과</p>
+            <h1 style="margin:0 0 14px 0;font-size:20px;font-weight:800;line-height:1.4;">${name}님의 단체 예매가<br/>시간 초과로 취소되었습니다</h1>
+            <p style="color:#94a3b8;font-size:14px;font-weight:600;line-height:1.5;">리더 ${leaderName}님의 단체 관람 초대에<br/>1시간 이내에 응답하지 않아 좌석(${seat})이 해제되었습니다.</p>
+          </div>
+          <div style="background-color:#eef0f4;padding:24px;text-align:center;">
+            <div style="font-size:44px;font-weight:800;color:#ef4444;text-decoration:line-through; font-variant-numeric: tabular-nums;">${seat}</div>
+            <div style="margin:12px auto 0 auto;padding:8px;max-width:150px;background-color:#FEE2E2;border-radius:8px;font-weight:700;font-size:13px;color:#991B1B;border:1px solid #991B1B;">예매 취소됨</div>
           </div>
         </div>
       </div>
@@ -122,67 +134,79 @@ function buildCancelEmail(name: string, seat: string, leaderName: string): strin
 
 function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]): string {
   const isFullSuccess = expired.length === 0;
-  
+
   const confirmedList = confirmed.map(m => `
-    <li style="margin:8px 0;padding:12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;list-style:none;">
+    <li style="margin:8px 0;padding:12px 14px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);border-radius:10px;list-style:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="color:#10b981;font-weight:bold;">${m.student_name}</span>
-        <span style="background:#10b981;color:white;padding:2px 8px;border-radius:5px;font-size:11px;">${m.seat_number}</span>
+        <span style="color:#34d399;font-weight:700;">${m.student_name}</span>
+        <span style="background:#34d399;color:#052e1f;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700; font-variant-numeric: tabular-nums;">${m.seat_number}</span>
       </div>
     </li>
   `).join('');
 
   const expiredList = expired.map(m => `
-    <li style="margin:8px 0;padding:12px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:10px;list-style:none;opacity:0.7;">
+    <li style="margin:8px 0;padding:12px 14px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25);border-radius:10px;list-style:none;opacity:0.8;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="color:#ef4444;">${m.student_name}</span>
-        <span style="background:#ef4444;color:white;padding:2px 8px;border-radius:5px;font-size:11px;">${m.seat_number}</span>
+        <span style="color:#f87171;font-weight:600;">${m.student_name}</span>
+        <span style="background:#ef4444;color:white;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700; font-variant-numeric: tabular-nums;">${m.seat_number}</span>
       </div>
     </li>
   `).join('');
 
   return `
-    <!DOCTYPE html><html><head><meta name="color-scheme" content="light"></head>
-    <body style="margin:0;padding:0;background-color:#fceea7;">
-      <div style="padding:40px 10px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;text-align:center;">
-        <div style="max-width:440px;margin:0 auto;background-color:#2C3338;border-radius:20px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.3);text-align:left;">
-          <div style="padding:30px 25px;color:white;">
-            <div style="text-align:center;margin-bottom:20px;">
+    <!DOCTYPE html><html><head><meta name="color-scheme" content="light">
+      <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+        @import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');
+      </style>
+    </head>
+    <body style="margin:0;padding:0; -webkit-font-smoothing: antialiased;">
+      <div style="background-color:#0b1120;padding:40px 12px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;text-align:center;">
+
+        <div style="margin-bottom: 26px;">
+          <div style="font-family: 'Song Myung', serif; color: #f1f5f9; font-size: 28px; line-height: 1.15; letter-spacing: 0.1em; text-shadow: 0 0 18px rgba(255,255,255,0.25);">
+            영화<br/>대교
+          </div>
+        </div>
+
+        <div style="max-width:440px;margin:0 auto;background-color:#161b26;border:1px solid #26303f;border-radius:20px;overflow:hidden;box-shadow:0 20px 45px rgba(0,0,0,0.55);text-align:left;">
+          <div style="padding:28px 25px;color:white;">
+            <div style="text-align:center;margin-bottom:18px;">
               <span style="font-size:40px;">${isFullSuccess ? '🎉' : '📋'}</span>
             </div>
-            <p style="color:${isFullSuccess ? '#10b981' : '#fbbf24'};font-weight:bold;font-size:12px;letter-spacing:2px;margin:0 0 10px 0;text-align:center;text-transform:uppercase;">
+            <p style="color:${isFullSuccess ? '#34d399' : '#fbbf24'};font-weight:700;font-size:12px;letter-spacing:2px;margin:0 0 10px 0;text-align:center;text-transform:uppercase;">
               ${isFullSuccess ? 'Mission Accomplished' : 'Group Status Report'}
             </p>
-            <h1 style="margin:0 0 10px 0;font-size:22px;text-align:center;line-height:1.4;">
+            <h1 style="margin:0 0 10px 0;font-size:22px;font-weight:800;text-align:center;line-height:1.4;">
               ${leaderName}님의 단체 예매<br/>최종 결과 안내
             </h1>
-            <p style="color:#94a3b8;font-size:14px;text-align:center;margin-bottom:30px;">
+            <p style="color:#94a3b8;font-size:14px;font-weight:600;text-align:center;margin-bottom:28px;">
               주어진 1시간의 유효 시간이 만료되었습니다.<br/>최종 확정된 멤버 명단을 확인해 주세요.
             </p>
 
             ${confirmed.length > 0 ? `
-              <div style="margin-bottom:25px;">
-                <p style="color:#10b981;font-weight:bold;font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:5px;">
+              <div style="margin-bottom:22px;">
+                <p style="color:#34d399;font-weight:700;font-size:14px;margin-bottom:10px;">
                   ✨ 확정된 멤버 (${confirmed.length}명)
                 </p>
-                <div style="padding:0;margin:0;">${confirmedList}</div>
+                <ul style="padding:0;margin:0;">${confirmedList}</ul>
               </div>
             ` : ''}
 
             ${expired.length > 0 ? `
               <div style="margin-bottom:10px;">
-                <p style="color:#ef4444;font-weight:bold;font-size:14px;margin-bottom:10px;">
+                <p style="color:#f87171;font-weight:700;font-size:14px;margin-bottom:10px;">
                   ⏰ 시간 초과 (${expired.length}명)
                 </p>
-                <div style="padding:0;margin:0;">${expiredList}</div>
-                <p style="color:#64748b;font-size:11px;margin-top:10px;">* 위 좌석은 시간 초과로 인해 자동으로 예매가 취소 및 해제되었습니다.</p>
+                <ul style="padding:0;margin:0;">${expiredList}</ul>
+                <p style="color:#64748b;font-size:11px;font-weight:600;margin-top:10px;">* 위 좌석은 시간 초과로 인해 자동으로 예매가 취소 및 해제되었습니다.</p>
               </div>
             ` : ''}
           </div>
-          
-          <div style="background-color:rgba(0,0,0,0.2);padding:20px;text-align:center;border-top:1px solid rgba(255,255,255,0.05);">
-            <p style="color:#94a3b8;font-size:12px;margin:0;">본 메일은 시스템에 의해 자동으로 발송되었습니다.</p>
-            <p style="color:#4f46e5;font-weight:bold;font-size:13px;margin:5px 0 0 0;">🎬 영화대교 Ticketing System</p>
+
+          <div style="background-color:rgba(0,0,0,0.25);padding:18px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);">
+            <p style="color:#64748b;font-size:12px;margin:0;">본 메일은 시스템에 의해 자동으로 발송되었습니다.</p>
+            <p style="color:#ef4444;font-weight:700;font-size:13px;margin:5px 0 0 0;">🎬 영화대교 Ticketing System</p>
           </div>
         </div>
       </div>

@@ -5,7 +5,8 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 export async function POST(req: Request) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const { members, leaderName, movieTitle, movieDate, groupId, baseUrl } = await req.json();
+    const { members, leaderName, movieTitle, movieDate, venue, posterUrl, groupId, baseUrl } = await req.json();
+    const posterSrc = posterUrl || `${baseUrl}/next.svg`;
 
     const memberIds = members.map((m: { memberId: string }) => m.memberId);
     const { data: rows } = await supabaseAdmin.from('reservations').select('id, email').in('id', memberIds);
@@ -22,40 +23,63 @@ export async function POST(req: Request) {
         <html>
         <head>
           <meta name="color-scheme" content="light">
+          <style>
+            @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+            @import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');
+          </style>
         </head>
-        <body style="margin:0; padding:0;">
-          <div style="background-color: #0f172a; padding: 40px 10px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; text-align: center;">
-            <div style="max-width: 420px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5); border: 1px solid #334155;">
-              
-              <div style="background: linear-gradient(135deg, #059669, #0d9488); padding: 25px 20px; text-align: center;">
-                <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin: 0 0 8px 0; letter-spacing: 2px; font-weight: bold;">🎬 단체 관람 초대장</p>
-                <h1 style="color: white; font-size: 22px; margin: 0; line-height: 1.4;">${member.name}님,<br/>단체 관람에 초대되었습니다</h1>
-              </div>
-
-              <div style="padding: 30px 25px;">
-                <div style="background-color: #0f172a; border-left: 3px solid #10b981; padding: 15px; margin-bottom: 20px; border-radius: 0 8px 8px 0;">
-                  <p style="color: #94a3b8; font-size: 13px; margin: 0 0 5px 0;"><strong style="color: #10b981;">리더:</strong> ${leaderName}</p>
-                  <p style="color: #94a3b8; font-size: 13px; margin: 0 0 5px 0;"><strong style="color: #10b981;">🎬 영화:</strong> ${movieTitle}</p>
-                  <p style="color: #94a3b8; font-size: 13px; margin: 0;"><strong style="color: #10b981;">⏰ 일시:</strong> ${movieDate}</p>
-                </div>
-
-                <div style="background-color: #0f172a; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
-                  <p style="color: #64748b; font-size: 12px; font-weight: bold; letter-spacing: 2px; margin: 0 0 5px 0;">YOUR SEAT</p>
-                  <p style="color: #10b981; font-size: 42px; font-weight: 900; margin: 0; line-height: 1;">${member.seat}</p>
-                </div>
-
-                <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin-bottom: 25px;">
-                  <p style="color: #92400e; font-size: 13px; font-weight: bold; margin: 0;">⏰ 1시간 내로 예매를 확정해야 단체 관람에 포함됩니다.</p>
-                  <p style="color: #a16207; font-size: 11px; margin: 5px 0 0 0;">미응답 시 좌석이 자동으로 해제됩니다.</p>
-                </div>
-
-                <a href="${confirmUrl}" style="display: block; background-color: #10b981; color: white; text-align: center; text-decoration: none; padding: 18px; border-radius: 12px; font-weight: 900; font-size: 16px; box-shadow: 0 0 20px rgba(16,185,129,0.4); letter-spacing: 1px;">✅ 예매 확정하러 가기</a>
-              </div>
+        <body style="margin:0; padding:0; -webkit-font-smoothing: antialiased; background-color:#0b1120;">
+          <div style="position:relative; background-color: #0b1120;">
+            <div style="position:absolute; inset:0; overflow:hidden;">
+              <img src="${posterSrc}" alt="" style="position:absolute; top:50%; left:50%; width:160%; height:160%; transform: translate(-50%, -50%) scale(1.15); object-fit:cover; filter: blur(50px) saturate(1.3) brightness(0.55);" />
+              <div style="position:absolute; inset:0; background: rgba(11,17,32,0.55);"></div>
             </div>
 
-            <p style="color: #475569; font-size: 10px; margin-top: 20px; letter-spacing: 2px;">
-              Powered by 영화대교
-            </p>
+            <div style="position:relative; padding: 40px 12px; font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; text-align: center;">
+
+              <div style="margin-bottom: 26px;">
+                <div style="font-family: 'Song Myung', serif; color: #f1f5f9; font-size: 28px; line-height: 1.15; letter-spacing: 0.1em; text-shadow: 0 0 18px rgba(255,255,255,0.25);">
+                  영화<br/>대교
+                </div>
+              </div>
+
+              <div style="position: relative; margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left;">
+
+                <img src="${posterSrc}" alt="${movieTitle}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position: top; background-color:#0b1120;" />
+                <div style="position:absolute; inset:0; background: linear-gradient(180deg, rgba(8,10,18,0.05) 0%, rgba(8,10,18,0.1) 22%, rgba(8,10,18,0.6) 42%, rgba(8,10,18,0.88) 62%, rgba(8,10,18,0.97) 82%, rgba(8,10,18,0.97) 100%);"></div>
+
+                <div style="position:relative; padding: 18px 22px 26px 22px;">
+                  <div style="display:inline-block; background-color:rgba(0,0,0,0.4); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.5px;">🎬 단체 관람 초대장</div>
+
+                  <div style="height:170px;"></div>
+
+                  <div style="color:#ffffff; font-size:20px; font-weight:800; line-height:1.4; text-wrap: balance; text-shadow: 0 2px 10px rgba(0,0,0,0.5); margin-bottom: 20px;">${member.name}님, 단체 관람에<br/>초대되었습니다</div>
+
+                  <div style="color:#f1f5f9; font-size:15px; font-weight:700; margin-bottom: 4px;">${movieTitle}</div>
+                  <div style="color:#94a3b8; font-size:13px; font-weight:600; margin-bottom: 4px;">${movieDate}</div>
+                  ${venue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600;">📍 ${venue}</div>` : ''}
+                  <div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px;">리더 ${leaderName}님</div>
+
+                  <div style="margin: 18px 0; padding: 12px 14px; background-color: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.4); border-radius: 10px;">
+                    <div style="color:#fbbf24; font-size:13px; font-weight:700; margin-bottom: 4px;">⏰ 1시간 내로 예매를 확정해주세요</div>
+                    <div style="color:#e5c07b; font-size:12px; font-weight:600;">미응답 시 좌석이 자동으로 해제됩니다.</div>
+                  </div>
+
+                  <div style="font-size: 12px; font-weight: 700; letter-spacing: 2px; color: #64748b; margin-bottom: 4px;">YOUR SEAT</div>
+                  <div style="font-size: 44px; font-weight: 800; color: #ef4444; line-height: 1; font-variant-numeric: tabular-nums;">${member.seat}</div>
+                </div>
+
+                <div style="position:relative; height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: rgba(8,10,18,0.97);"></div>
+              </div>
+
+              <div style="margin-top: 30px;">
+                <a href="${confirmUrl}" style="display: inline-block; background-color: #ef4444; color: #ffffff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: 800;">✅ 예매 확정하러 가기</a>
+              </div>
+
+              <p style="color: #475569; font-size: 10px; margin-top: 24px; letter-spacing: 2px;">
+                Powered by 영화대교
+              </p>
+            </div>
           </div>
         </body>
         </html>
