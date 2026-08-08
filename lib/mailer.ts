@@ -1,49 +1,82 @@
+import nodemailer from 'nodemailer';
+
 type SendMailParams = {
   to: string;
   subject: string;
   html: string;
 };
 
-const DEFAULT_FROM = '영화대교 예매시스템 <onboarding@resend.dev>';
 const MAX_ATTEMPTS = 4;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function sendMail({ to, subject, html }: SendMailParams): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.error('❌ RESEND_API_KEY가 설정되지 않았습니다.');
-    throw new Error('No Resend API key configured.');
-  }
+/**
+ * [제로 코스트 이메일 로드 밸런싱]
+ * Gmail SMTP의 500개/일 제한을 우회하기 위해 여러 계정을 랜덤하게 선택합니다.
+ * 환경 변수: GMAIL_USER_1, GMAIL_APP_PASSWORD_1, GMAIL_USER_2... 순으로 로드합니다.
+ */
+function getAccounts(): { user: string; pass: string }[] {
+  const accounts: { user: string; pass: string }[] = [];
+  let i = 1;
 
-  const from = process.env.RESEND_FROM_EMAIL || DEFAULT_FROM;
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ from, to, subject, html }),
+  while (process.env[`GMAIL_USER_${i}`]) {
+    accounts.push({
+      user: process.env[`GMAIL_USER_${i}`]!,
+      pass: process.env[`GMAIL_APP_PASSWORD_${i}`]!,
     });
-
-    if (res.ok) return;
-
-    // Resend 무료 플랜은 초당 2건으로 제한됨. 429는 재시도하면 대부분 해결됨.
-    const isRateLimited = res.status === 429;
-    const isLastAttempt = attempt === MAX_ATTEMPTS;
-    if (!isRateLimited || isLastAttempt) {
-      const errorText = await res.text();
-      throw new Error(`Resend API error (${res.status}): ${errorText}`);
-    }
-
-    const retryAfterHeader = Number(res.headers.get('retry-after'));
-    const waitMs = Number.isFinite(retryAfterHeader) && retryAfterHeader > 0
-      ? retryAfterHeader * 1000
-      : 300 * attempt;
-    await sleep(waitMs);
+    i++;
   }
+
+  // 만약 번호가 매겨진 계정이 없으면 기존 GMAIL_USER 환경 변수 확인 (하위 호환성)
+  if (accounts.length === 0 && process.env.GMAIL_USER) {
+    accounts.push({
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD!,
+    });
+  }
+
+  if (accounts.length === 0) {
+    console.error('❌ 이메일 계정이 설정되지 않았습니다. (GMAIL_USER_1 등)');
+    throw new Error('No Gmail accounts configured for mailing.');
+  }
+
+  return accounts;
+}
+
+export async function sendMail({ to, subject, html }: SendMailParams): Promise<void> {
+  const accounts = getAccounts();
+
+  let lastError: unknown;
+
+  // Cloudflare Workers(workerd)의 raw TCP 소켓 지원이 불완전해 Gmail SMTP 연결이
+  // 간헐적으로 "Failed to resolve IPv4 addresses" 등으로 실패한다. 계정을 바꿔가며
+  // 백오프 재시도하면 대부분 다음 시도에서 성공한다.
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const account = accounts[Math.floor(Math.random() * accounts.length)];
+
+    try {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: account.user, pass: account.pass },
+      });
+
+      await transporter.sendMail({
+        from: `"영화대교 예매시스템" <${account.user}>`,
+        to,
+        subject,
+        html,
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+      console.error(`❌ 메일 발송 실패 (시도 ${attempt}/${MAX_ATTEMPTS}, 계정: ${account.user}):`, error);
+
+      if (attempt === MAX_ATTEMPTS) break;
+      await sleep(300 * attempt);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Mail send failed after retries.');
 }
