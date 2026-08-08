@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendMail } from '@/lib/mailer';
+import { escapeHtml } from '@/lib/escapeHtml';
 
 export async function POST(req: Request) {
   try {
@@ -43,7 +44,14 @@ export async function POST(req: Request) {
 
     const displayId = ticketId ? ticketId.split('-')[0].toUpperCase() : 'UNKNOWN';
 
-    const posterSrc = posterUrl || `${baseUrl}/next.svg`;
+    const posterSrc = escapeHtml(posterUrl || `${baseUrl}/next.svg`);
+    const safeBaseUrl = escapeHtml(baseUrl);
+    const safeMovieTitle = escapeHtml(movieTitle);
+    const safeMovieDate = escapeHtml(movieDate);
+    const safeVenue = escapeHtml(venue);
+    const safeAgeRating = escapeHtml(ageRating);
+    const safeSeat = escapeHtml(seat);
+    const safeName = escapeHtml(name);
 
     const ticketHTML = `
       <!DOCTYPE html>
@@ -72,7 +80,7 @@ export async function POST(req: Request) {
 
           <div style="position: relative; margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left;">
 
-            <img src="${posterSrc}" alt="${movieTitle}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position: top; background-color:#0b1120;" />
+            <img src="${posterSrc}" alt="${safeMovieTitle}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position: top; background-color:#0b1120;" />
             <div style="position:absolute; inset:0; background: linear-gradient(180deg, rgba(8,10,18,0.05) 0%, rgba(8,10,18,0.1) 22%, rgba(8,10,18,0.6) 42%, rgba(8,10,18,0.88) 62%, rgba(8,10,18,0.97) 82%, rgba(8,10,18,0.97) 100%);"></div>
 
             <div style="position:relative; padding: 18px 22px 26px 22px;">
@@ -83,14 +91,14 @@ export async function POST(req: Request) {
 
               <div style="height:170px;"></div>
 
-              <div style="color:#ffffff; font-size:23px; font-weight:800; line-height:1.3; text-wrap: balance; text-shadow: 0 2px 10px rgba(0,0,0,0.5); margin-bottom: 6px;">${movieTitle}</div>
-              <div style="color:#cbd5e1; font-size:12px; font-weight:600; letter-spacing:0.5px; margin-bottom: 20px;">2D · ${ageRating || '전체관람가'}</div>
+              <div style="color:#ffffff; font-size:23px; font-weight:800; line-height:1.3; text-wrap: balance; text-shadow: 0 2px 10px rgba(0,0,0,0.5); margin-bottom: 6px;">${safeMovieTitle}</div>
+              <div style="color:#cbd5e1; font-size:12px; font-weight:600; letter-spacing:0.5px; margin-bottom: 20px;">2D · ${safeAgeRating || '전체관람가'}</div>
 
               <div style="margin-bottom: 10px;">
-                <span style="color:#f1f5f9; font-size:15px; font-weight:700; font-variant-numeric: tabular-nums;">${movieDate}</span>
+                <span style="color:#f1f5f9; font-size:15px; font-weight:700; font-variant-numeric: tabular-nums;">${safeMovieDate}</span>
                 <span style="color:#ef4444; font-size:13px; margin-left:6px;">↻</span>
               </div>
-              ${venue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600;">📍 ${venue}</div>` : ''}
+              ${venue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600;">📍 ${safeVenue}</div>` : ''}
 
               <div style="margin: 18px 0; padding: 12px 14px; background-color: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;">
                 <div style="color:#e2e8f0; font-size:13px; font-weight:600; margin-bottom: 6px;">${popcornText}</div>
@@ -99,8 +107,8 @@ export async function POST(req: Request) {
 
               <div style="display:flex; justify-content:space-between; align-items:flex-end;">
                 <div style="display:flex; align-items:baseline; gap:8px;">
-                  <span style="font-size: 44px; font-weight: 800; color: #ef4444; text-decoration: ${statusType === 'canceled' ? 'line-through' : 'none'}; line-height: 1; font-variant-numeric: tabular-nums;">${seat}</span>
-                  <span style="color:#94a3b8; font-size:13px; font-weight:600;">${name} 님</span>
+                  <span style="font-size: 44px; font-weight: 800; color: #ef4444; text-decoration: ${statusType === 'canceled' ? 'line-through' : 'none'}; line-height: 1; font-variant-numeric: tabular-nums;">${safeSeat}</span>
+                  <span style="color:#94a3b8; font-size:13px; font-weight:600;">${safeName} 님</span>
                 </div>
                 <div style="padding: 7px 12px; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); border-radius: 8px; font-weight: 700; font-size: 12px; color: ${badgeColor}; border: 1px solid ${badgeColor};">
                   ${badgeText}
@@ -114,7 +122,7 @@ export async function POST(req: Request) {
           ${statusType === 'pending' ? `
             <p style="margin-top: 25px; color: #fbbf24; font-weight: bold; font-size: 14px;">⚠️ 30분 내로 아래 QR코드로 입금해주세요. (총액: ${formattedPrice}원)</p>
             <div style="margin-top: 15px; text-align: center;">
-              <img src="${baseUrl}/qr.jpeg" alt="송금 QR" width="150" height="150" style="border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);" />
+              <img src="${safeBaseUrl}/qr.jpeg" alt="송금 QR" width="150" height="150" style="border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);" />
             </div>
             <div style="margin: 15px auto 0 auto; max-width: 320px; background-color: #161b26; border: 1px solid #26303f; border-radius: 10px; padding: 12px 14px; text-align: left;">
               <div style="font-size: 10px; letter-spacing: 2px; color: #64748b; font-weight: bold; text-transform: uppercase; margin-bottom: 4px;">계좌번호</div>
@@ -134,7 +142,7 @@ export async function POST(req: Request) {
           ${statusType !== 'canceled' ? `
             <div style="margin-top: 30px; border-top: 1px dashed #26303f; padding-top: 18px; text-align: center;">
               <p style="font-size: 13px; color: #94a3b8; margin-bottom: 12px;">예매 내역 확인이나 변경은 아래에서 하실 수 있어요.</p>
-              <a href="${baseUrl}" style="display: inline-block; background-color: #ef4444; color: #ffffff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700;">🎬 웹사이트에서 확인하기</a>
+              <a href="${safeBaseUrl}" style="display: inline-block; background-color: #ef4444; color: #ffffff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700;">🎬 웹사이트에서 확인하기</a>
             </div>
           ` : ''}
           </div>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { sendMail } from '@/lib/mailer';
+import { escapeHtml } from '@/lib/escapeHtml';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,6 +101,9 @@ function getEmail(reservation: any): string | null {
 }
 
 function buildCancelEmail(name: string, seat: string, leaderName: string): string {
+  const safeName = escapeHtml(name);
+  const safeSeat = escapeHtml(seat);
+  const safeLeaderName = escapeHtml(leaderName);
   return `
     <!DOCTYPE html><html><head><meta name="color-scheme" content="light">
       <style>
@@ -119,11 +123,11 @@ function buildCancelEmail(name: string, seat: string, leaderName: string): strin
         <div style="max-width:380px;margin:0 auto;background-color:#161b26;border:1px solid #26303f;border-radius:20px;overflow:hidden;box-shadow:0 20px 45px rgba(0,0,0,0.55);text-align:left;">
           <div style="padding:26px 24px;color:white;">
             <p style="color:#f87171;font-weight:700;font-size:12px;letter-spacing:1px;margin:0 0 8px 0;">⏰ 시간 초과</p>
-            <h1 style="margin:0 0 14px 0;font-size:20px;font-weight:800;line-height:1.4;">${name}님의 단체 예매가<br/>시간 초과로 취소되었습니다</h1>
-            <p style="color:#94a3b8;font-size:14px;font-weight:600;line-height:1.5;">리더 ${leaderName}님의 단체 관람 초대에<br/>1시간 이내에 응답하지 않아 좌석(${seat})이 해제되었습니다.</p>
+            <h1 style="margin:0 0 14px 0;font-size:20px;font-weight:800;line-height:1.4;">${safeName}님의 단체 예매가<br/>시간 초과로 취소되었습니다</h1>
+            <p style="color:#94a3b8;font-size:14px;font-weight:600;line-height:1.5;">리더 ${safeLeaderName}님의 단체 관람 초대에<br/>1시간 이내에 응답하지 않아 좌석(${safeSeat})이 해제되었습니다.</p>
           </div>
           <div style="background-color:#eef0f4;padding:24px;text-align:center;">
-            <div style="font-size:44px;font-weight:800;color:#ef4444;text-decoration:line-through; font-variant-numeric: tabular-nums;">${seat}</div>
+            <div style="font-size:44px;font-weight:800;color:#ef4444;text-decoration:line-through; font-variant-numeric: tabular-nums;">${safeSeat}</div>
             <div style="margin:12px auto 0 auto;padding:8px;max-width:150px;background-color:#FEE2E2;border-radius:8px;font-weight:700;font-size:13px;color:#991B1B;border:1px solid #991B1B;">예매 취소됨</div>
           </div>
         </div>
@@ -138,8 +142,8 @@ function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]):
   const confirmedList = confirmed.map(m => `
     <li style="margin:8px 0;padding:12px 14px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);border-radius:10px;list-style:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="color:#34d399;font-weight:700;">${m.student_name}</span>
-        <span style="background:#34d399;color:#052e1f;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700; font-variant-numeric: tabular-nums;">${m.seat_number}</span>
+        <span style="color:#34d399;font-weight:700;">${escapeHtml(m.student_name)}</span>
+        <span style="background:#34d399;color:#052e1f;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700; font-variant-numeric: tabular-nums;">${escapeHtml(m.seat_number)}</span>
       </div>
     </li>
   `).join('');
@@ -147,8 +151,8 @@ function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]):
   const expiredList = expired.map(m => `
     <li style="margin:8px 0;padding:12px 14px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25);border-radius:10px;list-style:none;opacity:0.8;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="color:#f87171;font-weight:600;">${m.student_name}</span>
-        <span style="background:#ef4444;color:white;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700; font-variant-numeric: tabular-nums;">${m.seat_number}</span>
+        <span style="color:#f87171;font-weight:600;">${escapeHtml(m.student_name)}</span>
+        <span style="background:#ef4444;color:white;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700; font-variant-numeric: tabular-nums;">${escapeHtml(m.seat_number)}</span>
       </div>
     </li>
   `).join('');
@@ -178,7 +182,7 @@ function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]):
               ${isFullSuccess ? 'Mission Accomplished' : 'Group Status Report'}
             </p>
             <h1 style="margin:0 0 10px 0;font-size:22px;font-weight:800;text-align:center;line-height:1.4;">
-              ${leaderName}님의 단체 예매<br/>최종 결과 안내
+              ${escapeHtml(leaderName)}님의 단체 예매<br/>최종 결과 안내
             </h1>
             <p style="color:#94a3b8;font-size:14px;font-weight:600;text-align:center;margin-bottom:28px;">
               주어진 1시간의 유효 시간이 만료되었습니다.<br/>최종 확정된 멤버 명단을 확인해 주세요.

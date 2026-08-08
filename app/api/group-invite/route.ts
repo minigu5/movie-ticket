@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server';
 import { sendMail } from '@/lib/mailer';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { escapeHtml } from '@/lib/escapeHtml';
 
 export async function POST(req: Request) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { members, leaderName, movieTitle, movieDate, venue, posterUrl, groupId, baseUrl } = await req.json();
-    const posterSrc = posterUrl || `${baseUrl}/next.svg`;
+    const posterSrc = escapeHtml(posterUrl || `${baseUrl}/next.svg`);
+    const safeMovieTitle = escapeHtml(movieTitle);
+    const safeMovieDate = escapeHtml(movieDate);
+    const safeVenue = escapeHtml(venue);
+    const safeLeaderName = escapeHtml(leaderName);
 
     const memberIds = members.map((m: { memberId: string }) => m.memberId);
     const { data: rows } = await supabaseAdmin.from('reservations').select('id, email').in('id', memberIds);
@@ -17,6 +22,8 @@ export async function POST(req: Request) {
       if (!email) return Promise.resolve();
 
       const confirmUrl = `${baseUrl}/group-confirm?groupId=${groupId}&memberId=${member.memberId}`;
+      const safeMemberName = escapeHtml(member.name);
+      const safeMemberSeat = escapeHtml(member.seat);
 
       const htmlContent = `
         <!DOCTYPE html>
@@ -45,7 +52,7 @@ export async function POST(req: Request) {
 
               <div style="position: relative; margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left;">
 
-                <img src="${posterSrc}" alt="${movieTitle}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position: top; background-color:#0b1120;" />
+                <img src="${posterSrc}" alt="${safeMovieTitle}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position: top; background-color:#0b1120;" />
                 <div style="position:absolute; inset:0; background: linear-gradient(180deg, rgba(8,10,18,0.05) 0%, rgba(8,10,18,0.1) 22%, rgba(8,10,18,0.6) 42%, rgba(8,10,18,0.88) 62%, rgba(8,10,18,0.97) 82%, rgba(8,10,18,0.97) 100%);"></div>
 
                 <div style="position:relative; padding: 18px 22px 26px 22px;">
@@ -53,12 +60,12 @@ export async function POST(req: Request) {
 
                   <div style="height:170px;"></div>
 
-                  <div style="color:#ffffff; font-size:20px; font-weight:800; line-height:1.4; text-wrap: balance; text-shadow: 0 2px 10px rgba(0,0,0,0.5); margin-bottom: 20px;">${member.name}님, 단체 관람에<br/>초대되었습니다</div>
+                  <div style="color:#ffffff; font-size:20px; font-weight:800; line-height:1.4; text-wrap: balance; text-shadow: 0 2px 10px rgba(0,0,0,0.5); margin-bottom: 20px;">${safeMemberName}님, 단체 관람에<br/>초대되었습니다</div>
 
-                  <div style="color:#f1f5f9; font-size:15px; font-weight:700; margin-bottom: 4px;">${movieTitle}</div>
-                  <div style="color:#94a3b8; font-size:13px; font-weight:600; margin-bottom: 4px;">${movieDate}</div>
-                  ${venue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600;">📍 ${venue}</div>` : ''}
-                  <div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px;">리더 ${leaderName}님</div>
+                  <div style="color:#f1f5f9; font-size:15px; font-weight:700; margin-bottom: 4px;">${safeMovieTitle}</div>
+                  <div style="color:#94a3b8; font-size:13px; font-weight:600; margin-bottom: 4px;">${safeMovieDate}</div>
+                  ${venue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600;">📍 ${safeVenue}</div>` : ''}
+                  <div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px;">리더 ${safeLeaderName}님</div>
 
                   <div style="margin: 18px 0; padding: 12px 14px; background-color: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.4); border-radius: 10px;">
                     <div style="color:#fbbf24; font-size:13px; font-weight:700; margin-bottom: 4px;">⏰ 1시간 내로 예매를 확정해주세요</div>
@@ -66,7 +73,7 @@ export async function POST(req: Request) {
                   </div>
 
                   <div style="font-size: 12px; font-weight: 700; letter-spacing: 2px; color: #64748b; margin-bottom: 4px;">YOUR SEAT</div>
-                  <div style="font-size: 44px; font-weight: 800; color: #ef4444; line-height: 1; font-variant-numeric: tabular-nums;">${member.seat}</div>
+                  <div style="font-size: 44px; font-weight: 800; color: #ef4444; line-height: 1; font-variant-numeric: tabular-nums;">${safeMemberSeat}</div>
                 </div>
 
                 <div style="position:relative; height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: rgba(8,10,18,0.97);"></div>
