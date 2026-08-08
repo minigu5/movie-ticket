@@ -7,7 +7,9 @@ export async function POST(req: Request) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { members, leaderName, movieTitle, movieDate, venue, posterUrl, groupId, baseUrl } = await req.json();
-    const posterSrc = escapeHtml(posterUrl || `${baseUrl}/next.svg`);
+    const posterSrc = escapeHtml(
+      posterUrl ? `${baseUrl}/api/poster-image?src=${encodeURIComponent(posterUrl)}` : `${baseUrl}/next.svg`
+    );
     const safeMovieTitle = escapeHtml(movieTitle);
     const safeMovieDate = escapeHtml(movieDate);
     const safeVenue = escapeHtml(venue);

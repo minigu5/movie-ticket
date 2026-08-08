@@ -44,7 +44,9 @@ export async function POST(req: Request) {
 
     const displayId = ticketId ? ticketId.split('-')[0].toUpperCase() : 'UNKNOWN';
 
-    const posterSrc = escapeHtml(posterUrl || `${baseUrl}/next.svg`);
+    const posterSrc = escapeHtml(
+      posterUrl ? `${baseUrl}/api/poster-image?src=${encodeURIComponent(posterUrl)}` : `${baseUrl}/next.svg`
+    );
     const safeBaseUrl = escapeHtml(baseUrl);
     const safeMovieTitle = escapeHtml(movieTitle);
     const safeMovieDate = escapeHtml(movieDate);
