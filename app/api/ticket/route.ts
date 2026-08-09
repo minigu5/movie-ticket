@@ -85,7 +85,9 @@ export async function POST(req: Request) {
     } satisfies TicketCardProps);
 
     const cardMarkup = composedCard
-      ? `<img src="cid:composedCard" alt="${safeMovieTitle}" width="380" style="display:block; width:100%; border-radius:20px; box-shadow: 0 20px 45px rgba(0,0,0,0.55);" />`
+      ? `<div style="margin: 0 auto; width: 100%; max-width: 520px;">
+            <img src="cid:composedCard" alt="${safeMovieTitle}" width="520" style="display:block; width:100%; height:auto;" />
+          </div>`
       : `<div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161b26;">
             <img src="${posterSrc}" alt="${safeMovieTitle}" width="380" style="display:block; width:100%; height:210px; object-fit:cover; object-position:top; background-color:#0b1120;" />
             <div style="padding: 18px 22px 26px 22px;">
@@ -136,11 +138,13 @@ export async function POST(req: Request) {
       <body style="margin:0; padding:0; -webkit-font-smoothing: antialiased; background-color:#0b1120;">
           <div style="padding: 40px 12px; font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; text-align: center;">
 
+          ${!composedCard ? `
           <div style="margin-bottom: 26px;">
             <div style="font-family: 'Song Myung', serif; color: #f1f5f9; font-size: 28px; line-height: 1.15; letter-spacing: 0.1em; text-shadow: 0 0 18px rgba(255,255,255,0.25);">
               영화<br/>대교
             </div>
           </div>
+          ` : ''}
 
           ${cardMarkup}
 
