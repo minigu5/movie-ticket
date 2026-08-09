@@ -49,7 +49,7 @@ export async function POST(req: Request) {
             acc[p] = (acc[p] || 0) + 1;
             return acc;
           }, {})
-        ).map(([key, count]) => `🍿 ${popcornNames[key]} ${count}개`)
+        ).map(([key, count]) => `${popcornNames[key]} ${count}개`)
       : ['음료/팝콘 없음'];
 
     const displayId = ticketId ? ticketId.split('-')[0].toUpperCase() : 'UNKNOWN';
