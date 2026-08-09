@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { sendMail } from '@/lib/mailer';
 import { escapeHtml } from '@/lib/escapeHtml';
 import { fetchSafeImage } from '@/lib/safeImageFetch';
+import { renderTicketCardImage, type TicketCardProps } from '@/lib/renderTicketCard';
 
 export async function POST(req: Request) {
   try {
@@ -42,6 +43,14 @@ export async function POST(req: Request) {
       popcornArray.forEach((p: string) => { counts[p] = (counts[p] || 0) + 1; });
       popcornText = Object.entries(counts).map(([key, count]) => `🍿 ${popcornNames[key]} ${count}개`).join('<br/>');
     }
+    const popcornLines = popcornArray.length > 0
+      ? Object.entries(
+          popcornArray.reduce((acc: Record<string, number>, p: string) => {
+            acc[p] = (acc[p] || 0) + 1;
+            return acc;
+          }, {})
+        ).map(([key, count]) => `🍿 ${popcornNames[key]} ${count}개`)
+      : ['음료/팝콘 없음'];
 
     const displayId = ticketId ? ticketId.split('-')[0].toUpperCase() : 'UNKNOWN';
 
@@ -57,6 +66,62 @@ export async function POST(req: Request) {
     const safeAgeRating = escapeHtml(ageRating);
     const safeSeat = escapeHtml(seat);
     const safeName = escapeHtml(name);
+
+    const composedCard = await renderTicketCardImage({
+      baseUrl,
+      posterUrl: posterUrl || null,
+      movieTitle,
+      movieDate,
+      venue,
+      ageRating,
+      seat,
+      name,
+      displayId,
+      statusType,
+      badgeColor,
+      badgeText,
+      priceText,
+      popcornLines,
+    } satisfies TicketCardProps);
+
+    const cardMarkup = composedCard
+      ? `<img src="cid:composedCard" alt="${safeMovieTitle}" width="380" style="display:block; width:100%; border-radius:20px; box-shadow: 0 20px 45px rgba(0,0,0,0.55);" />`
+      : `<div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161b26;">
+            <img src="${posterSrc}" alt="${safeMovieTitle}" width="380" style="display:block; width:100%; height:210px; object-fit:cover; object-position:top; background-color:#0b1120;" />
+            <div style="padding: 18px 22px 26px 22px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                <td style="vertical-align:top;">
+                  <span style="display:inline-block; background-color:rgba(255,255,255,0.08); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.5px; font-variant-numeric: tabular-nums;">🎫 판매번호 ${displayId}</span>
+                </td>
+                <td style="width:44px; vertical-align:top; text-align:right;">
+                  <span style="display:inline-block; width:44px; height:44px; background-color:#ffffff; border-radius:10px; text-align:center; line-height:44px; font-size:22px;">🎬</span>
+                </td>
+              </tr></table>
+              <div style="color:#ffffff; font-size:23px; font-weight:800; line-height:1.3; margin-top: 16px; margin-bottom: 6px;">${safeMovieTitle}</div>
+              <div style="color:#cbd5e1; font-size:12px; font-weight:600; letter-spacing:0.5px; margin-bottom: 20px;">2D · ${safeAgeRating || '전체관람가'}</div>
+              <div style="margin-bottom: 10px;">
+                <span style="color:#f1f5f9; font-size:15px; font-weight:700; font-variant-numeric: tabular-nums;">${safeMovieDate}</span>
+                <span style="color:#ef4444; font-size:13px; margin-left:6px;">↻</span>
+              </div>
+              ${venue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600;">📍 ${safeVenue}</div>` : ''}
+              <div style="margin: 18px 0; padding: 12px 14px; background-color: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;">
+                <div style="color:#e2e8f0; font-size:13px; font-weight:600; margin-bottom: 6px;">${popcornText}</div>
+                <div style="color:#94a3b8; font-size:12px; font-weight:600; font-variant-numeric: tabular-nums;">결제 금액 <span style="color:#e2e8f0; font-weight:700;">${priceText}</span></div>
+              </div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                <td style="vertical-align:bottom;">
+                  <span style="font-size: 44px; font-weight: 800; color: #ef4444; text-decoration: ${statusType === 'canceled' ? 'line-through' : 'none'}; line-height: 1; font-variant-numeric: tabular-nums;">${safeSeat}</span>
+                  <span style="color:#94a3b8; font-size:13px; font-weight:600; margin-left:8px;">${safeName} 님</span>
+                </td>
+                <td style="vertical-align:bottom; text-align:right; white-space:nowrap;">
+                  <span style="display:inline-block; padding: 7px 12px; background-color: rgba(255,255,255,0.06); border-radius: 8px; font-weight: 700; font-size: 12px; color: ${badgeColor}; border: 1px solid ${badgeColor};">
+                    ${badgeText}
+                  </span>
+                </td>
+              </tr></table>
+            </div>
+            <div style="height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: #161b26;"></div>
+          </div>`;
 
     const ticketHTML = `
       <!DOCTYPE html>
@@ -77,49 +142,7 @@ export async function POST(req: Request) {
             </div>
           </div>
 
-          <div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161b26;">
-
-            <img src="${posterSrc}" alt="${safeMovieTitle}" width="380" style="display:block; width:100%; height:210px; object-fit:cover; object-position:top; background-color:#0b1120;" />
-
-            <div style="padding: 18px 22px 26px 22px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-                <td style="vertical-align:top;">
-                  <span style="display:inline-block; background-color:rgba(255,255,255,0.08); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.5px; font-variant-numeric: tabular-nums;">🎫 판매번호 ${displayId}</span>
-                </td>
-                <td style="width:44px; vertical-align:top; text-align:right;">
-                  <span style="display:inline-block; width:44px; height:44px; background-color:#ffffff; border-radius:10px; text-align:center; line-height:44px; font-size:22px;">🎬</span>
-                </td>
-              </tr></table>
-
-              <div style="color:#ffffff; font-size:23px; font-weight:800; line-height:1.3; margin-top: 16px; margin-bottom: 6px;">${safeMovieTitle}</div>
-              <div style="color:#cbd5e1; font-size:12px; font-weight:600; letter-spacing:0.5px; margin-bottom: 20px;">2D · ${safeAgeRating || '전체관람가'}</div>
-
-              <div style="margin-bottom: 10px;">
-                <span style="color:#f1f5f9; font-size:15px; font-weight:700; font-variant-numeric: tabular-nums;">${safeMovieDate}</span>
-                <span style="color:#ef4444; font-size:13px; margin-left:6px;">↻</span>
-              </div>
-              ${venue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600;">📍 ${safeVenue}</div>` : ''}
-
-              <div style="margin: 18px 0; padding: 12px 14px; background-color: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;">
-                <div style="color:#e2e8f0; font-size:13px; font-weight:600; margin-bottom: 6px;">${popcornText}</div>
-                <div style="color:#94a3b8; font-size:12px; font-weight:600; font-variant-numeric: tabular-nums;">결제 금액 <span style="color:#e2e8f0; font-weight:700;">${priceText}</span></div>
-              </div>
-
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-                <td style="vertical-align:bottom;">
-                  <span style="font-size: 44px; font-weight: 800; color: #ef4444; text-decoration: ${statusType === 'canceled' ? 'line-through' : 'none'}; line-height: 1; font-variant-numeric: tabular-nums;">${safeSeat}</span>
-                  <span style="color:#94a3b8; font-size:13px; font-weight:600; margin-left:8px;">${safeName} 님</span>
-                </td>
-                <td style="vertical-align:bottom; text-align:right; white-space:nowrap;">
-                  <span style="display:inline-block; padding: 7px 12px; background-color: rgba(255,255,255,0.06); border-radius: 8px; font-weight: 700; font-size: 12px; color: ${badgeColor}; border: 1px solid ${badgeColor};">
-                    ${badgeText}
-                  </span>
-                </td>
-              </tr></table>
-            </div>
-
-            <div style="height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: #161b26;"></div>
-          </div>
+          ${cardMarkup}
 
           ${statusType === 'pending' ? `
             <p style="margin-top: 25px; color: #fbbf24; font-weight: bold; font-size: 14px;">⚠️ 30분 내로 아래 QR코드로 입금해주세요. (총액: ${formattedPrice}원)</p>
@@ -152,7 +175,13 @@ export async function POST(req: Request) {
       </html>
     `;
 
-    await sendMail({ to: email, subject, html: ticketHTML, attachments: posterAttachment ? [posterAttachment] : undefined });
+    const attachments = composedCard
+      ? [{ filename: 'ticket.png', content: composedCard, cid: 'composedCard', contentType: 'image/png' }]
+      : posterAttachment
+      ? [posterAttachment]
+      : undefined;
+
+    await sendMail({ to: email, subject, html: ticketHTML, attachments });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Mail Failed' }, { status: 500 });
