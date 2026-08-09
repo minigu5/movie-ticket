@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendMail } from '@/lib/mailer';
 import { escapeHtml } from '@/lib/escapeHtml';
+import { fetchSafeImage } from '@/lib/safeImageFetch';
 
 export async function POST(req: Request) {
   try {
@@ -44,9 +45,11 @@ export async function POST(req: Request) {
 
     const displayId = ticketId ? ticketId.split('-')[0].toUpperCase() : 'UNKNOWN';
 
-    const posterSrc = escapeHtml(
-      posterUrl ? `${baseUrl}/api/poster-image?src=${encodeURIComponent(posterUrl)}` : `${baseUrl}/next.svg`
-    );
+    const posterImage = posterUrl ? await fetchSafeImage(posterUrl) : null;
+    const posterAttachment = posterImage?.ok
+      ? { filename: 'poster.jpg', content: Buffer.from(posterImage.body), cid: 'posterImage', contentType: posterImage.contentType }
+      : null;
+    const posterSrc = escapeHtml(posterAttachment ? 'cid:posterImage' : `${baseUrl}/next.svg`);
     const safeBaseUrl = escapeHtml(baseUrl);
     const safeMovieTitle = escapeHtml(movieTitle);
     const safeMovieDate = escapeHtml(movieDate);
@@ -149,7 +152,7 @@ export async function POST(req: Request) {
       </html>
     `;
 
-    await sendMail({ to: email, subject, html: ticketHTML });
+    await sendMail({ to: email, subject, html: ticketHTML, attachments: posterAttachment ? [posterAttachment] : undefined });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Mail Failed' }, { status: 500 });

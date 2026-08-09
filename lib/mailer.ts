@@ -4,6 +4,7 @@ type SendMailParams = {
   to: string;
   subject: string;
   html: string;
+  attachments?: { filename: string; content: Buffer; cid: string; contentType: string }[];
 };
 
 const MAX_ATTEMPTS = 4;
@@ -45,7 +46,7 @@ function getAccounts(): { user: string; pass: string }[] {
   return accounts;
 }
 
-export async function sendMail({ to, subject, html }: SendMailParams): Promise<void> {
+export async function sendMail({ to, subject, html, attachments }: SendMailParams): Promise<void> {
   const accounts = getAccounts();
 
   let lastError: unknown;
@@ -67,6 +68,7 @@ export async function sendMail({ to, subject, html }: SendMailParams): Promise<v
         to,
         subject,
         html,
+        attachments,
       });
       return;
     } catch (error) {

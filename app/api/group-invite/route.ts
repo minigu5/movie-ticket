@@ -2,14 +2,17 @@ import { NextResponse } from 'next/server';
 import { sendMail } from '@/lib/mailer';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { escapeHtml } from '@/lib/escapeHtml';
+import { fetchSafeImage } from '@/lib/safeImageFetch';
 
 export async function POST(req: Request) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { members, leaderName, movieTitle, movieDate, venue, posterUrl, groupId, baseUrl } = await req.json();
-    const posterSrc = escapeHtml(
-      posterUrl ? `${baseUrl}/api/poster-image?src=${encodeURIComponent(posterUrl)}` : `${baseUrl}/next.svg`
-    );
+    const posterImage = posterUrl ? await fetchSafeImage(posterUrl) : null;
+    const posterAttachment = posterImage?.ok
+      ? { filename: 'poster.jpg', content: Buffer.from(posterImage.body), cid: 'posterImage', contentType: posterImage.contentType }
+      : null;
+    const posterSrc = escapeHtml(posterAttachment ? 'cid:posterImage' : `${baseUrl}/next.svg`);
     const safeMovieTitle = escapeHtml(movieTitle);
     const safeMovieDate = escapeHtml(movieDate);
     const safeVenue = escapeHtml(venue);
@@ -87,7 +90,8 @@ export async function POST(req: Request) {
       return sendMail({
         to: email,
         subject: `[영화대교] 🎬 ${member.name}님, 단체 관람에 초대되었습니다 - ${member.seat} 좌석`,
-        html: htmlContent
+        html: htmlContent,
+        attachments: posterAttachment ? [posterAttachment] : undefined,
       });
     });
 
