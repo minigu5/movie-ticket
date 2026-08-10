@@ -6,7 +6,7 @@ import { renderTicketCardImage, type TicketCardProps } from '@/lib/renderTicketC
 
 export async function POST(req: Request) {
   try {
-    const { email, name, seat, movieTitle, movieDate, venue, ageRating, posterUrl, statusType, popcorn, ticketId, baseUrl, isRefundNeeded } = await req.json();
+    const { email, name, seat, movieTitle, movieDate, venue, ageRating, posterUrl, backgroundTemplateUrl, statusType, popcorn, ticketId, baseUrl, isRefundNeeded } = await req.json();
 
     // 🌟 [추가됨] 다중 팝콘 분석 및 총액 계산
     const popcornArray = popcorn && popcorn !== 'none' ? popcorn.split(',') :[];
@@ -55,6 +55,7 @@ export async function POST(req: Request) {
     const displayId = ticketId ? ticketId.split('-')[0].toUpperCase() : 'UNKNOWN';
 
     const posterImage = posterUrl ? await fetchSafeImage(posterUrl) : null;
+    const templateImage = backgroundTemplateUrl ? await fetchSafeImage(backgroundTemplateUrl) : null;
     const posterAttachment = posterImage?.ok
       ? { filename: 'poster.jpg', content: Buffer.from(posterImage.body), cid: 'posterImage', contentType: posterImage.contentType }
       : null;
@@ -69,7 +70,8 @@ export async function POST(req: Request) {
 
     const composedCard = await renderTicketCardImage({
       baseUrl,
-      posterUrl: posterUrl || null,
+      posterImage: posterImage?.ok ? { body: posterImage.body, contentType: posterImage.contentType } : null,
+      templateImage: templateImage?.ok ? { body: templateImage.body, contentType: templateImage.contentType } : null,
       movieTitle,
       movieDate,
       venue,
@@ -84,10 +86,17 @@ export async function POST(req: Request) {
       popcornLines,
     } satisfies TicketCardProps);
 
+    const templateUsed = Boolean(templateImage?.ok);
+
     const cardMarkup = composedCard
-      ? `<div style="margin: 0 auto; width: 100%; max-width: 520px;">
-            <img src="cid:composedCard" alt="${safeMovieTitle}" width="520" style="display:block; width:100%; height:auto;" />
-          </div>`
+      ? templateUsed
+        ? `<div style="margin: 0 auto; width: 100%; max-width: 520px;">
+              <img src="cid:composedCard" alt="${safeMovieTitle}" width="520" style="display:block; width:100%; height:auto;" />
+            </div>`
+        : `<div style="margin: 0 auto; width: 100%; max-width: 520px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55);">
+              <img src="cid:composedCard" alt="${safeMovieTitle}" width="520" style="display:block; width:100%; height:auto;" />
+              <div style="height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: #161b26;"></div>
+            </div>`
       : `<div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161b26;">
             <img src="${posterSrc}" alt="${safeMovieTitle}" width="380" style="display:block; width:100%; height:210px; object-fit:cover; object-position:top; background-color:#0b1120;" />
             <div style="padding: 18px 22px 26px 22px;">
@@ -138,7 +147,7 @@ export async function POST(req: Request) {
       <body style="margin:0; padding:0; -webkit-font-smoothing: antialiased; background-color:#0b1120;">
           <div style="padding: 40px 12px; font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; text-align: center;">
 
-          ${!composedCard ? `
+          ${!templateUsed ? `
           <div style="margin-bottom: 26px;">
             <div style="font-family: 'Song Myung', serif; color: #f1f5f9; font-size: 28px; line-height: 1.15; letter-spacing: 0.1em; text-shadow: 0 0 18px rgba(255,255,255,0.25);">
               영화<br/>대교
