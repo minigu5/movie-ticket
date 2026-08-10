@@ -4,6 +4,11 @@ import { lookup } from 'node:dns/promises';
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_REDIRECTS = 5;
+const MAX_ATTEMPTS = 3;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function ipv4ToInt(ip: string): number {
   return ip
@@ -93,8 +98,22 @@ export type SafeImageFetchResult =
  * public-IP-only after DNS resolution, redirect cap, size cap, image
  * content-type requirement). Shared by the poster-image proxy route and
  * the CID-attachment embedding done at mail send time.
+ *
+ * workerd's outbound DNS/connect occasionally fails transiently ("Failed to
+ * resolve IPv4 addresses") the same way Gmail SMTP does (see mailer.ts) — so
+ * a network-level failure is retried a couple of times before giving up.
  */
 export async function fetchSafeImage(src: string): Promise<SafeImageFetchResult> {
+  let lastResult: SafeImageFetchResult = { ok: false, status: 502, message: 'Fetch failed' };
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    lastResult = await fetchSafeImageOnce(src);
+    if (lastResult.ok || lastResult.status !== 502 || attempt === MAX_ATTEMPTS) return lastResult;
+    await sleep(300 * attempt);
+  }
+  return lastResult;
+}
+
+async function fetchSafeImageOnce(src: string): Promise<SafeImageFetchResult> {
   let target: URL;
   try {
     target = new URL(src);
