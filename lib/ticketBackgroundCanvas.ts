@@ -143,6 +143,13 @@ function drawCardFrame(ctx: CanvasRenderingContext2D, poster: HTMLImageElement, 
   ctx.restore();
 }
 
+/**
+ * 카드 아래쪽 가장자리를 반원 모양으로 "뚫어서" 절취선처럼 보이게 한다. 원을
+ * 그 자리에 얹으면(이전 구현) 카드 안쪽 절반은 카드와 같은 색이라 안 보이고
+ * 바깥쪽 절반만 배경 위에 도드라져서 단추처럼 보이는 문제가 있었다 —
+ * destination-out으로 실제로 지워서 카드 뒤 배경이 비치게 하면 진짜 절취선
+ * 노치처럼 보인다.
+ */
 function drawScallops(ctx: CanvasRenderingContext2D, cardLeft: number, cardTop: number): void {
   const radius = 14;
   const padding = 16;
@@ -150,25 +157,20 @@ function drawScallops(ctx: CanvasRenderingContext2D, cardLeft: number, cardTop: 
   const gap = SCALLOP_COUNT > 1 ? areaWidth / (SCALLOP_COUNT - 1) : 0;
   const cy = cardTop + CARD_HEIGHT;
 
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
   for (let i = 0; i < SCALLOP_COUNT; i++) {
     const cx = cardLeft + padding + gap * i;
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.4)';
-    ctx.shadowBlur = 3;
-    ctx.shadowOffsetY = 2;
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.fillStyle = '#161b26';
+    ctx.fillStyle = '#000000';
     ctx.fill();
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
-    ctx.stroke();
-    ctx.restore();
   }
+  ctx.restore();
 }
 
 /**
- * posterUrl(원본 포스터 주소)로부터 텍스트 없는 티켓 카드 배경 PNG(984×1466)를
+ * posterUrl(원본 포스터 주소)로부터 텍스트 없는 티켓 카드 배경 PNG(980×1310, SCALE 적용 시 실제 픽셀은 그 2배)를
  * 만들어 Blob으로 반환한다. same-origin 프록시(/api/poster-image)를 거치므로
  * CORS로 canvas가 오염되지 않는다.
  */
