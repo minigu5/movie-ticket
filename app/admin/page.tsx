@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, DomainNotAllowedError, type AppProfile } from '../../lib/supabase-auth';
 import Link from 'next/link';
 import { extractSchoolEmails } from '../../lib/parseEmails';
+import { renderTicketBackground, blobToDataUri } from '../../lib/ticketBackgroundCanvas';
 
 const POPCORN_NAMES: Record<string, string> = { "original": "오리지널", "consomme": "콘소메", "caramel": "카라멜" };
 
@@ -19,6 +20,8 @@ export default function AdminPage() {
 
   const [isEditingSettings, setIsEditingSettings] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
+  const [bgGenerating, setBgGenerating] = useState(false);
+  const [bgStatus, setBgStatus] = useState<string | null>(null);
 
   const [isStartingNewMovie, setIsStartingNewMovie] = useState(false);
   const [newMovieForm, setNewMovieForm] = useState<any>({});
@@ -132,6 +135,34 @@ export default function AdminPage() {
       return true;
     } finally {
       setIsLoadingUI(false);
+    }
+  };
+
+  const handleGenerateTicketBackground = async () => {
+    if (!editForm.poster_url) { alert('포스터 주소를 먼저 입력하세요.'); return; }
+    if (!editForm.id) { alert('영화 정보를 먼저 불러와야 합니다.'); return; }
+
+    setBgGenerating(true);
+    setBgStatus(null);
+    try {
+      const blob = await renderTicketBackground(editForm.poster_url);
+      const dataUri = await blobToDataUri(blob);
+      const res = await authFetch('/api/admin/action', {
+        action: 'UPLOAD_TICKET_BACKGROUND',
+        payload: { movieId: editForm.id, imageBase64: dataUri },
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setBgStatus(`실패: ${data.error}`);
+      } else {
+        setEditForm((prev: any) => ({ ...prev, background_template_url: data.url }));
+        setMovieInfo((prev: any) => ({ ...prev, background_template_url: data.url }));
+        setBgStatus('생성 완료');
+      }
+    } catch (err: any) {
+      setBgStatus(`실패: ${err.message || '알 수 없는 오류'}`);
+    } finally {
+      setBgGenerating(false);
     }
   };
 
@@ -514,6 +545,20 @@ export default function AdminPage() {
             </select>
           </div>
           <div className="md:col-span-2"><label className="block text-sm text-gray-400 mb-1">포스터 주소</label><input type="text" value={editForm.poster_url} onChange={e => setEditForm({ ...editForm, poster_url: e.target.value })} className="w-full p-2 bg-gray-700 rounded border border-gray-600 outline-none" /></div>
+          <div className="md:col-span-2 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleGenerateTicketBackground}
+              disabled={bgGenerating}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded text-sm font-bold"
+            >
+              {bgGenerating ? '배경 생성 중...' : '티켓 배경 생성'}
+            </button>
+            {bgStatus && <span className="text-sm text-gray-400">{bgStatus}</span>}
+            {editForm.background_template_url && (
+              <span className="text-xs text-green-400">배경 템플릿 있음 — 포스터를 바꿨으면 다시 생성하세요.</span>
+            )}
+          </div>
           <div className="md:col-span-2"><label className="block text-sm text-red-400 font-bold mb-1">예매 마감 일시 (ISO 형식)</label><input type="text" value={editForm.deadline_date} onChange={e => setEditForm({ ...editForm, deadline_date: e.target.value })} className="w-full p-2 bg-gray-700 rounded border border-red-800 outline-none" /></div>
           <div className="md:col-span-2 mt-4"><h3 className="text-indigo-400 font-bold border-b border-gray-700 pb-2 mb-2">동아리 전용(VIP) - 🟦 중강당 기준</h3></div>
           <div className="flex gap-2">
