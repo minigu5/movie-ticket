@@ -1,8 +1,8 @@
 // lib/ticketBackgroundCanvas.ts
 // 관리자 브라우저에서 티켓 카드의 "outer 배경"(블러 확산 배경 + 로고 + 카드
-// 프레임 + 절취선, 텍스트는 없음)을 미리 PNG로 합성한다. 이 무거운 합성을
+// 프레임 + 절취선, 텍스트는 없음)을 미리 JPEG로 합성한다. 이 무거운 합성을
 // 이메일 발송 시점(Cloudflare Workers, CPU 예산 있음)이 아니라 관리자가 포스터를
-// 등록할 때 브라우저(CPU 무제한)에서 한 번만 처리해서, 발송 시엔 이 PNG 위에
+// 등록할 때 브라우저(CPU 무제한)에서 한 번만 처리해서, 발송 시엔 이 JPEG 위에
 // app/api/ticket/route.ts가 순수 이메일 HTML로 텍스트만 오버레이하면 되게 한다.
 // 레이아웃 상수는 route.ts의 DISPLAY_* 좌표 계산과 반드시 일치해야 한다.
 
@@ -144,11 +144,12 @@ function drawCardFrame(ctx: CanvasRenderingContext2D, poster: HTMLImageElement, 
 }
 
 /**
- * 카드 아래쪽 가장자리를 반원 모양으로 "뚫어서" 절취선처럼 보이게 한다. 원을
- * 그 자리에 얹으면(이전 구현) 카드 안쪽 절반은 카드와 같은 색이라 안 보이고
- * 바깥쪽 절반만 배경 위에 도드라져서 단추처럼 보이는 문제가 있었다 —
- * destination-out으로 실제로 지워서 카드 뒤 배경이 비치게 하면 진짜 절취선
- * 노치처럼 보인다.
+ * 카드 아래쪽 가장자리를 반원 모양으로 "뚫어서" 절취선처럼 보이게 한다.
+ * 예전엔 destination-out으로 실제 투명 구멍을 낸 뒤 반투명 검정을 덧칠했는데,
+ * 그러면 PNG(알파 채널)로만 저장할 수 있어 파일이 커진다. 이메일 배경색이
+ * 항상 #0b1120로 고정이라, 구멍 자리에 "#0b1120 위에 rgba(0,0,0,0.45)를
+ * 얹은 결과"와 동일한 단색(#060912)을 직접 칠하면 알파 없이도 똑같이 보이면서
+ * JPEG로 인코딩할 수 있다.
  */
 function drawScallops(ctx: CanvasRenderingContext2D, cardLeft: number, cardTop: number): void {
   const radius = 14;
@@ -158,31 +159,18 @@ function drawScallops(ctx: CanvasRenderingContext2D, cardLeft: number, cardTop: 
   const cy = cardTop + CARD_HEIGHT;
 
   ctx.save();
-  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = '#060912';
   for (let i = 0; i < SCALLOP_COUNT; i++) {
     const cx = cardLeft + padding + gap * i;
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.fillStyle = '#000000';
-    ctx.fill();
-  }
-  ctx.restore();
-
-  // 뚫린 자리는 이메일 배경색(#0b1120)이 그대로 비쳐서 다소 밝아 보이므로,
-  // 그 위에 반투명 검정을 얹어 살짝 더 어둡게 눌러준다.
-  ctx.save();
-  for (let i = 0; i < SCALLOP_COUNT; i++) {
-    const cx = cardLeft + padding + gap * i;
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fill();
   }
   ctx.restore();
 }
 
 /**
- * posterUrl(원본 포스터 주소)로부터 텍스트 없는 티켓 카드 배경 PNG(980×1310, SCALE 적용 시 실제 픽셀은 그 2배)를
+ * posterUrl(원본 포스터 주소)로부터 텍스트 없는 티켓 카드 배경 JPEG(980×1310, SCALE 적용 시 실제 픽셀은 그 2배)를
  * 만들어 Blob으로 반환한다. same-origin 프록시(/api/poster-image)를 거치므로
  * CORS로 canvas가 오염되지 않는다.
  */
@@ -216,11 +204,14 @@ export async function renderTicketBackground(posterUrl: string): Promise<Blob> {
   drawCardFrame(ctx, poster, cardLeft, cardTop);
   drawScallops(ctx, cardLeft, cardTop);
 
+  // 알파 채널을 안 쓰므로(절취선 구멍도 위에서 단색으로 직접 칠함) 카드는
+  // 전체가 불투명하다 — 무손실 PNG 대신 JPEG로 인코딩하면 이메일 첨부 용량이
+  // 크게 줄어 수신자 메일 클라이언트에서 이미지가 더 빨리 뜬다.
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
-      if (!blob) reject(new Error('PNG 생성에 실패했습니다.'));
+      if (!blob) reject(new Error('이미지 생성에 실패했습니다.'));
       else resolve(blob);
-    }, 'image/png');
+    }, 'image/jpeg', 0.87);
   });
 }
 

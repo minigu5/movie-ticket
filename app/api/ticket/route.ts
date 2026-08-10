@@ -208,8 +208,13 @@ export async function POST(req: Request) {
       </html>
     `;
 
+    const attachmentExt = cardBackground?.contentType.includes('png')
+      ? 'png'
+      : cardBackground?.contentType.includes('webp')
+      ? 'webp'
+      : 'jpg';
     const attachments = cardBackground
-      ? [{ filename: 'card-bg.png', content: Buffer.from(cardBackground.body), cid: 'cardBg', contentType: cardBackground.contentType }]
+      ? [{ filename: `card-bg.${attachmentExt}`, content: Buffer.from(cardBackground.body), cid: 'cardBg', contentType: cardBackground.contentType }]
       : undefined;
 
     await sendMail({ to: email, subject, html: ticketHTML, attachments });

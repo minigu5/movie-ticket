@@ -7,7 +7,7 @@ async function sha1Hex(input: string): Promise<string> {
 }
 
 /**
- * Uploads an already-fully-composed PNG (data URI) to Cloudinary and returns
+ * Uploads an already-fully-composed JPEG (data URI) to Cloudinary and returns
  * its public URL. No transformation is requested — the image (blur, logo,
  * card frame, perforation) is already baked in by the admin's browser via
  * lib/ticketBackgroundCanvas.ts, so this is just storage.
