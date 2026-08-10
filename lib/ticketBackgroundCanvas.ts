@@ -167,6 +167,18 @@ function drawScallops(ctx: CanvasRenderingContext2D, cardLeft: number, cardTop: 
     ctx.fill();
   }
   ctx.restore();
+
+  // 뚫린 자리는 이메일 배경색(#0b1120)이 그대로 비쳐서 다소 밝아 보이므로,
+  // 그 위에 반투명 검정을 얹어 살짝 더 어둡게 눌러준다.
+  ctx.save();
+  for (let i = 0; i < SCALLOP_COUNT; i++) {
+    const cx = cardLeft + padding + gap * i;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 /**
