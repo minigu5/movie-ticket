@@ -429,7 +429,7 @@ export default function Home() {
       fetch('/api/ticket', { method: 'POST', body: JSON.stringify({
         email: profile.email, name: profile.name, seat: myReservation.seat,
         movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
-        venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_url,
+        venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_url, backgroundTemplateUrl: (movieInfo as any).background_template_url,
         statusType: 'pending', popcorn: finalPopcornString, ticketId: myReservation.id, baseUrl
       }) });
 
@@ -487,7 +487,7 @@ export default function Home() {
             await supabase.from('activity_logs').insert([{ student_id: profile.student_id, student_name: profile.name, description: `좌석 변경 (${myOldTicket.seat_number} ➡️ ${selectedSeat}) 및 팝콘 갱신` }]);
 
             if (userEmail && updatedTicket) {
-              fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: profile.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_url, statusType: 'changed', popcorn: finalPopcornString, ticketId: updatedTicket.id, baseUrl }) });
+              fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: profile.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_url, backgroundTemplateUrl: (movieInfo as any).background_template_url, statusType: 'changed', popcorn: finalPopcornString, ticketId: updatedTicket.id, baseUrl }) });
             }
             showSuccess("예매 변경 완료!", "✨ 좌석이 성공적으로 변경되었습니다.\n새로운 티켓이 학교 메일로 발송되었습니다.");
             fetchInitialData(); setIsModalOpen(false); setSelectedSeat(null); setIsMovingSeat(false);
@@ -513,7 +513,7 @@ export default function Home() {
         setIsModalOpen(false);
 
         if (userEmail && newTicket) {
-          fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: profile.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_url, statusType: finalStatus, popcorn: finalPopcornString, ticketId: newTicket.id, baseUrl }) });
+          fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: profile.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_url, backgroundTemplateUrl: (movieInfo as any).background_template_url, statusType: finalStatus, popcorn: finalPopcornString, ticketId: newTicket.id, baseUrl }) });
         }
 
         if (finalStatus === 'confirmed') {
@@ -551,7 +551,7 @@ export default function Home() {
             body: JSON.stringify({
               email: canceledTicket.email, name: canceledTicket.student_name, seat: canceledTicket.seat_number,
               movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
-              venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_url,
+              venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_url, backgroundTemplateUrl: (movieInfo as any).background_template_url,
               statusType: 'canceled',
               popcorn: canceledTicket.popcorn_order, ticketId: canceledTicket.id, baseUrl: window.location.origin, isRefundNeeded
             })
@@ -667,7 +667,7 @@ export default function Home() {
       body: JSON.stringify({
         email: profile.email, name: leaderName, seat: leaderSeat,
         movieTitle: movieInfo.title, movieDate: movieInfo.date_string,
-        venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_url,
+        venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: movieInfo.poster_url, backgroundTemplateUrl: (movieInfo as any).background_template_url,
         statusType: 'confirmed', popcorn: 'none', ticketId: leaderTicket.id, baseUrl
       })
     });
