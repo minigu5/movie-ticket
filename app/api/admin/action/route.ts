@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/api-auth';
+import { uploadTicketBackground } from '@/lib/cloudinary';
 
 export async function POST(req: Request) {
   try {
@@ -51,6 +52,26 @@ export async function POST(req: Request) {
         const { error } = await supabaseAdmin.from('movie_settings').update(payload).eq('is_active', true);
         if (error) throw error;
         return NextResponse.json({ success: true });
+      }
+
+      case 'UPLOAD_TICKET_BACKGROUND': {
+        const { movieId, imageBase64 } = payload;
+        if (!movieId || typeof imageBase64 !== 'string' || !imageBase64.startsWith('data:image/')) {
+          return NextResponse.json({ success: false, error: 'movieId와 이미지 데이터가 필요합니다.' }, { status: 400 });
+        }
+
+        const url = await uploadTicketBackground(imageBase64);
+        if (!url) {
+          return NextResponse.json({ success: false, error: 'Cloudinary 업로드에 실패했습니다.' }, { status: 502 });
+        }
+
+        const { error } = await supabaseAdmin
+          .from('movie_settings')
+          .update({ background_template_url: url })
+          .eq('id', movieId);
+        if (error) throw error;
+
+        return NextResponse.json({ success: true, url });
       }
 
       // 새 회차 시작: 현재 상영중인 영화를 이력으로 보존(is_active=false)하고
