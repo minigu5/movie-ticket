@@ -4,7 +4,7 @@
 
 **Goal:** satori 기반 이미지 합성(`renderTicketCardImage`)을 완전히 제거하고, 이메일 HTML이 배경 이미지(CID 첨부) 위에 텍스트를 직접 오버레이하는 방식(`<td background="cid:...">` + `background-image` CSS 이중 안전망)으로 티켓 카드를 만든다.
 
-**Architecture:** `app/api/ticket/route.ts`가 포스터/배경템플릿 중 있는 것을 CID로 첨부하고, 판매번호/제목/날짜/좌석/가격/배지 텍스트를 그 이미지 위에 겹치는 테이블 기반 HTML을 생성한다. 배경 우선순위는 관리자 템플릿(984×1466, outer 확산 포함) > 원본 포스터(700×960 비율, 카드 프레임만) > 없음(단색) 순. `lib/renderTicketCard.tsx`(satori)는 삭제한다. `lib/ticketBackgroundCanvas.ts`는 SCALE=2를 적용해 관리자가 만드는 템플릿 해상도를 2배로 올린다(레이아웃 비율은 그대로).
+**Architecture:** `app/api/ticket/route.ts`가 포스터/배경템플릿 중 있는 것을 CID로 첨부하고, 판매번호/제목/날짜/좌석/가격/배지 텍스트를 그 이미지 위에 겹치는 테이블 기반 HTML을 생성한다. 배경 우선순위는 관리자 템플릿(980×1310, outer 확산 포함) > 원본 포스터(700×960 비율, 카드 프레임만) > 없음(단색) 순. `lib/renderTicketCard.tsx`(satori)는 삭제한다. `lib/ticketBackgroundCanvas.ts`는 SCALE=2를 적용해 관리자가 만드는 템플릿 해상도를 2배로 올린다(레이아웃 비율은 그대로).
 
 **Tech Stack:** Next.js (Cloudflare Workers/OpenNext), nodemailer(CID 첨부), Canvas 2D API.
 
@@ -52,18 +52,18 @@ console.log({
 Expected:
 ```
 {
-  OUTER_WIDTH: 984,
-  OUTER_HEIGHT: 1466,
+  OUTER_WIDTH: 980,
+  OUTER_HEIGHT: 1310,
   DISPLAY_CARD_WIDTH: 380,
   DISPLAY_CARD_HEIGHT: 521,
-  DISPLAY_OUTER_WIDTH: 534,
-  DISPLAY_OUTER_HEIGHT: 796,
+  DISPLAY_OUTER_WIDTH: 532,
+  DISPLAY_OUTER_HEIGHT: 711,
   DISPLAY_CARD_TOP: 141,
   DISPLAY_CARD_LEFT: 76
 }
 ```
 
-이 값들(`380, 521, 534, 796, 141, 76`)을 Task 2에서 상수로 그대로 쓴다. 우측 여백은 `DISPLAY_OUTER_WIDTH - DISPLAY_CARD_LEFT - DISPLAY_CARD_WIDTH = 534 - 76 - 380 = 78`.
+이 값들(`380, 521, 532, 711, 141, 76`)을 Task 2에서 상수로 그대로 쓴다. 우측 여백은 `DISPLAY_OUTER_WIDTH - DISPLAY_CARD_LEFT - DISPLAY_CARD_WIDTH = 532 - 76 - 380 = 76`.
 
 ---
 
@@ -89,12 +89,12 @@ const CARD_WIDTH = 700;
 const SIDE_MARGIN = 140;
 const TOP_MARGIN = 90;
 const LOGO_BLOCK_HEIGHT = 170;
-const OUTER_WIDTH = 984;
+const OUTER_WIDTH = 980;
 
 const DISPLAY_CARD_WIDTH = 380;
 const DISPLAY_CARD_HEIGHT = 521;
-const DISPLAY_OUTER_WIDTH = 534;
-const DISPLAY_OUTER_HEIGHT = 796;
+const DISPLAY_OUTER_WIDTH = 532;
+const DISPLAY_OUTER_HEIGHT = 711;
 const DISPLAY_CARD_TOP = 141;
 const DISPLAY_CARD_LEFT = 76;
 const DISPLAY_CARD_RIGHT_GAP = DISPLAY_OUTER_WIDTH - DISPLAY_CARD_LEFT - DISPLAY_CARD_WIDTH;
@@ -441,12 +441,12 @@ EOF
 
 Task 2에서 만든 `buildCardContentHtml`/`cardMarkup` 로직을 실제 route.ts 코드에서 그대로 복사해 로컬 nodemailer로 3케이스를 발송해본다 — 프로덕션 배포 없이 로컬에서 바로 육안 검증할 수 있다.
 
-- [ ] **Step 1: 케이스 A — outer 템플릿 있음 (984×1466 placeholder)**
+- [ ] **Step 1: 케이스 A — outer 템플릿 있음 (980×1310 placeholder)**
 
 Run:
 ```bash
 cd /Users/shinmingyu/Project/movie-ticket
-curl -s -o /tmp/test-outer-bg.png "https://placehold.co/984x1466/1a1a2e/1a1a2e.png"
+curl -s -o /tmp/test-outer-bg.png "https://placehold.co/980x1310/1a1a2e/1a1a2e.png"
 node -e '
 const nodemailer = require("nodemailer");
 require("dotenv").config({ path: ".env.local" });
@@ -474,12 +474,12 @@ const cardContentHtml = `
   </tr></table>
 `;
 
-const cardMarkup = `<table role="presentation" width="534" cellpadding="0" cellspacing="0" style="width:534px; max-width:100%;">
+const cardMarkup = `<table role="presentation" width="532" cellpadding="0" cellspacing="0" style="width:532px; max-width:100%;">
   <tr><td background="cid:cardBg" bgcolor="#0b1120" style="background-image:url(cid:cardBg); background-size:100% 100%; background-repeat:no-repeat; padding:0;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr><td style="height:141px; line-height:141px; font-size:1px;">&nbsp;</td></tr>
       <tr>
-        <td style="padding-left:76px; padding-right:78px;">
+        <td style="padding-left:76px; padding-right:76px;">
           <div style="width:380px; padding:24px 24px 27px 24px; box-sizing:border-box; text-align:left;">
             ${cardContentHtml}
           </div>
@@ -491,7 +491,7 @@ const cardMarkup = `<table role="presentation" width="534" cellpadding="0" cells
 
 const html = `<!DOCTYPE html><html><body style="margin:0; padding:0; background-color:#0b1120;">
 <div style="padding:30px; font-family:sans-serif; text-align:center;">
-  <h3 style="color:#fff;">케이스 A: outer 템플릿 (984x1466)</h3>
+  <h3 style="color:#fff;">케이스 A: outer 템플릿 (980x1310)</h3>
   ${cardMarkup}
 </div>
 </body></html>`;
