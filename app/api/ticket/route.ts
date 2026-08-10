@@ -2,7 +2,52 @@ import { NextResponse } from 'next/server';
 import { sendMail } from '@/lib/mailer';
 import { escapeHtml } from '@/lib/escapeHtml';
 import { fetchSafeImage } from '@/lib/safeImageFetch';
-import { renderTicketCardImage, type TicketCardProps } from '@/lib/renderTicketCard';
+
+// lib/ticketBackgroundCanvas.ts가 만드는 템플릿의 레이아웃과 반드시 일치해야 한다.
+const DISPLAY_CARD_WIDTH = 380;
+const DISPLAY_CARD_TOP = 141;
+const DISPLAY_CARD_LEFT = 76;
+const DISPLAY_OUTER_WIDTH = 532;
+const DISPLAY_CARD_RIGHT_GAP = DISPLAY_OUTER_WIDTH - DISPLAY_CARD_LEFT - DISPLAY_CARD_WIDTH;
+
+function buildCardContentHtml(params: {
+  displayId: string;
+  movieTitle: string;
+  ageRating: string;
+  movieDate: string;
+  venue: string;
+  popcornText: string;
+  priceText: string;
+  seat: string;
+  name: string;
+  statusType: string;
+  badgeColor: string;
+  badgeText: string;
+}): string {
+  const { displayId, movieTitle, ageRating, movieDate, venue, popcornText, priceText, seat, name, statusType, badgeColor, badgeText } = params;
+  return `
+    <span style="display:inline-block; background-color:rgba(0,0,0,0.45); padding:4px 10px; border-radius:7px; color:#e2e8f0; font-size:12px; font-weight:600; font-variant-numeric: tabular-nums;">판매번호 ${displayId}</span>
+    <div style="color:#ffffff; font-size:25px; font-weight:800; line-height:1.25; text-shadow:0 2px 8px rgba(0,0,0,0.6); margin-top:119px; margin-bottom:7px;">${movieTitle}</div>
+    <div style="color:#cbd5e1; font-size:13px; font-weight:600; text-shadow:0 2px 6px rgba(0,0,0,0.6); margin-bottom:20px;">2D · ${ageRating || '전체관람가'}</div>
+    <div style="margin-bottom:17px;">
+      <div style="color:#f1f5f9; font-size:16px; font-weight:700; text-shadow:0 2px 6px rgba(0,0,0,0.6); font-variant-numeric: tabular-nums;">${movieDate}</div>
+      ${venue ? `<div style="color:#e2e8f0; font-size:14px; font-weight:600; text-shadow:0 2px 6px rgba(0,0,0,0.6); margin-top:4px;">${venue}</div>` : ''}
+    </div>
+    <div style="background-color:rgba(0,0,0,0.42); padding:13px 15px; border-radius:11px; margin-bottom:20px;">
+      <div style="color:#e2e8f0; font-size:14px; font-weight:600;">${popcornText}</div>
+      <div style="color:#94a3b8; font-size:13px; font-weight:700; margin-top:4px; font-variant-numeric: tabular-nums;">결제 금액 ${priceText}</div>
+    </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="vertical-align:bottom;">
+        <span style="font-size:48px; font-weight:800; color:#ef4444; text-decoration:${statusType === 'canceled' ? 'line-through' : 'none'}; line-height:1; font-variant-numeric: tabular-nums;">${seat}</span>
+        <span style="color:#e2e8f0; font-size:14px; font-weight:600; text-shadow:0 2px 4px rgba(0,0,0,0.6); margin-left:9px;">${name} 님</span>
+      </td>
+      <td style="vertical-align:bottom; text-align:right; white-space:nowrap;">
+        <span style="display:inline-block; padding:4px 10px; background-color:rgba(0,0,0,0.5); border-radius:7px; font-weight:700; font-size:12px; color:${badgeColor}; border:1px solid ${badgeColor};">${badgeText}</span>
+      </td>
+    </tr></table>
+  `;
+}
 
 export async function POST(req: Request) {
   try {
@@ -37,29 +82,24 @@ export async function POST(req: Request) {
     // 🌟 [추가됨] 팝콘 종류별 개수 요약 생성 (예: 오리지널 버터 2개, 카라멜맛 1개)
     const popcornNames: Record<string, string> = { original: '오리지널 버터 팝콘', consomme: '콘소메맛 팝콘', caramel: '카라멜맛 팝콘' };
     let popcornText = '음료/팝콘 없음';
-    
+
     if (popcornArray.length > 0) {
       const counts: Record<string, number> = {};
       popcornArray.forEach((p: string) => { counts[p] = (counts[p] || 0) + 1; });
       popcornText = Object.entries(counts).map(([key, count]) => `🍿 ${popcornNames[key]} ${count}개`).join('<br/>');
     }
-    const popcornLines = popcornArray.length > 0
-      ? Object.entries(
-          popcornArray.reduce((acc: Record<string, number>, p: string) => {
-            acc[p] = (acc[p] || 0) + 1;
-            return acc;
-          }, {})
-        ).map(([key, count]) => `${popcornNames[key]} ${count}개`)
-      : ['음료/팝콘 없음'];
 
     const displayId = ticketId ? ticketId.split('-')[0].toUpperCase() : 'UNKNOWN';
 
     const posterImage = posterUrl ? await fetchSafeImage(posterUrl) : null;
     const templateImage = backgroundTemplateUrl ? await fetchSafeImage(backgroundTemplateUrl) : null;
-    const posterAttachment = posterImage?.ok
-      ? { filename: 'poster.jpg', content: Buffer.from(posterImage.body), cid: 'posterImage', contentType: posterImage.contentType }
+
+    const cardBackground = templateImage?.ok
+      ? { body: templateImage.body, contentType: templateImage.contentType, outer: true as const }
+      : posterImage?.ok
+      ? { body: posterImage.body, contentType: posterImage.contentType, outer: false as const }
       : null;
-    const posterSrc = escapeHtml(posterAttachment ? 'cid:posterImage' : `${baseUrl}/next.svg`);
+
     const safeBaseUrl = escapeHtml(baseUrl);
     const safeMovieTitle = escapeHtml(movieTitle);
     const safeMovieDate = escapeHtml(movieDate);
@@ -68,71 +108,49 @@ export async function POST(req: Request) {
     const safeSeat = escapeHtml(seat);
     const safeName = escapeHtml(name);
 
-    const composedCard = await renderTicketCardImage({
-      baseUrl,
-      posterImage: posterImage?.ok ? { body: posterImage.body, contentType: posterImage.contentType } : null,
-      templateImage: templateImage?.ok ? { body: templateImage.body, contentType: templateImage.contentType } : null,
-      movieTitle,
-      movieDate,
-      venue,
-      ageRating,
-      seat,
-      name,
-      displayId,
+    const cardContentHtml = buildCardContentHtml({
+      displayId: escapeHtml(displayId),
+      movieTitle: safeMovieTitle,
+      ageRating: safeAgeRating,
+      movieDate: safeMovieDate,
+      venue: safeVenue,
+      popcornText,
+      priceText: escapeHtml(priceText),
+      seat: safeSeat,
+      name: safeName,
       statusType,
       badgeColor,
-      badgeText,
-      priceText,
-      popcornLines,
-    } satisfies TicketCardProps);
+      badgeText: escapeHtml(badgeText),
+    });
 
-    const templateUsed = Boolean(templateImage?.ok);
+    const cardMarkup = !cardBackground
+      ? `<table role="presentation" width="${DISPLAY_CARD_WIDTH}" cellpadding="0" cellspacing="0" style="width:${DISPLAY_CARD_WIDTH}px; max-width:100%;">
+          <tr><td bgcolor="#161b26" style="background-color:#161b26; padding:24px 24px 27px 24px; border-radius:20px; text-align:left;">
+            ${cardContentHtml}
+          </td></tr>
+        </table>`
+      : cardBackground.outer
+      ? `<table role="presentation" width="${DISPLAY_OUTER_WIDTH}" cellpadding="0" cellspacing="0" style="width:${DISPLAY_OUTER_WIDTH}px; max-width:100%;">
+          <tr><td background="cid:cardBg" bgcolor="#0b1120" style="background-image:url(cid:cardBg); background-size:100% 100%; background-repeat:no-repeat; padding:0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr><td style="height:${DISPLAY_CARD_TOP}px; line-height:${DISPLAY_CARD_TOP}px; font-size:1px;">&nbsp;</td></tr>
+              <tr>
+                <td style="padding-left:${DISPLAY_CARD_LEFT}px; padding-right:${DISPLAY_CARD_RIGHT_GAP}px;">
+                  <div style="width:${DISPLAY_CARD_WIDTH}px; padding:24px 24px 27px 24px; box-sizing:border-box; text-align:left;">
+                    ${cardContentHtml}
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td></tr>
+        </table>`
+      : `<table role="presentation" width="${DISPLAY_CARD_WIDTH}" cellpadding="0" cellspacing="0" style="width:${DISPLAY_CARD_WIDTH}px; max-width:100%;">
+          <tr><td background="cid:cardBg" bgcolor="#161b26" style="background-image:url(cid:cardBg); background-size:100% 100%; background-repeat:no-repeat; padding:24px 24px 27px 24px; box-sizing:border-box; border-radius:20px; text-align:left;">
+            ${cardContentHtml}
+          </td></tr>
+        </table>`;
 
-    const cardMarkup = composedCard
-      ? templateUsed
-        ? `<div style="margin: 0 auto; width: 100%; max-width: 520px;">
-              <img src="cid:composedCard" alt="${safeMovieTitle}" width="520" style="display:block; width:100%; height:auto;" />
-            </div>`
-        : `<div style="margin: 0 auto; width: 100%; max-width: 520px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55);">
-              <img src="cid:composedCard" alt="${safeMovieTitle}" width="520" style="display:block; width:100%; height:auto;" />
-              <div style="height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: #161b26;"></div>
-            </div>`
-      : `<div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161b26;">
-            <img src="${posterSrc}" alt="${safeMovieTitle}" width="380" style="display:block; width:100%; height:210px; object-fit:cover; object-position:top; background-color:#0b1120;" />
-            <div style="padding: 18px 22px 26px 22px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-                <td style="vertical-align:top;">
-                  <span style="display:inline-block; background-color:rgba(255,255,255,0.08); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.5px; font-variant-numeric: tabular-nums;">🎫 판매번호 ${displayId}</span>
-                </td>
-                <td style="width:44px; vertical-align:top; text-align:right;">
-                  <span style="display:inline-block; width:44px; height:44px; background-color:#ffffff; border-radius:10px; text-align:center; line-height:44px; font-size:22px;">🎬</span>
-                </td>
-              </tr></table>
-              <div style="color:#ffffff; font-size:23px; font-weight:800; line-height:1.3; margin-top: 16px; margin-bottom: 6px;">${safeMovieTitle}</div>
-              <div style="color:#cbd5e1; font-size:12px; font-weight:600; letter-spacing:0.5px; margin-bottom: 20px;">2D · ${safeAgeRating || '전체관람가'}</div>
-              <div style="margin-bottom: 10px;">
-                <span style="color:#f1f5f9; font-size:15px; font-weight:700; font-variant-numeric: tabular-nums;">${safeMovieDate}</span>
-                <span style="color:#ef4444; font-size:13px; margin-left:6px;">↻</span>
-              </div>
-              ${venue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600;">📍 ${safeVenue}</div>` : ''}
-              <div style="margin: 18px 0; padding: 12px 14px; background-color: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;">
-                <div style="color:#e2e8f0; font-size:13px; font-weight:600; margin-bottom: 6px;">${popcornText}</div>
-                <div style="color:#94a3b8; font-size:12px; font-weight:600; font-variant-numeric: tabular-nums;">결제 금액 <span style="color:#e2e8f0; font-weight:700;">${priceText}</span></div>
-              </div>
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-                <td style="vertical-align:bottom;">
-                  <span style="font-size: 44px; font-weight: 800; color: #ef4444; text-decoration: ${statusType === 'canceled' ? 'line-through' : 'none'}; line-height: 1; font-variant-numeric: tabular-nums;">${safeSeat}</span>
-                  <span style="color:#94a3b8; font-size:13px; font-weight:600; margin-left:8px;">${safeName} 님</span>
-                </td>
-                <td style="vertical-align:bottom; text-align:right; white-space:nowrap;">
-                  <span style="display:inline-block; padding: 7px 12px; background-color: rgba(255,255,255,0.06); border-radius: 8px; font-weight: 700; font-size: 12px; color: ${badgeColor}; border: 1px solid ${badgeColor};">
-                    ${badgeText}
-                  </span>
-                </td>
-              </tr></table>
-            </div>
-            <div style="height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: #161b26;"></div>
-          </div>`;
+    const templateUsed = Boolean(cardBackground?.outer);
 
     const ticketHTML = `
       <!DOCTYPE html>
@@ -188,10 +206,8 @@ export async function POST(req: Request) {
       </html>
     `;
 
-    const attachments = composedCard
-      ? [{ filename: 'ticket.png', content: composedCard, cid: 'composedCard', contentType: 'image/png' }]
-      : posterAttachment
-      ? [posterAttachment]
+    const attachments = cardBackground
+      ? [{ filename: 'card-bg.png', content: Buffer.from(cardBackground.body), cid: 'cardBg', contentType: cardBackground.contentType }]
       : undefined;
 
     await sendMail({ to: email, subject, html: ticketHTML, attachments });
