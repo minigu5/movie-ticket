@@ -5,9 +5,11 @@ import { fetchSafeImage } from '@/lib/safeImageFetch';
 
 // lib/ticketBackgroundCanvas.ts가 만드는 템플릿의 레이아웃과 반드시 일치해야 한다.
 const DISPLAY_CARD_WIDTH = 380;
+const DISPLAY_CARD_HEIGHT = 521;
 const DISPLAY_CARD_TOP = 141;
 const DISPLAY_CARD_LEFT = 76;
 const DISPLAY_OUTER_WIDTH = 532;
+const DISPLAY_OUTER_HEIGHT = 711;
 const DISPLAY_CARD_RIGHT_GAP = DISPLAY_OUTER_WIDTH - DISPLAY_CARD_LEFT - DISPLAY_CARD_WIDTH;
 
 function buildCardContentHtml(params: {
@@ -124,18 +126,18 @@ export async function POST(req: Request) {
     });
 
     const cardMarkup = !cardBackground
-      ? `<table role="presentation" width="${DISPLAY_CARD_WIDTH}" cellpadding="0" cellspacing="0" style="width:${DISPLAY_CARD_WIDTH}px; max-width:100%;">
+      ? `<table role="presentation" width="${DISPLAY_CARD_WIDTH}" cellpadding="0" cellspacing="0" style="width:${DISPLAY_CARD_WIDTH}px; max-width:100%; margin:0 auto;">
           <tr><td bgcolor="#161b26" style="background-color:#161b26; padding:24px 24px 27px 24px; border-radius:20px; text-align:left;">
             ${cardContentHtml}
           </td></tr>
         </table>`
       : cardBackground.outer
-      ? `<table role="presentation" width="${DISPLAY_OUTER_WIDTH}" cellpadding="0" cellspacing="0" style="width:${DISPLAY_OUTER_WIDTH}px; max-width:100%;">
-          <tr><td background="cid:cardBg" bgcolor="#0b1120" style="background-image:url(cid:cardBg); background-size:100% 100%; background-repeat:no-repeat; padding:0;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ? `<table role="presentation" width="${DISPLAY_OUTER_WIDTH}" cellpadding="0" cellspacing="0" style="width:${DISPLAY_OUTER_WIDTH}px; max-width:100%; margin:0 auto;">
+          <tr><td background="cid:cardBg" bgcolor="#0b1120" height="${DISPLAY_OUTER_HEIGHT}" style="background-image:url(cid:cardBg); background-size:100% 100%; background-repeat:no-repeat; height:${DISPLAY_OUTER_HEIGHT}px; padding:0;">
+            <table role="presentation" width="100%" height="${DISPLAY_OUTER_HEIGHT}" cellpadding="0" cellspacing="0" style="height:${DISPLAY_OUTER_HEIGHT}px;">
               <tr><td style="height:${DISPLAY_CARD_TOP}px; line-height:${DISPLAY_CARD_TOP}px; font-size:1px;">&nbsp;</td></tr>
               <tr>
-                <td style="padding-left:${DISPLAY_CARD_LEFT}px; padding-right:${DISPLAY_CARD_RIGHT_GAP}px;">
+                <td style="padding-left:${DISPLAY_CARD_LEFT}px; padding-right:${DISPLAY_CARD_RIGHT_GAP}px; vertical-align:top;">
                   <div style="width:${DISPLAY_CARD_WIDTH}px; padding:24px 24px 27px 24px; box-sizing:border-box; text-align:left;">
                     ${cardContentHtml}
                   </div>
@@ -144,8 +146,8 @@ export async function POST(req: Request) {
             </table>
           </td></tr>
         </table>`
-      : `<table role="presentation" width="${DISPLAY_CARD_WIDTH}" cellpadding="0" cellspacing="0" style="width:${DISPLAY_CARD_WIDTH}px; max-width:100%;">
-          <tr><td background="cid:cardBg" bgcolor="#161b26" style="background-image:url(cid:cardBg); background-size:100% 100%; background-repeat:no-repeat; padding:24px 24px 27px 24px; box-sizing:border-box; border-radius:20px; text-align:left;">
+      : `<table role="presentation" width="${DISPLAY_CARD_WIDTH}" cellpadding="0" cellspacing="0" style="width:${DISPLAY_CARD_WIDTH}px; max-width:100%; margin:0 auto;">
+          <tr><td background="cid:cardBg" bgcolor="#161b26" height="${DISPLAY_CARD_HEIGHT}" style="background-image:url(cid:cardBg); background-size:100% 100%; background-repeat:no-repeat; height:${DISPLAY_CARD_HEIGHT}px; padding:24px 24px 27px 24px; box-sizing:border-box; border-radius:20px; text-align:left; vertical-align:top;">
             ${cardContentHtml}
           </td></tr>
         </table>`;
