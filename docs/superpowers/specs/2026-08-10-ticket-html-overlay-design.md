@@ -40,6 +40,8 @@
 
 satori 관련 코드(`renderTicketCardImage`, `TicketCardProps`)는 전부 제거된다. `lib/cloudinary.ts`, `lib/ticketBackgroundCanvas.ts`, `app/admin/page.tsx`의 배경 생성 버튼, DB의 `background_template_url` 컬럼은 그대로 유지된다 — 이번 변경은 "그 템플릿을 어떻게 소비하는가"만 바꾼다.
 
+**해상도**: canvas 렌더링은 이제 관리자 브라우저에서 돌아가므로 Workers CPU 제한과 무관하다. `lib/ticketBackgroundCanvas.ts`에 `SCALE = 2` 배율을 도입해 실제 캔버스 픽셀 크기(`OUTER_WIDTH*SCALE`×`OUTER_HEIGHT*SCALE`)를 2배로 키우고, `ctx.scale(SCALE, SCALE)`로 기존 레이아웃 좌표 로직은 그대로 재사용한다. 이메일에는 지금과 같은 표시 크기(`width` 속성)로 넣으므로 레이아웃/비율은 안 바뀌고 고밀도 디스플레이에서 더 선명하게만 보인다.
+
 ## 카드 마크업 상세
 
 기존 satori 버전의 텍스트 레이아웃(패딩 `44px 44px 50px 44px`, 판매번호 배지, 제목 `margin-top: 220px`, 날짜/장소, 팝콘 박스, 좌석+이름 / 상태배지 좌우 정렬)을 그대로 HTML/CSS로 이식한다. 좌우 정렬은 `<table role="presentation"><tr><td>...</td><td style="text-align:right">...</td></tr></table>`로 한다(`flex`는 이메일에서 신뢰할 수 없다고 이미 확정됨).
