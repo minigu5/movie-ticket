@@ -3,8 +3,8 @@
 // 프레임 + 절취선, 텍스트는 없음)을 미리 PNG로 합성한다. 이 무거운 합성을
 // 이메일 발송 시점(Cloudflare Workers, CPU 예산 있음)이 아니라 관리자가 포스터를
 // 등록할 때 브라우저(CPU 무제한)에서 한 번만 처리해서, 발송 시엔 이 PNG 위에
-// satori가 텍스트만 얹으면 되게 한다. 레이아웃 상수는 lib/renderTicketCard.tsx의
-// 텍스트 오버레이 좌표와 반드시 일치해야 한다.
+// app/api/ticket/route.ts가 순수 이메일 HTML로 텍스트만 오버레이하면 되게 한다.
+// 레이아웃 상수는 route.ts의 DISPLAY_* 좌표 계산과 반드시 일치해야 한다.
 
 const CARD_WIDTH = 700;
 const CARD_HEIGHT = 960;
@@ -16,6 +16,7 @@ const OUTER_WIDTH = CARD_WIDTH + SIDE_MARGIN * 2;
 const OUTER_HEIGHT = TOP_MARGIN + LOGO_BLOCK_HEIGHT + CARD_HEIGHT + BOTTOM_MARGIN;
 const SCALLOP_COUNT = 13;
 const CARD_RADIUS = 28;
+const SCALE = 2;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -176,10 +177,11 @@ export async function renderTicketBackground(posterUrl: string): Promise<Blob> {
   const poster = await loadImage(`/api/poster-image?src=${encodeURIComponent(posterUrl)}`);
 
   const canvas = document.createElement('canvas');
-  canvas.width = OUTER_WIDTH;
-  canvas.height = OUTER_HEIGHT;
+  canvas.width = OUTER_WIDTH * SCALE;
+  canvas.height = OUTER_HEIGHT * SCALE;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context를 가져올 수 없습니다.');
+  ctx.scale(SCALE, SCALE);
 
   ctx.fillStyle = '#0b1120';
   ctx.fillRect(0, 0, OUTER_WIDTH, OUTER_HEIGHT);
