@@ -145,17 +145,21 @@ function drawCardFrame(ctx: CanvasRenderingContext2D, poster: HTMLImageElement, 
 
 /**
  * 카드 아래쪽 가장자리를 반원 모양으로 "뚫어서" 절취선처럼 보이게 한다.
- * 예전엔 destination-out으로 실제 투명 구멍을 낸 뒤 반투명 검정을 덧칠했는데,
- * 그러면 PNG(알파 채널)로만 저장할 수 있어 파일이 커진다. 한때 이걸 "#0b1120
- * 위에 rgba(0,0,0,0.45)를 얹은 결과"인 고정 단색(#060912)으로 대체했었지만,
- * 점 위치의 실제 배경은 #0b1120가 아니다 — 위쪽 절반은 카드 그라데이션
- * (#161b26 근사), 아래쪽 절반은 포스터 블러+가장자리 그라데이션(아직 다
- * 어두워지기 전이라 포스터 색이 꽤 남아있음)이라 포스터 톤에 따라 점이
- * 붕 떠 보였다. 고정값 대신 알파 있는 rgba(0,0,0,0.45)를 그 자리에 직접
- * 얹으면 캔버스가 매 지점의 실제 색을 각각 어둡게 눌러주면서 최종 픽셀은
- * 여전히 완전 불투명이라 JPEG로 문제없이 인코딩된다.
+ * 원을 아무 색으로 칠하면(예전 고정 단색, 그다음 반투명 검정 덧칠) 구멍
+ * 자리만 카드/배경 그라데이션 흐름과 끊긴 채 붕 떠 보였다. 진짜 뚫린 것처럼
+ * 보이려면 그 자리의 그라데이션이 끊기지 않고 그대로 이어져야 하므로,
+ * 카드를 그리기 *전* 배경(블러+비네트+로고)만 있는 상태를 bgSnapshot으로
+ * 떠 둔 뒤, 카드를 다 그린 다음 구멍 모양으로 클리핑해서 그 스냅샷을 다시
+ * 얹어 되돌린다 — 카드에 실제로 원형 구멍이 뚫려 뒤 배경이 비치는 것과
+ * 동일한 결과다. 가장자리만 옅은 그림자를 살짝 둘러 홈이 파인 형태임을
+ * 알아볼 수 있게 한다.
  */
-function drawScallops(ctx: CanvasRenderingContext2D, cardLeft: number, cardTop: number): void {
+function drawScallops(
+  ctx: CanvasRenderingContext2D,
+  cardLeft: number,
+  cardTop: number,
+  bgSnapshot: HTMLCanvasElement,
+): void {
   const radius = 14;
   const padding = 16;
   const areaWidth = CARD_WIDTH - padding * 2;
@@ -163,12 +167,24 @@ function drawScallops(ctx: CanvasRenderingContext2D, cardLeft: number, cardTop: 
   const cy = cardTop + CARD_HEIGHT;
 
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.beginPath();
+  for (let i = 0; i < SCALLOP_COUNT; i++) {
+    const cx = cardLeft + padding + gap * i;
+    ctx.moveTo(cx + radius, cy);
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  }
+  ctx.clip();
+  ctx.drawImage(bgSnapshot, 0, 0, OUTER_WIDTH, OUTER_HEIGHT);
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1.5;
   for (let i = 0; i < SCALLOP_COUNT; i++) {
     const cx = cardLeft + padding + gap * i;
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.stroke();
   }
   ctx.restore();
 }
@@ -203,14 +219,24 @@ export async function renderTicketBackground(posterUrl: string): Promise<Blob> {
   drawEdgeGradients(ctx);
   drawLogo(ctx);
 
+  // 카드를 그리기 전 배경만 있는 상태를 떠 둔다 — drawScallops가 이걸로
+  // 구멍 자리에 카드 밑 배경 그라데이션을 그대로 되살린다.
+  const bgSnapshot = document.createElement('canvas');
+  bgSnapshot.width = canvas.width;
+  bgSnapshot.height = canvas.height;
+  const bgSnapshotCtx = bgSnapshot.getContext('2d');
+  if (!bgSnapshotCtx) throw new Error('Canvas 2D context를 가져올 수 없습니다.');
+  bgSnapshotCtx.drawImage(canvas, 0, 0);
+
   const cardLeft = SIDE_MARGIN;
   const cardTop = TOP_MARGIN + LOGO_BLOCK_HEIGHT;
   drawCardFrame(ctx, poster, cardLeft, cardTop);
-  drawScallops(ctx, cardLeft, cardTop);
+  drawScallops(ctx, cardLeft, cardTop, bgSnapshot);
 
-  // 알파 채널을 안 쓰므로(절취선 구멍도 위에서 단색으로 직접 칠함) 카드는
-  // 전체가 불투명하다 — 무손실 PNG 대신 JPEG로 인코딩하면 이메일 첨부 용량이
-  // 크게 줄어 수신자 메일 클라이언트에서 이미지가 더 빨리 뜬다.
+  // 알파 채널을 안 쓰므로(절취선 구멍도 위에서 배경 스냅샷을 되살려 직접
+  // 칠한다) 카드는 전체가 불투명하다 — 무손실 PNG 대신 JPEG로 인코딩하면
+  // 이메일 첨부 용량이 크게 줄어 수신자 메일 클라이언트에서 이미지가 더
+  // 빨리 뜬다.
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (!blob) reject(new Error('이미지 생성에 실패했습니다.'));
