@@ -146,10 +146,14 @@ function drawCardFrame(ctx: CanvasRenderingContext2D, poster: HTMLImageElement, 
 /**
  * 카드 아래쪽 가장자리를 반원 모양으로 "뚫어서" 절취선처럼 보이게 한다.
  * 예전엔 destination-out으로 실제 투명 구멍을 낸 뒤 반투명 검정을 덧칠했는데,
- * 그러면 PNG(알파 채널)로만 저장할 수 있어 파일이 커진다. 이메일 배경색이
- * 항상 #0b1120로 고정이라, 구멍 자리에 "#0b1120 위에 rgba(0,0,0,0.45)를
- * 얹은 결과"와 동일한 단색(#060912)을 직접 칠하면 알파 없이도 똑같이 보이면서
- * JPEG로 인코딩할 수 있다.
+ * 그러면 PNG(알파 채널)로만 저장할 수 있어 파일이 커진다. 한때 이걸 "#0b1120
+ * 위에 rgba(0,0,0,0.45)를 얹은 결과"인 고정 단색(#060912)으로 대체했었지만,
+ * 점 위치의 실제 배경은 #0b1120가 아니다 — 위쪽 절반은 카드 그라데이션
+ * (#161b26 근사), 아래쪽 절반은 포스터 블러+가장자리 그라데이션(아직 다
+ * 어두워지기 전이라 포스터 색이 꽤 남아있음)이라 포스터 톤에 따라 점이
+ * 붕 떠 보였다. 고정값 대신 알파 있는 rgba(0,0,0,0.45)를 그 자리에 직접
+ * 얹으면 캔버스가 매 지점의 실제 색을 각각 어둡게 눌러주면서 최종 픽셀은
+ * 여전히 완전 불투명이라 JPEG로 문제없이 인코딩된다.
  */
 function drawScallops(ctx: CanvasRenderingContext2D, cardLeft: number, cardTop: number): void {
   const radius = 14;
@@ -159,7 +163,7 @@ function drawScallops(ctx: CanvasRenderingContext2D, cardLeft: number, cardTop: 
   const cy = cardTop + CARD_HEIGHT;
 
   ctx.save();
-  ctx.fillStyle = '#060912';
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
   for (let i = 0; i < SCALLOP_COUNT; i++) {
     const cx = cardLeft + padding + gap * i;
     ctx.beginPath();
