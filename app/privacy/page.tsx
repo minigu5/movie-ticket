@@ -15,33 +15,37 @@ export default function PrivacyPage() {
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
           <h1 className="text-2xl font-black mb-1">개인정보처리방침</h1>
-          <p className="text-sm text-slate-500 mb-8">시행일: 2026년 5월 28일</p>
+          <p className="text-sm text-slate-500 mb-8">시행일: 2026년 8월 20일</p>
 
           <section className="mb-8">
             <h2 className="text-base font-bold text-indigo-400 border-b border-slate-800 pb-2 mb-4">1. 수집하는 개인정보</h2>
             <p className="text-sm text-slate-300 leading-relaxed">
-              영화 예매 과정에서 다음 정보를 수집합니다.
+              구글 로그인(학교 이메일 @ts.hs.kr 계정) 및 영화 예매 과정에서 다음 정보를 수집합니다.
             </p>
             <ul className="mt-3 space-y-1.5 text-sm text-slate-400 list-disc list-inside">
-              <li>학번 및 성명 (예매자 확인 목적)</li>
+              <li>구글 계정 이메일 및 이름 (로그인 및 본인 확인 목적)</li>
+              <li>학번 및 성명 (구글 계정 이름에서 자동 추출, 예매자 확인 목적)</li>
               <li>선택 좌석 및 팝콘 옵션</li>
-              <li>이메일 주소 (티켓 발송 목적)</li>
+              <li>이메일 주소 (티켓 발송 목적, 구글 로그인 계정과 동일)</li>
             </ul>
           </section>
 
           <section className="mb-8">
             <h2 className="text-base font-bold text-indigo-400 border-b border-slate-800 pb-2 mb-4">2. 수집 목적 및 보유 기간</h2>
             <p className="text-sm text-slate-300 leading-relaxed">
-              수집한 정보는 영화 상영일 기준 예매 확인 및 좌석 배정 목적으로만 사용되며,
-              상영 종료 후 즉시 파기합니다.
+              계정 정보(이메일, 학번, 성명)는 로그인 및 예매 확인을 위해 보관되며,
+              이용자가 삭제를 요청하기 전까지 유지됩니다.
+              좌석 및 팝콘 옵션 등 예매 상세 정보는 영화 상영일 기준 예매 확인 및 좌석 배정
+              목적으로만 사용됩니다.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-base font-bold text-indigo-400 border-b border-slate-800 pb-2 mb-4">3. 제3자 제공</h2>
+            <h2 className="text-base font-bold text-indigo-400 border-b border-slate-800 pb-2 mb-4">3. 제3자 제공 및 처리 위탁</h2>
             <p className="text-sm text-slate-300 leading-relaxed">
-              수집된 정보는 외부에 제공하거나 판매하지 않습니다.
-              데이터베이스는 Supabase(미국)에 저장됩니다.
+              수집된 정보는 외부에 판매하지 않습니다.
+              로그인 인증은 Google OAuth를 통해 처리되며, 데이터베이스 및 인증 정보는
+              Supabase(미국)에 저장됩니다.
             </p>
           </section>
 
