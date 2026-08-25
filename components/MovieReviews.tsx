@@ -7,10 +7,10 @@ import { signInWithGoogle, type AppProfile } from '../lib/supabase-auth';
 interface MovieReview {
   id: number;
   user_id: string;
+  user_name: string;
   rating: number;
   content: string;
   created_at: string;
-  profiles: { name: string } | null;
 }
 
 function StarRating({ value, onChange, size }: { value: number; onChange?: (v: number) => void; size?: string }) {
@@ -56,7 +56,7 @@ export default function MovieReviews({ movieSettingsId, profile, isClubMember }:
     let active = true;
     setIsLoading(true);
     supabase.from('movie_reviews')
-      .select('id, user_id, rating, content, created_at, profiles(name)')
+      .select('id, user_id, user_name, rating, content, created_at')
       .eq('movie_settings_id', movieSettingsId)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
@@ -79,10 +79,10 @@ export default function MovieReviews({ movieSettingsId, profile, isClubMember }:
     const { data, error: upsertError } = await supabase
       .from('movie_reviews')
       .upsert(
-        { movie_settings_id: movieSettingsId, user_id: profile.id, rating, content: content.trim(), updated_at: new Date().toISOString() },
+        { movie_settings_id: movieSettingsId, user_id: profile.id, user_name: profile.name, rating, content: content.trim(), updated_at: new Date().toISOString() },
         { onConflict: 'movie_settings_id,user_id' }
       )
-      .select('id, user_id, rating, content, created_at, profiles(name)')
+      .select('id, user_id, user_name, rating, content, created_at')
       .single();
     setIsSaving(false);
 
@@ -203,7 +203,7 @@ export default function MovieReviews({ movieSettingsId, profile, isClubMember }:
             return (
               <div key={r.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-white text-sm font-bold">{r.profiles?.name ?? '동아리원'}{isMine && <span className="text-indigo-400 font-normal ml-1">(나)</span>}</span>
+                  <span className="text-white text-sm font-bold">{r.user_name}{isMine && <span className="text-indigo-400 font-normal ml-1">(나)</span>}</span>
                   <StarRating value={r.rating} size="text-sm" />
                 </div>
                 <p className="text-slate-300 text-sm whitespace-pre-wrap">{r.content}</p>

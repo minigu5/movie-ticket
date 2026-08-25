@@ -298,7 +298,7 @@ export async function POST(req: Request) {
       case 'FETCH_HISTORY_REVIEWS': {
         const { movieSettingsId } = payload;
         const { data, error } = await supabaseAdmin.from('movie_reviews')
-          .select('id, user_id, rating, content, created_at, profiles(name, email)')
+          .select('id, user_id, user_name, rating, content, created_at, profiles(email)')
           .eq('movie_settings_id', movieSettingsId)
           .order('created_at', { ascending: false });
         if (error) throw error;

@@ -247,7 +247,7 @@ export default function AdminPage() {
   };
 
   const handleDeleteReview = async (review: any) => {
-    if (!confirm(`${review.profiles?.name ?? review.profiles?.email ?? '작성자'}님의 후기를 삭제하시겠습니까?`)) return;
+    if (!confirm(`${review.user_name ?? review.profiles?.email ?? '작성자'}님의 후기를 삭제하시겠습니까?`)) return;
     const res = await authFetch('/api/admin/action', { action: 'DELETE_REVIEW', payload: { id: review.id } });
     const data = await res.json();
     if (!data.success) return alert("후기 삭제 실패: " + data.error);
@@ -730,7 +730,7 @@ export default function AdminPage() {
                     <div key={review.id} className="p-4 flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-white font-bold text-sm">{review.profiles?.name ?? review.profiles?.email ?? '알 수 없음'}</span>
+                          <span className="text-white font-bold text-sm">{review.user_name ?? review.profiles?.email ?? '알 수 없음'}</span>
                           <span className="text-amber-400 font-bold text-sm">★ {review.rating}</span>
                         </div>
                         <p className="text-gray-300 text-sm whitespace-pre-wrap">{review.content}</p>
