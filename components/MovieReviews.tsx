@@ -38,10 +38,17 @@ function StarRating({ value, onChange, size }: { value: number; onChange?: (v: n
 export default function MovieReviews({ movieSettingsId, profile, isClubMember }: { movieSettingsId: number; profile: AppProfile | null; isClubMember: boolean }) {
   const [reviews, setReviews] = useState<MovieReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [formRating, setFormRating] = useState(0);
-  const [formContent, setFormContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 새 후기 작성 폼(아직 내 후기가 없을 때만 노출)
+  const [newRating, setNewRating] = useState(0);
+  const [newContent, setNewContent] = useState('');
+
+  // 내 후기 인라인 수정 상태
+  const [isEditing, setIsEditing] = useState(false);
+  const [editRating, setEditRating] = useState(0);
+  const [editContent, setEditContent] = useState('');
 
   const myReview = profile ? reviews.find(r => r.user_id === profile.id) ?? null : null;
 
@@ -60,34 +67,48 @@ export default function MovieReviews({ movieSettingsId, profile, isClubMember }:
     return () => { active = false; };
   }, [movieSettingsId]);
 
-  useEffect(() => {
-    setFormRating(myReview?.rating ?? 0);
-    setFormContent(myReview?.content ?? '');
-    setError(null);
-  }, [myReview?.id]);
-
   const average = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
 
-  const handleSubmit = async () => {
-    if (!profile) return;
-    if (formRating <= 0) return setError('별점을 선택해주세요.');
-    if (!formContent.trim()) return setError('후기를 입력해주세요.');
+  const upsertReview = async (rating: number, content: string) => {
+    if (!profile) return false;
+    if (rating <= 0) { setError('별점을 선택해주세요.'); return false; }
+    if (!content.trim()) { setError('후기를 입력해주세요.'); return false; }
 
     setError(null);
     setIsSaving(true);
     const { data, error: upsertError } = await supabase
       .from('movie_reviews')
       .upsert(
-        { movie_settings_id: movieSettingsId, user_id: profile.id, rating: formRating, content: formContent.trim(), updated_at: new Date().toISOString() },
+        { movie_settings_id: movieSettingsId, user_id: profile.id, rating, content: content.trim(), updated_at: new Date().toISOString() },
         { onConflict: 'movie_settings_id,user_id' }
       )
       .select('id, user_id, rating, content, created_at, profiles(name)')
       .single();
     setIsSaving(false);
 
-    if (upsertError) return setError('저장에 실패했습니다.');
+    if (upsertError) { setError('저장에 실패했습니다.'); return false; }
     setReviews(prev => [data as any, ...prev.filter(r => r.user_id !== profile.id)]
       .sort((a, b) => b.created_at.localeCompare(a.created_at)));
+    return true;
+  };
+
+  const handleCreate = async () => {
+    if (await upsertReview(newRating, newContent)) {
+      setNewRating(0);
+      setNewContent('');
+    }
+  };
+
+  const startEditing = () => {
+    if (!myReview) return;
+    setEditRating(myReview.rating);
+    setEditContent(myReview.content);
+    setError(null);
+    setIsEditing(true);
+  };
+
+  const handleUpdate = async () => {
+    if (await upsertReview(editRating, editContent)) setIsEditing(false);
   };
 
   const handleDelete = async () => {
@@ -98,6 +119,7 @@ export default function MovieReviews({ movieSettingsId, profile, isClubMember }:
 
     if (deleteError) return setError('삭제에 실패했습니다.');
     setReviews(prev => prev.filter(r => r.id !== myReview.id));
+    setIsEditing(false);
   };
 
   return (
@@ -132,28 +154,21 @@ export default function MovieReviews({ movieSettingsId, profile, isClubMember }:
         </div>
       )}
 
-      {isClubMember && profile && (
+      {isClubMember && profile && !myReview && (
         <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
-          <p className="text-slate-300 text-sm font-bold mb-2">{myReview ? '내 후기 수정' : '후기 작성'}</p>
-          <StarRating value={formRating} onChange={setFormRating} />
+          <p className="text-slate-300 text-sm font-bold mb-2">후기 작성</p>
+          <StarRating value={newRating} onChange={setNewRating} />
           <textarea
-            value={formContent}
-            onChange={(e) => setFormContent(e.target.value)}
+            value={newContent}
+            onChange={(e) => setNewContent(e.target.value)}
             placeholder="이 영화 어떠셨나요?"
             rows={3}
             className="mt-3 w-full bg-slate-900/60 border border-white/10 rounded-lg p-3 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
           />
           {error && <p className="text-rose-400 text-xs mt-2">{error}</p>}
-          <div className="flex gap-2 mt-3">
-            <button type="button" onClick={handleSubmit} disabled={isSaving} className="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg text-white text-sm font-bold transition-all">
-              {myReview ? '수정하기' : '등록하기'}
-            </button>
-            {myReview && (
-              <button type="button" onClick={handleDelete} disabled={isSaving} className="py-2 px-4 bg-white/5 hover:bg-rose-500/20 disabled:opacity-50 rounded-lg text-slate-300 hover:text-rose-400 text-sm font-bold transition-all">
-                삭제
-              </button>
-            )}
-          </div>
+          <button type="button" onClick={handleCreate} disabled={isSaving} className="mt-3 py-2 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg text-white text-sm font-bold transition-all">
+            등록하기
+          </button>
         </div>
       )}
 
@@ -163,15 +178,44 @@ export default function MovieReviews({ movieSettingsId, profile, isClubMember }:
         <p className="text-slate-500 text-sm text-center py-4">아직 등록된 후기가 없습니다.</p>
       ) : (
         <div className="space-y-3">
-          {reviews.map((r) => (
-            <div key={r.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-white text-sm font-bold">{r.profiles?.name ?? '동아리원'}</span>
-                <StarRating value={r.rating} size="text-sm" />
+          {reviews.map((r) => {
+            const isMine = profile?.id === r.user_id;
+
+            if (isMine && isEditing) {
+              return (
+                <div key={r.id} className="bg-white/5 border border-indigo-500/30 rounded-xl p-4">
+                  <StarRating value={editRating} onChange={setEditRating} />
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    rows={3}
+                    className="mt-3 w-full bg-slate-900/60 border border-white/10 rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+                  />
+                  {error && <p className="text-rose-400 text-xs mt-2">{error}</p>}
+                  <div className="flex gap-2 mt-3">
+                    <button type="button" onClick={handleUpdate} disabled={isSaving} className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg text-white text-xs font-bold transition-all">저장</button>
+                    <button type="button" onClick={() => { setIsEditing(false); setError(null); }} disabled={isSaving} className="py-1.5 px-3 bg-white/5 hover:bg-white/10 disabled:opacity-50 rounded-lg text-slate-300 text-xs font-bold transition-all">취소</button>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div key={r.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-white text-sm font-bold">{r.profiles?.name ?? '동아리원'}{isMine && <span className="text-indigo-400 font-normal ml-1">(나)</span>}</span>
+                  <StarRating value={r.rating} size="text-sm" />
+                </div>
+                <p className="text-slate-300 text-sm whitespace-pre-wrap">{r.content}</p>
+                {isMine && (
+                  <div className="flex gap-3 mt-2">
+                    <button type="button" onClick={startEditing} className="text-slate-500 hover:text-indigo-400 text-xs font-bold transition-colors">수정</button>
+                    <button type="button" onClick={handleDelete} disabled={isSaving} className="text-slate-500 hover:text-rose-400 text-xs font-bold transition-colors disabled:opacity-50">삭제</button>
+                  </div>
+                )}
               </div>
-              <p className="text-slate-300 text-sm whitespace-pre-wrap">{r.content}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
