@@ -30,6 +30,7 @@ export default function AdminPage() {
   const [showMovieHistory, setShowMovieHistory] = useState(false);
   const [selectedHistoryMovie, setSelectedHistoryMovie] = useState<any>(null);
   const [historyReservations, setHistoryReservations] = useState<any[]>([]);
+  const [historyReviews, setHistoryReviews] = useState<any[]>([]);
 
   const [logs, setLogs] = useState<any[]>([]);
   const [showLogs, setShowLogs] = useState(false);
@@ -229,6 +230,7 @@ export default function AdminPage() {
     }
     setSelectedHistoryMovie(null);
     setHistoryReservations([]);
+    setHistoryReviews([]);
     setShowMovieHistory(!showMovieHistory);
   };
 
@@ -238,6 +240,18 @@ export default function AdminPage() {
     if (!data.success) return alert("예매 내역 조회 실패: " + data.error);
     setSelectedHistoryMovie(movie);
     setHistoryReservations(data.data);
+
+    const reviewRes = await authFetch('/api/admin/action', { action: 'FETCH_HISTORY_REVIEWS', payload: { movieSettingsId: movie.id } });
+    const reviewData = await reviewRes.json();
+    if (reviewData.success) setHistoryReviews(reviewData.data);
+  };
+
+  const handleDeleteReview = async (review: any) => {
+    if (!confirm(`${review.profiles?.name ?? review.profiles?.email ?? '작성자'}님의 후기를 삭제하시겠습니까?`)) return;
+    const res = await authFetch('/api/admin/action', { action: 'DELETE_REVIEW', payload: { id: review.id } });
+    const data = await res.json();
+    if (!data.success) return alert("후기 삭제 실패: " + data.error);
+    setHistoryReviews(prev => prev.filter(r => r.id !== review.id));
   };
 
   const handleApprove = async (ticket: any) => {
@@ -700,6 +714,32 @@ export default function AdminPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {selectedHistoryMovie && (
+            <div className="bg-gray-900 rounded-xl overflow-x-auto border border-gray-700 mt-4">
+              <h3 className="text-lg font-bold text-gray-200 p-4 border-b border-gray-700">
+                [{selectedHistoryMovie.title}] 평점/후기 <span className="text-sm text-gray-500 font-normal ml-2">(관리자 삭제 가능)</span>
+              </h3>
+              {historyReviews.length === 0 ? (
+                <p className="p-8 text-center text-gray-500 text-sm">등록된 후기가 없습니다.</p>
+              ) : (
+                <div className="divide-y divide-gray-800">
+                  {historyReviews.map((review: any) => (
+                    <div key={review.id} className="p-4 flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-white font-bold text-sm">{review.profiles?.name ?? review.profiles?.email ?? '알 수 없음'}</span>
+                          <span className="text-amber-400 font-bold text-sm">★ {review.rating}</span>
+                        </div>
+                        <p className="text-gray-300 text-sm whitespace-pre-wrap">{review.content}</p>
+                      </div>
+                      <button onClick={() => handleDeleteReview(review)} className="shrink-0 text-red-400 hover:text-red-300 font-bold text-xs border border-red-800 hover:border-red-600 rounded px-2 py-1">삭제</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

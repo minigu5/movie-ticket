@@ -295,6 +295,23 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true });
       }
 
+      case 'FETCH_HISTORY_REVIEWS': {
+        const { movieSettingsId } = payload;
+        const { data, error } = await supabaseAdmin.from('movie_reviews')
+          .select('id, user_id, rating, content, created_at, profiles(name, email)')
+          .eq('movie_settings_id', movieSettingsId)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        return NextResponse.json({ success: true, data });
+      }
+
+      case 'DELETE_REVIEW': {
+        const { id } = payload;
+        const { error } = await supabaseAdmin.from('movie_reviews').delete().eq('id', id);
+        if (error) throw error;
+        return NextResponse.json({ success: true });
+      }
+
       case 'UPDATE_KIOSK_PASSWORD': {
         const { password } = payload;
         const cleanPassword = String(password || '').trim();

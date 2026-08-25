@@ -1,0 +1,179 @@
+"use client";
+
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { signInWithGoogle, type AppProfile } from '../lib/supabase-auth';
+
+interface MovieReview {
+  id: number;
+  user_id: string;
+  rating: number;
+  content: string;
+  created_at: string;
+  profiles: { name: string } | null;
+}
+
+function StarRating({ value, onChange, size }: { value: number; onChange?: (v: number) => void; size?: string }) {
+  return (
+    <div className={`flex gap-0.5 ${size ?? 'text-lg'}`}>
+      {[1, 2, 3, 4, 5].map((s) => {
+        const fillRatio = Math.max(0, Math.min(1, value - (s - 1)));
+        return (
+          <div key={s} className="relative inline-block leading-none" style={{ width: '1em', height: '1em' }}>
+            <span className="absolute inset-0 text-slate-600 select-none">★</span>
+            <span className="absolute inset-0 overflow-hidden text-amber-400 select-none" style={{ width: `${fillRatio * 100}%` }}>★</span>
+            {onChange && (
+              <>
+                <button type="button" aria-label={`${s - 0.5}점`} className="absolute inset-y-0 left-0 w-1/2 cursor-pointer" onClick={() => onChange(s - 0.5)} />
+                <button type="button" aria-label={`${s}점`} className="absolute inset-y-0 right-0 w-1/2 cursor-pointer" onClick={() => onChange(s)} />
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export default function MovieReviews({ movieSettingsId, profile, isClubMember }: { movieSettingsId: number; profile: AppProfile | null; isClubMember: boolean }) {
+  const [reviews, setReviews] = useState<MovieReview[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formRating, setFormRating] = useState(0);
+  const [formContent, setFormContent] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const myReview = profile ? reviews.find(r => r.user_id === profile.id) ?? null : null;
+
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    supabase.from('movie_reviews')
+      .select('id, user_id, rating, content, created_at, profiles(name)')
+      .eq('movie_settings_id', movieSettingsId)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (!active) return;
+        setReviews((data as any) || []);
+        setIsLoading(false);
+      });
+    return () => { active = false; };
+  }, [movieSettingsId]);
+
+  useEffect(() => {
+    setFormRating(myReview?.rating ?? 0);
+    setFormContent(myReview?.content ?? '');
+    setError(null);
+  }, [myReview?.id]);
+
+  const average = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
+
+  const handleSubmit = async () => {
+    if (!profile) return;
+    if (formRating <= 0) return setError('별점을 선택해주세요.');
+    if (!formContent.trim()) return setError('후기를 입력해주세요.');
+
+    setError(null);
+    setIsSaving(true);
+    const { data, error: upsertError } = await supabase
+      .from('movie_reviews')
+      .upsert(
+        { movie_settings_id: movieSettingsId, user_id: profile.id, rating: formRating, content: formContent.trim(), updated_at: new Date().toISOString() },
+        { onConflict: 'movie_settings_id,user_id' }
+      )
+      .select('id, user_id, rating, content, created_at, profiles(name)')
+      .single();
+    setIsSaving(false);
+
+    if (upsertError) return setError('저장에 실패했습니다.');
+    setReviews(prev => [data as any, ...prev.filter(r => r.user_id !== profile.id)]
+      .sort((a, b) => b.created_at.localeCompare(a.created_at)));
+  };
+
+  const handleDelete = async () => {
+    if (!myReview) return;
+    setIsSaving(true);
+    const { error: deleteError } = await supabase.from('movie_reviews').delete().eq('id', myReview.id);
+    setIsSaving(false);
+
+    if (deleteError) return setError('삭제에 실패했습니다.');
+    setReviews(prev => prev.filter(r => r.id !== myReview.id));
+  };
+
+  return (
+    <div className="mt-8 w-full max-w-xl">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 className="text-white font-bold text-lg">📝 관람 후기</h3>
+        {reviews.length > 0 && (
+          <div className="flex items-center gap-2">
+            <StarRating value={average} size="text-base" />
+            <span className="text-slate-300 text-sm font-bold">{average.toFixed(1)} / 5</span>
+            <span className="text-slate-500 text-xs">({reviews.length}개)</span>
+          </div>
+        )}
+      </div>
+
+      {!profile && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-slate-400 text-sm">로그인하면 후기를 남길 수 있어요.</p>
+          <button
+            type="button"
+            onClick={() => signInWithGoogle().catch(() => setError('로그인에 실패했습니다.'))}
+            className="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white text-sm font-bold transition-all shrink-0"
+          >
+            로그인
+          </button>
+        </div>
+      )}
+
+      {profile && !isClubMember && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
+          <p className="text-slate-400 text-sm">동아리원만 후기를 남길 수 있어요.</p>
+        </div>
+      )}
+
+      {isClubMember && profile && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
+          <p className="text-slate-300 text-sm font-bold mb-2">{myReview ? '내 후기 수정' : '후기 작성'}</p>
+          <StarRating value={formRating} onChange={setFormRating} />
+          <textarea
+            value={formContent}
+            onChange={(e) => setFormContent(e.target.value)}
+            placeholder="이 영화 어떠셨나요?"
+            rows={3}
+            className="mt-3 w-full bg-slate-900/60 border border-white/10 rounded-lg p-3 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+          />
+          {error && <p className="text-rose-400 text-xs mt-2">{error}</p>}
+          <div className="flex gap-2 mt-3">
+            <button type="button" onClick={handleSubmit} disabled={isSaving} className="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-lg text-white text-sm font-bold transition-all">
+              {myReview ? '수정하기' : '등록하기'}
+            </button>
+            {myReview && (
+              <button type="button" onClick={handleDelete} disabled={isSaving} className="py-2 px-4 bg-white/5 hover:bg-rose-500/20 disabled:opacity-50 rounded-lg text-slate-300 hover:text-rose-400 text-sm font-bold transition-all">
+                삭제
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <p className="text-slate-500 text-sm text-center py-4">후기를 불러오는 중...</p>
+      ) : reviews.length === 0 ? (
+        <p className="text-slate-500 text-sm text-center py-4">아직 등록된 후기가 없습니다.</p>
+      ) : (
+        <div className="space-y-3">
+          {reviews.map((r) => (
+            <div key={r.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-white text-sm font-bold">{r.profiles?.name ?? '동아리원'}</span>
+                <StarRating value={r.rating} size="text-sm" />
+              </div>
+              <p className="text-slate-300 text-sm whitespace-pre-wrap">{r.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

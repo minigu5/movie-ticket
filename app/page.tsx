@@ -6,6 +6,7 @@ import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, authFetchG
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
 
 import AccountInfo from '@/components/AccountInfo';
+import MovieReviews from '@/components/MovieReviews';
 
 interface SeatData {
   status: string;
@@ -265,24 +266,24 @@ export default function Home() {
   }, [groupSendingProgress.sending]);
 
   // 🌟 [과거 상영 회차 열람] 과거 회차를 보고 있을 때만 해당 회차의 좌석 점유 현황을 익명으로 조회
-  // (개인정보 보호: seat_number, payment_status 컬럼만 select — student_name/student_id/email/user_id 등은 절대 조회하지 않음)
+  // (개인정보 보호: /api/past-seats가 service-role로 seat_number/payment_status만 반환 —
+  //  reservations는 anon RLS select가 막혀있어 비로그인도 이 API로만 열람 가능. student_name 등은 절대 노출 안 함)
   useEffect(() => {
     if (!viewingPast || !pastMovie) { setPastSeatMap({}); setPastHasReservations(true); return; }
     let active = true;
     setIsPastSeatLoading(true);
-    supabase.from('reservations')
-      .select('seat_number, payment_status')
-      .eq('movie_settings_id', pastMovie.id)
-      .then(({ data }) => {
+    fetch(`/api/past-seats?movieSettingsId=${pastMovie.id}`)
+      .then((res) => res.json())
+      .then(({ success, data }) => {
         if (!active) return;
         const map: Record<string, string> = {};
-        (data || []).forEach((r: { seat_number: string; payment_status: string }) => {
+        (success ? data : []).forEach((r: { seat_number: string; payment_status: string }) => {
           if (r.payment_status === 'confirmed' || r.payment_status === 'pending' || r.payment_status === 'group_pending') {
             map[r.seat_number] = r.payment_status;
           }
         });
         setPastSeatMap(map);
-        setPastHasReservations((data || []).length > 0);
+        setPastHasReservations(success ? data.length > 0 : true);
         setIsPastSeatLoading(false);
       });
     return () => { active = false; };
@@ -850,6 +851,11 @@ export default function Home() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
         </button>
       </div>
+
+      {/* 🌟 [영화 평점/후기] 보관 중인(과거) 회차에 한해 열람은 전체 공개, 작성/수정/삭제는 동아리원만 */}
+      {viewingPast && pastMovie && (
+        <MovieReviews movieSettingsId={pastMovie.id} profile={profile} isClubMember={!!profile && clubMemberIds.includes(profile.email)} />
+      )}
 
       {/* 🌟 [과거 상영 회차 열람] 과거 회차를 보고 있을 때는 완전히 별도의 읽기 전용 좌석 배치도를 렌더링한다.
           예매/팝콘/자리이동 등 인터랙션은 전부 제거되어 있고, 좌석 점유 표시에는 이름/학번 등 개인정보를 절대 노출하지 않는다. */}
