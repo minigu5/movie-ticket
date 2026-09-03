@@ -7,6 +7,7 @@ import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
 
 import AccountInfo from '@/components/AccountInfo';
 import MovieReviews from '@/components/MovieReviews';
+import { getGridRows, getGridCols, computeSeatId, computeVipSeats } from '@/lib/seatGrid';
 
 interface SeatData {
   status: string;
@@ -26,74 +27,6 @@ interface PastMovie {
   poster_url: string;
   mid_vip_start_row?: string; mid_vip_end_row?: string; mid_vip_start_col?: number; mid_vip_end_col?: number;
   grand_vip_start_row?: string; grand_vip_end_row?: string; grand_vip_start_col?: number; grand_vip_end_col?: number;
-}
-
-// 🌟 좌석 배치 계산 로직(현재/과거 공용) — venue의 대강당 여부만 입력받는 순수 함수로 분리해 재사용
-function getGridRows(isGrandHall: boolean) {
-  return isGrandHall
-    ? ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R']
-    : ['A','B','C','D','E','F','G','H','I'];
-}
-
-function getGridCols(isGrandHall: boolean) {
-  return isGrandHall
-    ? Array.from({ length: 27 }, (_, i) => i + 1)
-    : Array.from({ length: 14 }, (_, i) => i + 1);
-}
-
-function computeSeatId(isGrandHall: boolean, rowIndex: number, colIndex: number): string | null {
-  if (!isGrandHall) {
-    if (colIndex < 7) {
-      const num = rowIndex * 7 + colIndex + 1;
-      return `A${String(num).padStart(2, '0')}`;
-    } else {
-      const num = rowIndex * 7 + (colIndex - 7) + 1;
-      if (num === 63) return null;
-      return `B${String(num).padStart(2, '0')}`;
-    }
-  } else {
-    if (colIndex < 9) {
-      const num = rowIndex * 9 + colIndex + 1;
-      return `A${String(num).padStart(3, '0')}`;
-    } else if (colIndex < 18) {
-      const num = rowIndex * 9 + (colIndex - 9) + 1;
-      return `B${String(num).padStart(3, '0')}`;
-    } else {
-      const num = rowIndex * 9 + (colIndex - 18) + 1;
-      return `C${String(num).padStart(3, '0')}`;
-    }
-  }
-}
-
-function computeVipSeats(
-  isGrandHall: boolean,
-  rows: string[],
-  cols: number[],
-  vipConfig: {
-    mid_vip_start_row?: string; mid_vip_end_row?: string; mid_vip_start_col?: number; mid_vip_end_col?: number;
-    grand_vip_start_row?: string; grand_vip_end_row?: string; grand_vip_start_col?: number; grand_vip_end_col?: number;
-  }
-) {
-  const vips = new Set<string>();
-  rows.forEach((rowChar, rowIndex) => {
-    cols.forEach((colNum, colIndex) => {
-      const isVip = isGrandHall
-        ? rowChar.charCodeAt(0) >= (vipConfig.grand_vip_start_row || 'A').charCodeAt(0) &&
-          rowChar.charCodeAt(0) <= (vipConfig.grand_vip_end_row || 'C').charCodeAt(0) &&
-          colNum >= (vipConfig.grand_vip_start_col || 10) &&
-          colNum <= (vipConfig.grand_vip_end_col || 18)
-        : rowChar.charCodeAt(0) >= (vipConfig.mid_vip_start_row || 'A').charCodeAt(0) &&
-          rowChar.charCodeAt(0) <= (vipConfig.mid_vip_end_row || 'C').charCodeAt(0) &&
-          colNum >= (vipConfig.mid_vip_start_col || 5) &&
-          colNum <= (vipConfig.mid_vip_end_col || 10);
-
-      if (isVip) {
-        const seatId = computeSeatId(isGrandHall, rowIndex, colIndex);
-        if (seatId) vips.add(seatId);
-      }
-    });
-  });
-  return vips;
 }
 
 export default function Home() {
