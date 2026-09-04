@@ -55,19 +55,15 @@ function buildHtml(params: {
       <meta name="supported-color-schemes" content="dark">
       <style>
         :root { color-scheme: dark; supported-color-schemes: dark; }
-        @import url('https://fonts.googleapis.com/css2?family=Song+Myung&display=swap');
       </style>
     </head>
     <body style="margin: 0; padding: 0; background-color: #020617; -webkit-font-smoothing: antialiased;">
       <div style="background-color: #020617; padding: 40px 15px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; text-align: center;">
 
         <div style="margin-bottom: 30px; text-align: center;">
-          <div style="font-family: 'Song Myung', serif; color: #f8fafc; font-size: 42px; line-height: 1.2; letter-spacing: 5px; text-shadow: 0 0 20px rgba(245,158,11,0.5); font-weight: normal;">
+          <div style="font-family: -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; color: #f8fafc; font-size: 40px; font-weight: 800; letter-spacing: -0.5px; text-shadow: 0 0 24px rgba(245,158,11,0.35);">
             영화대교
           </div>
-          <p style="color: #d97706; font-size: 12px; font-weight: bold; letter-spacing: 4px; margin: 10px 0 0 0; text-transform: uppercase;">
-            Special Invitation
-          </p>
         </div>
 
         <div style="width: 100%; max-width: 420px; margin: 0 auto; background-color: #0f172a; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.8); text-align: left; border: 1px solid #1e293b;">
