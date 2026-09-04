@@ -204,6 +204,9 @@ export default function SettingsTab(props: Props) {
             {editForm.background_template_url && (
               <span className="text-xs text-green-400">배경 템플릿 있음 — 포스터를 바꿨으면 다시 생성하세요.</span>
             )}
+            {editForm.poster_cdn_url && (
+              <span className="text-xs text-green-400">포스터 CDN 저장됨 (메일용)</span>
+            )}
           </div>
 
           <div className="mt-6">

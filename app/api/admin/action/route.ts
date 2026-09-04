@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/api-auth';
-import { uploadTicketBackground } from '@/lib/cloudinary';
+import { uploadImageDataUri } from '@/lib/cloudinary';
 import { extractSchoolEmails } from '@/lib/parseEmails';
 import { admissionYearForGrade, gradeEmails } from '@/lib/schoolEmails';
 
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
           return NextResponse.json({ success: false, error: 'movieId와 이미지 데이터가 필요합니다.' }, { status: 400 });
         }
 
-        const url = await uploadTicketBackground(imageBase64);
+        const url = await uploadImageDataUri(imageBase64);
         if (!url) {
           return NextResponse.json({ success: false, error: 'Cloudinary 업로드에 실패했습니다.' }, { status: 502 });
         }
@@ -70,6 +70,28 @@ export async function POST(req: Request) {
         const { error } = await supabaseAdmin
           .from('movie_settings')
           .update({ background_template_url: url })
+          .eq('id', movieId);
+        if (error) throw error;
+
+        return NextResponse.json({ success: true, url });
+      }
+
+      // 원본 포스터를 Cloudinary에 복사해 두고 URL을 저장한다. 원본 호스트가
+      // 프로덕션(Cloudflare Workers)에서 간헐적으로 fetch 실패하는 것을 우회한다.
+      case 'UPLOAD_POSTER_CDN': {
+        const { movieId, imageBase64 } = payload;
+        if (!movieId || typeof imageBase64 !== 'string' || !imageBase64.startsWith('data:image/')) {
+          return NextResponse.json({ success: false, error: 'movieId와 이미지 데이터가 필요합니다.' }, { status: 400 });
+        }
+
+        const url = await uploadImageDataUri(imageBase64);
+        if (!url) {
+          return NextResponse.json({ success: false, error: 'Cloudinary 업로드에 실패했습니다.' }, { status: 502 });
+        }
+
+        const { error } = await supabaseAdmin
+          .from('movie_settings')
+          .update({ poster_cdn_url: url })
           .eq('id', movieId);
         if (error) throw error;
 

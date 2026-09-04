@@ -7,12 +7,13 @@ async function sha1Hex(input: string): Promise<string> {
 }
 
 /**
- * Uploads an already-fully-composed JPEG (data URI) to Cloudinary and returns
- * its public URL. No transformation is requested — the image (blur, logo,
- * card frame, perforation) is already baked in by the admin's browser via
- * lib/ticketBackgroundCanvas.ts, so this is just storage.
+ * Uploads an image data URI to Cloudinary and returns its public URL. No
+ * transformation is requested — this is just reliable storage/CDN for an image
+ * the admin's browser already produced or fetched. Used for the pre-composed
+ * ticket card background (lib/ticketBackgroundCanvas.ts) and for re-hosting the
+ * raw movie poster off an unreliable origin.
  */
-export async function uploadTicketBackground(dataUri: string): Promise<string | null> {
+export async function uploadImageDataUri(dataUri: string): Promise<string | null> {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
@@ -50,3 +51,6 @@ export async function uploadTicketBackground(dataUri: string): Promise<string | 
     return null;
   }
 }
+
+/** @deprecated 이름만 유지하는 별칭. uploadImageDataUri를 쓰세요. */
+export const uploadTicketBackground = uploadImageDataUri;

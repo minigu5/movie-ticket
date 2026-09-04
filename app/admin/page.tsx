@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, DomainNotAllowedError, type AppProfile } from '../../lib/supabase-auth';
 import Link from 'next/link';
 import { extractSchoolEmails } from '../../lib/parseEmails';
-import { renderTicketBackground, blobToDataUri } from '../../lib/ticketBackgroundCanvas';
+import { renderTicketBackground, blobToDataUri, fetchPosterDataUri } from '../../lib/ticketBackgroundCanvas';
 import AdminTabs, { type TabKey } from './_components/AdminTabs';
 import ReservationsTab from './_components/ReservationsTab';
 import SettingsTab from './_components/SettingsTab';
@@ -165,10 +165,29 @@ export default function AdminPage() {
       const data = await res.json();
       if (!data.success) {
         setBgStatus(`실패: ${data.error}`);
-      } else {
-        setEditForm((prev: any) => ({ ...prev, background_template_url: data.url }));
-        setMovieInfo((prev: any) => ({ ...prev, background_template_url: data.url }));
-        setBgStatus('생성 완료');
+        return;
+      }
+      setEditForm((prev: any) => ({ ...prev, background_template_url: data.url }));
+      setMovieInfo((prev: any) => ({ ...prev, background_template_url: data.url }));
+
+      // 원본 포스터도 Cloudinary에 복사해 둔다 (원본 호스트가 프로덕션에서
+      // 간헐적으로 fetch 실패하므로, 메일은 이 CDN URL을 우선 사용한다).
+      try {
+        const posterDataUri = await fetchPosterDataUri(editForm.poster_url);
+        const posterRes = await authFetch('/api/admin/action', {
+          action: 'UPLOAD_POSTER_CDN',
+          payload: { movieId: editForm.id, imageBase64: posterDataUri },
+        });
+        const posterData = await posterRes.json();
+        if (posterData.success) {
+          setEditForm((prev: any) => ({ ...prev, poster_cdn_url: posterData.url }));
+          setMovieInfo((prev: any) => ({ ...prev, poster_cdn_url: posterData.url }));
+          setBgStatus('생성 완료 (배경 + 포스터 CDN)');
+        } else {
+          setBgStatus('배경 생성 완료 (포스터 CDN 저장 실패 — 다시 시도해보세요)');
+        }
+      } catch {
+        setBgStatus('배경 생성 완료 (포스터 CDN 저장 실패 — 다시 시도해보세요)');
       }
     } catch (err: any) {
       setBgStatus(`실패: ${err.message || '알 수 없는 오류'}`);
@@ -467,7 +486,7 @@ export default function AdminPage() {
       venue: movieInfo.venue,
       date_string: movieInfo.date_string,
       age_rating: movieInfo.age_rating,
-      poster_url: movieInfo.poster_url,
+      poster_url: movieInfo.poster_cdn_url || movieInfo.poster_url,
       deadline_date: movieInfo.deadline_date,
     };
 
