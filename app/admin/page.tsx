@@ -50,6 +50,15 @@ export default function AdminPage() {
   const [baseUrl, setBaseUrl] = useState('');
   useEffect(() => setBaseUrl(window.location.origin), []);
 
+  // 상영작 홍보 메일
+  const [promoSources, setPromoSources] = useState({ club: true, profilesAll: false, g1: false, g2: false, g3: false });
+  const [promoManualText, setPromoManualText] = useState('');
+  const [isResolvingPromo, setIsResolvingPromo] = useState(false);
+  const [isSendingPromo, setIsSendingPromo] = useState(false);
+  const [promoProgress, setPromoProgress] = useState({ current: 0, total: 0 });
+  const [promoRecipients, setPromoRecipients] = useState<{ email: string; name: string | null }[]>([]);
+  const [showPromoConfirm, setShowPromoConfirm] = useState(false);
+
   // 🌟 (신규) 팝콘 통계 계산을 위한 함수
   const popcornStats = useMemo(() => {
     let original = 0; let consomme = 0; let caramel = 0; let none = 0; let cash = 0;
@@ -67,6 +76,7 @@ export default function AdminPage() {
 
   const clubEmailPreviewCount = useMemo(() => extractSchoolEmails(newClubMembersText).length, [newClubMembersText]);
   const blacklistEmailPreviewCount = useMemo(() => extractSchoolEmails(newBlacklistText).length, [newBlacklistText]);
+  const promoManualPreviewCount = useMemo(() => extractSchoolEmails(promoManualText).length, [promoManualText]);
 
   useEffect(() => {
     let active = true;
@@ -415,6 +425,87 @@ export default function AdminPage() {
     setProfileSearchQuery('');
   };
 
+  const handleResolvePromoClick = async () => {
+    const grades = (['g1', 'g2', 'g3'] as const).filter((g) => promoSources[g]);
+    const hasTarget =
+      promoSources.club || promoSources.profilesAll || grades.length > 0 || promoManualPreviewCount > 0;
+    if (!hasTarget) return alert('발송 대상을 하나 이상 선택하세요.');
+    if (!movieInfo?.title) return alert('현재 상영작 정보가 없습니다. 회차 설정을 먼저 저장하세요.');
+
+    setIsResolvingPromo(true);
+    try {
+      const res = await authFetch('/api/admin/action', {
+        action: 'RESOLVE_PROMO_RECIPIENTS',
+        payload: {
+          club: promoSources.club,
+          profilesAll: promoSources.profilesAll,
+          grades,
+          manualText: promoManualText,
+        },
+      });
+      const data = await res.json();
+      if (!data.success) return alert('명단 조회 실패: ' + data.error);
+      if (data.data.count === 0) return alert('발송 대상이 없습니다. (블랙리스트 제외 후 0명)');
+      setPromoRecipients(data.data.recipients);
+      setShowPromoConfirm(true);
+    } catch (err) {
+      console.error(err);
+      alert('명단 조회 중 오류가 발생했습니다.');
+    } finally {
+      setIsResolvingPromo(false);
+    }
+  };
+
+  const executeSendPromo = async () => {
+    setShowPromoConfirm(false);
+    setIsSendingPromo(true);
+    const recipients = promoRecipients;
+    setPromoProgress({ current: 0, total: recipients.length });
+
+    const movieInfoPayload = {
+      title: movieInfo.title,
+      venue: movieInfo.venue,
+      date_string: movieInfo.date_string,
+      poster_url: movieInfo.poster_url,
+      deadline_date: movieInfo.deadline_date,
+    };
+
+    const CHUNK_SIZE = 15;
+    let sent = 0;
+    let failed = 0;
+    for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
+      const chunk = recipients.slice(i, i + CHUNK_SIZE);
+      try {
+        const r = await fetch('/api/promo', {
+          method: 'POST',
+          body: JSON.stringify({ chunk, movieInfo: movieInfoPayload, baseUrl }),
+        });
+        const d = await r.json();
+        if (d.success) {
+          sent += d.sent;
+          failed += d.failed;
+        } else {
+          failed += chunk.length;
+        }
+      } catch (err) {
+        console.error(err);
+        failed += chunk.length;
+      }
+      setPromoProgress({ current: Math.min(i + CHUNK_SIZE, recipients.length), total: recipients.length });
+      await new Promise((res) => setTimeout(res, 1000));
+    }
+
+    try {
+      await authFetch('/api/admin/action', { action: 'LOG_PROMO_SENT', payload: { count: sent } });
+    } catch (err) {
+      console.error(err);
+    }
+
+    setIsSendingPromo(false);
+    alert(`✅ 홍보 메일 발송 완료!\n성공 ${sent}명 / 실패 ${failed}명`);
+    fetchAdminData();
+  };
+
   if (authLoading) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <p className="text-white font-bold animate-pulse">로그인 확인 중...</p>
@@ -512,6 +603,21 @@ export default function AdminPage() {
             setNewMovieForm={setNewMovieForm}
             onSubmitNewMovie={handleSubmitNewMovie}
             onCancelNewMovie={() => setIsStartingNewMovie(false)}
+            promo={{
+              sources: promoSources,
+              setSources: setPromoSources,
+              manualText: promoManualText,
+              setManualText: setPromoManualText,
+              manualPreviewCount: promoManualPreviewCount,
+              isResolving: isResolvingPromo,
+              isSending: isSendingPromo,
+              progress: promoProgress,
+              recipientCount: promoRecipients.length,
+              showConfirm: showPromoConfirm,
+              onResolveClick: handleResolvePromoClick,
+              onConfirmSend: executeSendPromo,
+              onCancelConfirm: () => setShowPromoConfirm(false),
+            }}
           />
         )}
 
