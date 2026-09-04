@@ -466,6 +466,7 @@ export default function AdminPage() {
       title: movieInfo.title,
       venue: movieInfo.venue,
       date_string: movieInfo.date_string,
+      age_rating: movieInfo.age_rating,
       poster_url: movieInfo.poster_url,
       deadline_date: movieInfo.deadline_date,
     };
