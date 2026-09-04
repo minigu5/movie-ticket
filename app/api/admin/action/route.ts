@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/api-auth';
 import { uploadTicketBackground } from '@/lib/cloudinary';
+import { extractSchoolEmails } from '@/lib/parseEmails';
+import { admissionYearForGrade, gradeEmails } from '@/lib/schoolEmails';
 
 export async function POST(req: Request) {
   try {
@@ -319,6 +321,75 @@ export async function POST(req: Request) {
           return NextResponse.json({ success: false, error: '비밀번호를 입력해주세요.' }, { status: 400 });
         }
         const { error } = await supabaseAdmin.from('kiosk_settings').update({ password: cleanPassword, updated_at: new Date().toISOString() }).eq('id', 1);
+        if (error) throw error;
+        return NextResponse.json({ success: true });
+      }
+
+      // 홍보 메일 수신자 명단을 서버에서 조립한다.
+      //   club: club_members 전체 / profilesAll: profiles 전체
+      //   grades: ['g1'|'g2'|'g3'] -> 학년도 경계 기준으로 입학년도 자동 매핑 후 0001~0110 생성
+      //   manualText: 자유 텍스트에서 @ts.hs.kr 이메일만 추출
+      // 최종 = 합집합 - 블랙리스트, profiles와 매칭되면 이름을 채워 반환.
+      case 'RESOLVE_PROMO_RECIPIENTS': {
+        const club: boolean = !!payload?.club;
+        const profilesAll: boolean = !!payload?.profilesAll;
+        const grades: string[] = Array.isArray(payload?.grades) ? payload.grades : [];
+        const manualText: string = typeof payload?.manualText === 'string' ? payload.manualText : '';
+
+        const emailSet = new Set<string>();
+
+        if (club) {
+          const { data, error } = await supabaseAdmin.from('club_members').select('email');
+          if (error) throw error;
+          (data ?? []).forEach((r: { email: string }) => emailSet.add(r.email.toLowerCase()));
+        }
+
+        if (profilesAll) {
+          const { data, error } = await supabaseAdmin.from('profiles').select('email');
+          if (error) throw error;
+          (data ?? []).forEach((r: { email: string }) => emailSet.add(r.email.toLowerCase()));
+        }
+
+        grades
+          .filter((g): g is 'g1' | 'g2' | 'g3' => g === 'g1' || g === 'g2' || g === 'g3')
+          .forEach((g) => {
+            gradeEmails(admissionYearForGrade(g)).forEach((e) => emailSet.add(e.toLowerCase()));
+          });
+
+        extractSchoolEmails(manualText).forEach((e) => emailSet.add(e.toLowerCase()));
+
+        // 블랙리스트 제외
+        const { data: blRows, error: blError } = await supabaseAdmin.from('blacklist').select('email');
+        if (blError) throw blError;
+        (blRows ?? []).forEach((r: { email: string }) => emailSet.delete(r.email.toLowerCase()));
+
+        const emails = Array.from(emailSet);
+
+        // 이름 매핑 (로그인 이력이 있는 사람만)
+        const nameByEmail = new Map<string, string>();
+        for (let i = 0; i < emails.length; i += 100) {
+          const slice = emails.slice(i, i + 100);
+          const { data, error } = await supabaseAdmin
+            .from('profiles')
+            .select('email, name')
+            .in('email', slice);
+          if (error) throw error;
+          (data ?? []).forEach((r: { email: string; name: string }) => {
+            if (r.name) nameByEmail.set(r.email.toLowerCase(), r.name);
+          });
+        }
+
+        const recipients = emails.map((email) => ({ email, name: nameByEmail.get(email) ?? null }));
+        return NextResponse.json({ success: true, data: { recipients, count: recipients.length } });
+      }
+
+      case 'LOG_PROMO_SENT': {
+        const count = Number(payload?.count) || 0;
+        const { error } = await supabaseAdmin.from('activity_logs').insert([{
+          student_id: '관리자',
+          student_name: '-',
+          description: `홍보 이메일 발송 (${count}명)`,
+        }]);
         if (error) throw error;
         return NextResponse.json({ success: true });
       }

@@ -1,7 +1,26 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import VipZonePicker, { type Zone } from './VipZonePicker';
+import { activeAdmissionYears } from '../../../lib/schoolEmails';
+
+type PromoSources = { club: boolean; profilesAll: boolean; g1: boolean; g2: boolean; g3: boolean };
+
+interface PromoProps {
+  sources: PromoSources;
+  setSources: Dispatch<SetStateAction<PromoSources>>;
+  manualText: string;
+  setManualText: (v: string) => void;
+  manualPreviewCount: number;
+  isResolving: boolean;
+  isSending: boolean;
+  progress: { current: number; total: number };
+  recipientCount: number;
+  showConfirm: boolean;
+  onResolveClick: () => void;
+  onConfirmSend: () => void;
+  onCancelConfirm: () => void;
+}
 
 interface Props {
   movieInfo: any;
@@ -17,6 +36,7 @@ interface Props {
   setNewMovieForm: (updater: any) => void;
   onSubmitNewMovie: () => void;
   onCancelNewMovie: () => void;
+  promo: PromoProps;
 }
 
 const zoneFromForm = (form: any, hall: 'mid' | 'grand'): Zone => {
@@ -69,16 +89,108 @@ function MovieFormFields({ form, setForm }: { form: any; setForm: (u: any) => vo
   );
 }
 
+function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle: string | undefined }) {
+  const p = promo;
+  const [yy3, yy2, yy1] = activeAdmissionYears();
+  const toggle = (key: keyof PromoSources) => p.setSources((prev) => ({ ...prev, [key]: !prev[key] }));
+  const pct = p.progress.total > 0 ? Math.round((p.progress.current / p.progress.total) * 100) : 0;
+
+  return (
+    <section className="bg-gray-800 p-6 rounded-xl border border-blue-600">
+      <h2 className="text-xl font-bold text-blue-400 mb-1">📧 상영작 홍보 메일 발송</h2>
+      <p className="text-gray-400 text-sm mb-4">
+        현재 상영작(<span className="text-gray-200">{movieTitle || '미설정'}</span>) 기준으로 (광고) 초청 메일을 보냅니다.
+        블랙리스트는 자동 제외됩니다.
+      </p>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+        <label className="flex items-center gap-2 cursor-pointer bg-gray-700/40 rounded px-3 py-2">
+          <input type="checkbox" checked={p.sources.club} onChange={() => toggle('club')} className="w-4 h-4 accent-indigo-500" />
+          <span className="text-sm text-indigo-300 font-bold">동아리원(VIP)</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer bg-gray-700/40 rounded px-3 py-2">
+          <input type="checkbox" checked={p.sources.profilesAll} onChange={() => toggle('profilesAll')} className="w-4 h-4 accent-emerald-500" />
+          <span className="text-sm text-emerald-300 font-bold">로그인 이력 전체</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer bg-gray-700/40 rounded px-3 py-2">
+          <input type="checkbox" checked={p.sources.g1} onChange={() => toggle('g1')} className="w-4 h-4 accent-blue-500" />
+          <span className="text-sm text-gray-200 font-bold">1학년 ({yy1}학번)</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer bg-gray-700/40 rounded px-3 py-2">
+          <input type="checkbox" checked={p.sources.g2} onChange={() => toggle('g2')} className="w-4 h-4 accent-blue-500" />
+          <span className="text-sm text-gray-200 font-bold">2학년 ({yy2}학번)</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer bg-gray-700/40 rounded px-3 py-2">
+          <input type="checkbox" checked={p.sources.g3} onChange={() => toggle('g3')} className="w-4 h-4 accent-blue-500" />
+          <span className="text-sm text-gray-200 font-bold">3학년 ({yy3}학번)</span>
+        </label>
+      </div>
+      <p className="text-gray-500 text-xs mb-4">
+        학년별 발송은 각 학년 0001~0110번 학생 이메일(<code>ts{yy1}0001@ts.hs.kr</code> 형식)로 보냅니다. 학년도(3월 2일) 기준 자동 갱신.
+      </p>
+
+      <div className="mb-4">
+        <label className="block text-gray-300 mb-1 text-sm font-bold">추가 수동 발송 (선택)</label>
+        <textarea
+          value={p.manualText}
+          onChange={(e) => p.setManualText(e.target.value)}
+          placeholder={'이름과 이메일을 붙여넣으면 @ts.hs.kr 이메일만 자동 인식됩니다.\n예) 2208 신민규 <ts250024@ts.hs.kr>'}
+          rows={3}
+          className="w-full p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm resize-none"
+        />
+        <span className="text-gray-500 text-xs">{p.manualPreviewCount}개 이메일 인식됨</span>
+      </div>
+
+      {p.isSending ? (
+        <div className="w-full bg-gray-700 rounded-full h-8 relative overflow-hidden border border-gray-600">
+          <div className="bg-blue-600 h-8 transition-all duration-300" style={{ width: `${pct}%` }} />
+          <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">
+            안전 발송 중... ({p.progress.current} / {p.progress.total})
+          </span>
+        </div>
+      ) : (
+        <button
+          onClick={p.onResolveClick}
+          disabled={p.isResolving}
+          className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-lg shadow-lg transition-colors"
+        >
+          {p.isResolving ? '명단 계산 중...' : '🚀 체크한 대상에게 홍보 메일 발송하기'}
+        </button>
+      )}
+
+      {p.showConfirm && (
+        <div className="fixed inset-0 bg-blue-900/90 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+          <div className="bg-gray-900 p-8 rounded-2xl max-w-md w-full border-4 border-blue-500 shadow-[0_0_50px_rgba(59,130,246,0.5)] text-center">
+            <h3 className="text-2xl font-black text-white mb-4">📧 대량 메일 발송 확인</h3>
+            <div className="bg-blue-950 p-5 rounded-xl text-white border border-blue-800 mb-4">
+              <p className="text-sm text-blue-300 mb-1">발송 예정 총 인원 (블랙리스트/중복 제외)</p>
+              <p className="text-5xl text-yellow-400 font-black">{p.recipientCount}<span className="text-xl text-white ml-2">명</span></p>
+            </div>
+            <p className="text-gray-400 text-sm mb-6">발송 중에는 창을 닫거나 새로고침하지 마세요. 진행 바가 다 찰 때까지 기다려 주세요.</p>
+            <div className="flex gap-3">
+              <button onClick={p.onCancelConfirm} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl text-white font-bold">돌아가기</button>
+              <button onClick={p.onConfirmSend} className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold">발송 시작 🚀</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function SettingsTab(props: Props) {
   const {
     movieInfo, editForm, setEditForm, onSaveSettings, bgGenerating, bgStatus, onGenerateBg,
     onStartNewMovieClick, isStartingNewMovie, newMovieForm, setNewMovieForm, onSubmitNewMovie, onCancelNewMovie,
+    promo,
   } = props;
   const [editHall, setEditHall] = useState<'mid' | 'grand'>('mid');
   const [newHall, setNewHall] = useState<'mid' | 'grand'>('mid');
 
   return (
     <div className="space-y-8">
+      <PromoMailSection promo={promo} movieTitle={movieInfo?.title} />
+
       {movieInfo && (
         <section className="bg-gray-800 p-6 rounded-xl border border-purple-700">
           <h2 className="text-xl font-bold text-purple-400 mb-4">⚙️ 현재 상영 설정 — {movieInfo.title}</h2>
