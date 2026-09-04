@@ -245,6 +245,18 @@ export async function renderTicketBackground(posterUrl: string): Promise<Blob> {
   });
 }
 
+/**
+ * 원본 포스터를 same-origin 프록시(/api/poster-image)로 받아 data URI로 반환한다.
+ * 이 프록시 fetch는 서버(프로덕션에선 Cloudflare Workers)에서 일어나며 원본
+ * 호스트가 간헐적으로 실패할 수 있으므로, 실패 시 호출부에서 재시도하게 한다.
+ * 여기서 받은 data URI는 Cloudinary에 올려 안정적인 URL로 저장한다.
+ */
+export async function fetchPosterDataUri(posterUrl: string): Promise<string> {
+  const res = await fetch(`/api/poster-image?src=${encodeURIComponent(posterUrl)}`);
+  if (!res.ok) throw new Error(`포스터를 불러오지 못했습니다 (${res.status})`);
+  return blobToDataUri(await res.blob());
+}
+
 export function blobToDataUri(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
