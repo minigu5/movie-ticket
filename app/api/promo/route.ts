@@ -9,12 +9,13 @@ type MovieInfo = {
   title?: string;
   venue?: string;
   date_string?: string;
+  age_rating?: string;
   poster_url?: string;
   deadline_date?: string | null;
 };
 
 // 발신 주체 정보 (정보통신망법 광고성 정보 표시 의무).
-const SENDER_ORG = '영화대교 (동아리)';
+const SENDER_ORG = '대구과학고등학교 자율동아리 영화대교';
 
 function formatDeadlineKst(deadline: string): string | null {
   const utc = new Date(deadline);
@@ -27,6 +28,8 @@ function formatDeadlineKst(deadline: string): string | null {
   return `${month}월 ${day}일 ${hour}시 ${minute}분`;
 }
 
+// 예매 완료(app/api/ticket) 메일과 동일한 디자인 언어:
+//   body #0b1120 / 카드 #161b26 / 강조 #ef4444 / 흐린 텍스트 #94a3b8 / 경계 #26303f
 function buildHtml(params: {
   name?: string | null;
   movieInfo: MovieInfo;
@@ -38,12 +41,13 @@ function buildHtml(params: {
   const safeTitle = escapeHtml(movieInfo.title ?? '');
   const safeVenue = escapeHtml(movieInfo.venue ?? '');
   const safeDate = escapeHtml(movieInfo.date_string ?? '');
-  const inviteHome = escapeHtml(baseUrl || '');
+  const safeAgeRating = escapeHtml(movieInfo.age_rating ?? '전체관람가');
+  const safeBaseUrl = escapeHtml(baseUrl || '');
   const deadlineText = movieInfo.deadline_date ? formatDeadlineKst(movieInfo.deadline_date) : null;
 
   const heading = safeName
-    ? `${safeName}님을 이달의 명작 상영회에 초대합니다.`
-    : `이달의 명작 상영회에 초대합니다.`;
+    ? `${safeName}님, 이번 달 상영작에<br/>초대합니다`
+    : `이번 달 상영작에<br/>초대합니다`;
 
   return `
     <!DOCTYPE html>
@@ -52,54 +56,58 @@ function buildHtml(params: {
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta name="color-scheme" content="dark">
-      <meta name="supported-color-schemes" content="dark">
       <style>
         :root { color-scheme: dark; supported-color-schemes: dark; }
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
       </style>
     </head>
-    <body style="margin: 0; padding: 0; background-color: #020617; -webkit-font-smoothing: antialiased;">
-      <div style="background-color: #020617; padding: 40px 15px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; text-align: center;">
+    <body style="margin:0; padding:0; -webkit-font-smoothing: antialiased; background-color:#0b1120;">
+      <div style="padding: 40px 12px; font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; text-align: center;">
 
-        <div style="margin-bottom: 30px; text-align: center;">
-          <div style="font-family: -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; color: #f8fafc; font-size: 40px; font-weight: 800; letter-spacing: -0.5px; text-shadow: 0 0 24px rgba(245,158,11,0.35);">
-            영화대교
-          </div>
+        <div style="margin-bottom: 24px;">
+          <div style="color:#f1f5f9; font-size:22px; font-weight:800; letter-spacing:-0.02em;">영화대교</div>
         </div>
 
-        <div style="width: 100%; max-width: 420px; margin: 0 auto; background-color: #0f172a; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.8); text-align: left; border: 1px solid #1e293b;">
-          <div style="padding: 30px 25px;">
-            <p style="color: #f59e0b; font-size: 14px; font-weight: bold; margin: 0 0 15px 0;">(광고) 특별 초청장</p>
-            <h1 style="color: #f8fafc; font-size: 26px; margin: 0 0 20px 0; line-height: 1.4; word-break: keep-all;">${heading}</h1>
+        <div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161b26;">
 
-            <p style="color: #94a3b8; font-size: 15px; line-height: 1.7; margin: 0 0 30px 0; word-break: keep-all;">
-              최고의 좌석과 감동적인 영화가 준비되어 있으니 함께하셔서 특별한 추억을 만들어보시길 바랍니다.<br/>
-              <br/>
-              <span style="color: #fcd34d; font-weight: bold;">🍿 팝콘 예약 개시!</span><br/>
-              오리지널 버터, 콘소메, 카라멜 등 다양한 팝콘 옵션이 이번 달에도 찾아왔습니다. 예매 시 잊지 말고 미리 선택해 주세요!
+          ${hasPoster ? `<img src="cid:posterImage" alt="${safeTitle}" width="380" style="display:block; width:100%; height:200px; object-fit:cover; object-position:center; background-color:#0b1120;" />` : ''}
+
+          <div style="padding: 20px 22px 24px 22px;">
+            <span style="display:inline-block; background-color:rgba(255,255,255,0.08); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.4px;">(광고) 상영작 안내</span>
+
+            <div style="color:#ffffff; font-size:20px; font-weight:800; line-height:1.4; margin-top:16px; margin-bottom:14px;">${heading}</div>
+
+            <p style="color:#94a3b8; font-size:14px; line-height:1.7; margin:0 0 18px 0; word-break:keep-all;">
+              이번 달에도 좋은 영화 한 편을 준비했습니다. 좌석은 선착순이니 아래 버튼에서 미리 예매해 주세요.
             </p>
 
-            ${hasPoster ? `
-            <div style="text-align: center; margin-bottom: 25px;">
-              <img src="cid:posterImage" alt="${safeTitle} 포스터" style="max-width: 100%; width: 280px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #1e293b;" />
-            </div>
-            ` : ''}
-
-            <div style="background-color: #020617; border-left: 3px solid #d97706; padding: 15px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
-              <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 8px 0;"><strong>🎬 영화:</strong> ${safeTitle}</p>
-              <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 8px 0;"><strong>📍 장소:</strong> ${safeVenue}</p>
-              <p style="color: #cbd5e1; font-size: 14px; margin: 0;"><strong>⏰ 일시:</strong> ${safeDate}</p>
+            <div style="background-color:rgba(0,0,0,0.42); padding:13px 15px; border-radius:11px; margin-bottom:16px;">
+              <div style="color:#f1f5f9; font-size:15px; font-weight:700; margin-bottom:6px;">${safeTitle || '상영작 미정'}</div>
+              <div style="color:#94a3b8; font-size:13px; font-weight:600;">2D · ${safeAgeRating}</div>
+              ${safeDate ? `<div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px; font-variant-numeric: tabular-nums;">${safeDate}</div>` : ''}
+              ${safeVenue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px;">📍 ${safeVenue}</div>` : ''}
+              ${deadlineText ? `<div style="color:#fbbf24; font-size:13px; font-weight:700; margin-top:8px;">⏰ 예매 기한 ${escapeHtml(deadlineText)}</div>` : ''}
             </div>
 
-            <a href="${inviteHome}" style="display: block; background-color: #d97706; color: #020617; text-align: center; text-decoration: none; padding: 18px; border-radius: 12px; font-weight: 900; font-size: 16px; box-shadow: 0 0 20px rgba(217,119,6,0.4); letter-spacing: 1px;">🎫 좌석 예매하러 가기</a>
-
-            ${deadlineText ? `<p style="color: #ef4444; font-size: 12px; text-align: center; margin-top: 15px;">※ 예매 기한: ${escapeHtml(deadlineText)}까지</p>` : ''}
+            <div style="background-color:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.3); padding:12px 14px; border-radius:10px;">
+              <div style="color:#fcd34d; font-size:13px; font-weight:700; margin-bottom:4px;">🍿 팝콘 예약도 함께 받아요</div>
+              <div style="color:#e5c07b; font-size:12px; font-weight:600; line-height:1.6;">오리지널 버터 · 콘소메 · 카라멜. 예매할 때 같이 골라 주세요.</div>
+            </div>
           </div>
+
+          <div style="height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: #161b26;"></div>
         </div>
 
-        <div style="max-width: 420px; margin: 30px auto 0 auto; color: #475569; font-size: 11px; line-height: 1.6; text-align: center;">
-          <p style="margin: 0;">본 메일은 영화대교 상영작 안내를 위한 <strong>광고성 정보</strong>입니다.</p>
-          <p style="margin: 4px 0 0 0;">발신: ${escapeHtml(SENDER_ORG)} · 수신을 원치 않으시면 관리자에게 알려주시면 발송 대상에서 제외해 드립니다.</p>
-          <p style="margin: 12px 0 0 0; color: #334155; letter-spacing: 2px;">Powered by 영화대교</p>
+        <div style="margin-top: 26px;">
+          <a href="${safeBaseUrl}" style="display: inline-block; background-color: #ef4444; color: #ffffff; padding: 13px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700;">🎫 좌석 예매하러 가기</a>
+        </div>
+
+        <div style="max-width: 380px; margin: 26px auto 0 auto; border-top: 1px dashed #26303f; padding-top: 16px;">
+          <p style="color:#64748b; font-size:11px; line-height:1.6; margin:0;">
+            본 메일은 영화대교 상영작 안내를 위한 <strong>광고성 정보</strong>입니다.<br/>
+            발신: ${escapeHtml(SENDER_ORG)}<br/>
+            수신을 원치 않으시면 관리자에게 알려주시면 발송 대상에서 제외해 드립니다.
+          </p>
         </div>
       </div>
     </body>
@@ -137,7 +145,7 @@ export async function POST(req: Request) {
       chunk.map((r) =>
         sendMail({
           to: r.email,
-          subject: `(광고) [영화대교] 💌 이달의 상영작에 초대합니다`,
+          subject: `(광고) [영화대교] 이번 달 상영작에 초대합니다`,
           html: html(r.name),
           attachments: posterAttachment ? [posterAttachment] : undefined,
         }),
