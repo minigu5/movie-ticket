@@ -64,15 +64,15 @@ function buildHtml(params: {
     <body style="margin:0; padding:0; -webkit-font-smoothing: antialiased; background-color:#0b1120;">
       <div style="padding: 40px 12px; font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; text-align: center;">
 
-        <div style="margin-bottom: 24px;">
-          <div style="color:#f1f5f9; font-size:22px; font-weight:800; letter-spacing:-0.02em;">영화대교</div>
+        <div style="margin-bottom: 22px;">
+          <div style="color:#64748b; font-size:12px; font-weight:600; letter-spacing:0.32em;">영화대교</div>
         </div>
 
         <div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161b26;">
 
-          ${hasPoster ? `<img src="cid:posterImage" alt="${safeTitle}" width="380" style="display:block; width:100%; height:200px; object-fit:cover; object-position:center; background-color:#0b1120;" />` : ''}
+          <div style="padding: 24px 22px 24px 22px;">
+            ${hasPoster ? `<div style="text-align:center; margin-bottom:20px;"><img src="cid:posterImage" alt="${safeTitle}" width="150" height="210" style="width:150px; height:210px; object-fit:cover; border-radius:12px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 8px 24px rgba(0,0,0,0.5); background-color:#0b1120;" /></div>` : ''}
 
-          <div style="padding: 20px 22px 24px 22px;">
             <span style="display:inline-block; background-color:rgba(255,255,255,0.08); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.4px;">(광고) 상영작 안내</span>
 
             <div style="color:#ffffff; font-size:20px; font-weight:800; line-height:1.4; margin-top:16px; margin-bottom:14px;">${heading}</div>
