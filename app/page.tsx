@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, authFetchGet, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
+import { Crown, Check, Ban, TriangleAlert, Siren, Popcorn, CircleCheck, CircleX, Sparkles, PartyPopper, Mail, BookOpen, Settings, Printer, LogOut, History, MapPin, Lock, ArrowRight, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket } from 'lucide-react';
 
 import AccountInfo from '@/components/AccountInfo';
 import MovieReviews from '@/components/MovieReviews';
@@ -163,7 +164,7 @@ export default function Home() {
           if (active) setProfile(p);
         } catch (err) {
           if (err instanceof DomainNotAllowedError) {
-            showAlert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
+            showAlert('학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
           }
           if (active) setProfile(null);
         } finally {
@@ -296,7 +297,7 @@ export default function Home() {
       }
       if (groupMembers.length >= 9) return showAlert("단체 예매는 리더를 포함하여 최대 10명까지 가능합니다.");
       if (vipSeats.has(seatId) && groupLeader && !clubMemberIds.includes(groupLeader.email)) {
-        return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.");
+        return showAlert("선택하신 좌석은 '영화대교' 동아리 전용석입니다.");
       }
       setSelectedSeat(seatId);
       setMemberSearchQuery('');
@@ -333,7 +334,7 @@ export default function Home() {
       return showAlert("변경된 내용이 없습니다.");
     }
     if (newPopcorns.length < oldPopcorns.length) {
-      return showAlert("🚫 결제 혼선 방지를 위해 기존에 주문한 팝콘 수량을 취소/삭제할 수 없습니다. (맛 변경 및 추가만 가능)");
+      return showAlert("결제 혼선 방지를 위해 기존에 주문한 팝콘 수량을 취소/삭제할 수 없습니다. (맛 변경 및 추가만 가능)");
     }
 
     const addedCount = newPopcorns.length - oldPopcorns.length;
@@ -343,7 +344,7 @@ export default function Home() {
       ? `팝콘 ${addedCount}개를 추가하시겠습니까?\n(추가 결제 금액: ${(addedCount * 2500).toLocaleString()}원)`
       : `팝콘 주문 내용을 변경하시겠습니까?\n(맛 변경 사항이 저장됩니다)`;
     if (willNeedPayment) {
-      confirmMsg += `\n\n⚠️ 결제 대기 상태로 전환되며, 입금 확인 전까지 예매 확정이 취소됩니다.`;
+      confirmMsg += `\n\n결제 대기 상태로 전환되며, 입금 확인 전까지 예매 확정이 취소됩니다.`;
     }
 
     showConfirm(confirmMsg, async () => {
@@ -367,18 +368,18 @@ export default function Home() {
         statusType: 'pending', popcorn: finalPopcornString, ticketId: myReservation.id, baseUrl
       }) });
 
-      showSuccess("🍿 팝콘 주문이 갱신되었습니다!", "QR코드로 갱신된 금액을 입금해주세요.");
+      showSuccess("팝콘 주문이 갱신되었습니다!", "QR코드로 갱신된 금액을 입금해주세요.");
     });
   };
 
   const handleSubmit = async () => {
     if (!profile) return showAlert("로그인이 필요합니다.");
 
-    if (blacklistedUsers.includes(profile.email)) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
+    if (blacklistedUsers.includes(profile.email)) return showAlert("블랙리스트에 등록되어 예매가 제한되었습니다.");
 
     if (selectedSeat && vipSeats.has(selectedSeat)) {
       if (!clubMemberIds.includes(profile.email)) {
-        return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
+        return showAlert("선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
       }
     }
 
@@ -401,7 +402,7 @@ export default function Home() {
           const newPopcorns = finalPopcornString !== 'none' ? finalPopcornString.split(',') : [];
           
           if (newPopcorns.length < oldPopcorns.length) {
-            return showAlert("🚫 결제 혼선 방지를 위해 기존에 주문한 팝콘 수량을 취소/삭제할 수 없습니다. (맛 변경 및 추가만 가능)");
+            return showAlert("결제 혼선 방지를 위해 기존에 주문한 팝콘 수량을 취소/삭제할 수 없습니다. (맛 변경 및 추가만 가능)");
           }
 
           let confirmMsg = `이미 예약된 좌석(${myOldTicket.seat_number})을 새로운 좌석(${selectedSeat})으로 변경하시겠습니까?`;
@@ -418,12 +419,12 @@ export default function Home() {
 
             if (updateError) return showAlert("변경 중 오류 발생 (이미 선점된 좌석일 수 있습니다).");
 
-            await supabase.from('activity_logs').insert([{ student_id: profile.student_id, student_name: profile.name, description: `좌석 변경 (${myOldTicket.seat_number} ➡️ ${selectedSeat}) 및 팝콘 갱신` }]);
+            await supabase.from('activity_logs').insert([{ student_id: profile.student_id, student_name: profile.name, description: `좌석 변경 (${myOldTicket.seat_number} → ${selectedSeat}) 및 팝콘 갱신` }]);
 
             if (userEmail && updatedTicket) {
               fetch('/api/ticket', { method: 'POST', body: JSON.stringify({ email: userEmail, name: profile.name, seat: selectedSeat, movieTitle: movieInfo.title, movieDate: movieInfo.date_string, venue: movieInfo.venue, ageRating: movieInfo.age_rating, posterUrl: (movieInfo as any).poster_cdn_url || movieInfo.poster_url, backgroundTemplateUrl: (movieInfo as any).background_template_url, statusType: 'changed', popcorn: finalPopcornString, ticketId: updatedTicket.id, baseUrl }) });
             }
-            showSuccess("예매 변경 완료!", "✨ 좌석이 성공적으로 변경되었습니다.\n새로운 티켓이 학교 메일로 발송되었습니다.");
+            showSuccess("예매 변경 완료!", "좌석이 성공적으로 변경되었습니다.\n새로운 티켓이 학교 메일로 발송되었습니다.");
             fetchInitialData(); setIsModalOpen(false); setSelectedSeat(null); setIsMovingSeat(false);
           });
           return;
@@ -451,7 +452,7 @@ export default function Home() {
         }
 
         if (finalStatus === 'confirmed') {
-          showSuccess("🎉 예매 성공!", `${profile.name}님 귀중한 예매 감사합니다! 📧\n학교 이메일로 VIP 모바일 티켓이 발송되었습니다.`);
+          showSuccess("예매 성공!", `${profile.name}님 귀중한 예매 감사합니다!\n학교 이메일로 VIP 모바일 티켓이 발송되었습니다.`);
           setSelectedSeat(null);
         } else {
           setIsPaymentModalOpen(true);
@@ -469,7 +470,7 @@ export default function Home() {
   const handleCancelMyReservation = () => {
     if (!myReservation) return;
     if (myReservation.status === 'confirmed' && myReservation.popcorn && myReservation.popcorn !== 'none') {
-      return showAlert("🍿 팝콘 결제가 완료된 예매는 취소할 수 없습니다.\n취소가 필요하면 현장에서 문의해주세요.");
+      return showAlert("팝콘 결제가 완료된 예매는 취소할 수 없습니다.\n취소가 필요하면 현장에서 문의해주세요.");
     }
     showConfirm("정말로 예매를 취소하시겠습니까?", async () => {
       try {
@@ -492,7 +493,7 @@ export default function Home() {
           });
         }
 
-        showAlert("✅ 예매가 정상적으로 취소되었습니다.", false);
+        showAlert("예매가 정상적으로 취소되었습니다.", false);
         setMyReservation(null);
         setIsMovingSeat(false);
         setSelectedSeat(null);
@@ -513,7 +514,7 @@ export default function Home() {
   const handleGroupStart = async () => {
     if (!profile) return showAlert("로그인이 필요합니다.");
 
-    if (blacklistedUsers.includes(profile.email)) return showAlert("🚫 블랙리스트에 등록되어 예매가 제한되었습니다.");
+    if (blacklistedUsers.includes(profile.email)) return showAlert("블랙리스트에 등록되어 예매가 제한되었습니다.");
     if (selectedSeat && vipSeats.has(selectedSeat) && !clubMemberIds.includes(profile.email)) {
       return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
     }
@@ -545,7 +546,7 @@ export default function Home() {
 
   const handleAddGroupMember = async (andFinalize: boolean) => {
     if (!selectedMember) return showAlert("추가할 사람을 검색해서 선택해주세요!");
-    if (blacklistedUsers.includes(selectedMember.email)) return showAlert("🚫 블랙리스트에 등록되어 추가할 수 없습니다.");
+    if (blacklistedUsers.includes(selectedMember.email)) return showAlert("블랙리스트에 등록되어 추가할 수 없습니다.");
     if (groupLeader?.profileId === selectedMember.id) return showAlert("리더 본인은 추가할 수 없습니다.");
     if (groupMembers.some(m => m.profileId === selectedMember.id)) return showAlert("이미 단체에 추가된 사람입니다.");
 
@@ -555,7 +556,7 @@ export default function Home() {
 
     if (selectedSeat && vipSeats.has(selectedSeat)) {
       if (!clubMemberIds.includes(selectedMember.email)) {
-        return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n이 좌석에는 동아리 부원만 추가할 수 있습니다.");
+        return showAlert("선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n이 좌석에는 동아리 부원만 추가할 수 있습니다.");
       }
     }
 
@@ -628,7 +629,7 @@ export default function Home() {
     setGroupLeader(null);
     setGroupMembers([]);
     fetchInitialData();
-    showSuccess("🎉 단체 예매 완료!", `${leaderName}님의 단체 예매가 등록되었습니다!\n\n리더의 예매는 즉시 확정되었습니다.\n멤버 ${memberCount}명에게 초대 이메일이 발송되었습니다.\n\n⏰ 멤버들은 1시간 이내에 이메일을 통해 예매를 확정해야 합니다.`);
+    showSuccess("단체 예매 완료!", `${leaderName}님의 단체 예매가 등록되었습니다!\n\n리더의 예매는 즉시 확정되었습니다.\n멤버 ${memberCount}명에게 초대 이메일이 발송되었습니다.\n\n멤버들은 1시간 이내에 이메일을 통해 예매를 확정해야 합니다.`);
   };
 
   const handleCancelGroupMode = () => {
@@ -674,16 +675,16 @@ export default function Home() {
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 flex flex-col items-center select-none overflow-x-hidden">
       
       <div className="w-full max-w-4xl flex justify-end gap-3 z-20 mt-2 md:mt-0">
-        <button onClick={() => setIsManualOpen(true)} className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/50 rounded-lg text-xs md:text-sm text-indigo-300 font-bold transition-all shadow-lg">
-          📖 이용 안내
+        <button onClick={() => setIsManualOpen(true)} className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/50 rounded-lg text-xs md:text-sm text-indigo-300 font-bold transition-all shadow-lg flex items-center gap-1.5">
+          <BookOpen className="w-4 h-4" /> 이용 안내
         </button>
         {isAdmin && (
           <>
-            <Link href="/admin" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-slate-300 font-bold transition-all shadow-lg hover:shadow-white/5">
-              ⚙️ 관리자
+            <Link href="/admin" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-slate-300 font-bold transition-all shadow-lg hover:shadow-white/5 flex items-center gap-1.5">
+              <Settings className="w-4 h-4" /> 관리자
             </Link>
-            <Link href="/print" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-slate-300 font-bold transition-all shadow-lg hover:shadow-white/5">
-              🖨️ 발권기
+            <Link href="/print" className="px-4 py-2 bg-white/5 backdrop-blur-md hover:bg-white/10 border border-white/10 rounded-lg text-xs md:text-sm text-slate-300 font-bold transition-all shadow-lg hover:shadow-white/5 flex items-center gap-1.5">
+              <Printer className="w-4 h-4" /> 발권기
             </Link>
           </>
         )}
@@ -710,8 +711,8 @@ export default function Home() {
                     <p className="text-white text-sm font-bold truncate">{profile.name}</p>
                     <p className="text-slate-500 text-xs truncate">{profile.email}</p>
                   </div>
-                  <button onClick={handleLogout} className="w-full text-left px-3 py-2.5 text-sm text-rose-400 hover:bg-white/5 font-bold transition-colors">
-                    🚪 로그아웃
+                  <button onClick={handleLogout} className="w-full text-left px-3 py-2.5 text-sm text-rose-400 hover:bg-white/5 font-bold transition-colors flex items-center gap-1.5">
+                    <LogOut className="w-4 h-4" /> 로그아웃
                   </button>
                 </div>
               </>
@@ -747,7 +748,7 @@ export default function Home() {
           <img src={displayMovie.poster_url} alt="영화 포스터" loading="lazy" decoding="async" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-slate-800" />
           <div className="flex flex-col text-center md:text-left w-full">
             {viewingPast ? (
-              <span className="text-slate-400 font-bold mb-1 text-sm tracking-wide bg-slate-700/40 border border-slate-600/50 px-2 py-0.5 rounded-sm w-fit mx-auto md:mx-0">📼 지난 상영작</span>
+              <span className="text-slate-400 font-bold mb-1 text-sm tracking-wide bg-slate-700/40 border border-slate-600/50 px-2 py-0.5 rounded-sm w-fit mx-auto md:mx-0 flex items-center gap-1"><History className="w-3.5 h-3.5" /> 지난 상영작</span>
             ) : (
               <span className="text-indigo-400 font-bold mb-1 text-sm tracking-wide">이달의 명작 상영작</span>
             )}
@@ -757,16 +758,16 @@ export default function Home() {
                 관람가: {displayMovie.age_rating}
               </span>
             </div>
-            <p className="text-slate-300 mt-2 text-sm md:text-base font-light">📍 장소: {displayMovie.venue}</p>
-            <p className="text-slate-300 text-sm md:text-base font-light">⏰ 일시: {displayMovie.date_string}</p>
+            <p className="text-slate-300 mt-2 text-sm md:text-base font-light flex items-center justify-center md:justify-start gap-1.5"><MapPin className="w-4 h-4 shrink-0" /> 장소: {displayMovie.venue}</p>
+            <p className="text-slate-300 text-sm md:text-base font-light flex items-center justify-center md:justify-start gap-1.5"><Hourglass className="w-4 h-4 shrink-0" /> 일시: {displayMovie.date_string}</p>
             <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/10">
               {viewingPast ? (
-                <span className="text-slate-400 font-bold text-xs md:text-sm bg-slate-700/30 px-2 py-1 rounded-md">
-                  🔒 읽기 전용 · 좌석 배치도만 열람 가능
+                <span className="text-slate-400 font-bold text-xs md:text-sm bg-slate-700/30 px-2 py-1 rounded-md flex items-center gap-1">
+                  <Lock className="w-3.5 h-3.5" /> 읽기 전용 · 좌석 배치도만 열람 가능
                 </span>
               ) : (
-                <span className="text-rose-400 font-bold text-xs md:text-sm bg-rose-500/10 px-2 py-1 rounded-md">
-                  🚨 마감: {new Date(movieInfo.deadline_date).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                <span className="text-rose-400 font-bold text-xs md:text-sm bg-rose-500/10 px-2 py-1 rounded-md flex items-center gap-1">
+                  <Siren className="w-3.5 h-3.5" /> 마감: {new Date(movieInfo.deadline_date).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
             </div>
@@ -802,11 +803,11 @@ export default function Home() {
             <div className="flex flex-col items-center gap-1 md:gap-2 min-w-max px-4 pt-6 w-fit mx-auto relative">
 
               <div className="w-[70%] h-8 md:h-10 rounded-t-3xl flex items-center justify-center mb-8 md:mb-12 border-t border-white/40 bg-slate-400/70 shadow-[0_-10px_30px_rgba(255,255,255,0.1)]">
-                <span className="font-black text-xs md:text-base ml-2 text-slate-900 tracking-[0.3em]">📼 지난 회차</span>
+                <span className="font-black text-xs md:text-base ml-2 text-slate-900 tracking-[0.3em] flex items-center gap-1.5"><History className="w-4 h-4" /> 지난 회차</span>
               </div>
 
               <div className="md:hidden absolute top-0 left-6 animate-bounce text-amber-400 font-bold text-xs flex items-center gap-1 z-10 pointer-events-none drop-shadow-md">
-                옆으로 밀어서 확인 <span className="text-lg">👉</span>
+                옆으로 밀어서 확인 <ArrowRight className="w-4 h-4" />
               </div>
 
               {pastRows.map((rowChar, rowIndex) => (
@@ -865,12 +866,12 @@ export default function Home() {
 
           <div className="mt-4 flex flex-wrap justify-center gap-6 text-sm text-slate-400">
             <div className="flex items-center gap-2"><div className="w-4 h-4 bg-white/10 border border-white/5 rounded-sm"></div>예매 가능했던 좌석</div>
-            <div className="flex items-center gap-2"><div className="w-4 h-4 border border-indigo-500/50 bg-indigo-900/60 rounded-sm"></div>동아리 전용석</div>
-            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-800/80 border border-white/5 rounded-sm"></div>예매 완료된 좌석</div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 border border-indigo-500/50 bg-indigo-900/60 rounded-sm flex items-center justify-center"><Crown className="w-2.5 h-2.5 text-indigo-300" /></div>동아리 전용석</div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-800/80 border border-white/5 rounded-sm flex items-center justify-center"><Check className="w-2.5 h-2.5 text-slate-500" /></div>예매 완료된 좌석</div>
           </div>
 
           <div className="mt-8 p-6 bg-white/5 backdrop-blur-xl rounded-2xl w-full max-w-xl text-center shadow-2xl border border-white/10">
-            <p className="text-slate-300 font-bold mb-1">🔒 지난 상영 회차 열람 모드</p>
+            <p className="text-slate-300 font-bold mb-1 flex items-center justify-center gap-1.5"><Lock className="w-4 h-4" /> 지난 상영 회차 열람 모드</p>
             <p className="text-slate-500 text-sm font-light">좌석 배치도는 읽기 전용이며 예매자 정보는 표시되지 않습니다.<br/>예매 관련 기능은 현재 상영작에서만 이용할 수 있습니다.</p>
             <button onClick={goToNewerMovie} className="mt-4 py-2.5 px-6 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-bold text-sm transition-all">현재 상영작으로 돌아가기 ▶</button>
           </div>
@@ -878,14 +879,13 @@ export default function Home() {
       ) : (
       <>
       <div className="relative w-full overflow-x-auto pb-8">
-        {isClosed && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/80 rounded-xl">
-            <span className="text-4xl font-black text-rose-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.6)] transform -rotate-12 border-4 border-rose-500 p-4 rounded-xl">예매가 마감되었습니다</span>
-          </div>
-        )}
-
         <div className="flex flex-col items-center gap-1 md:gap-2 min-w-max px-4 pt-6 w-fit mx-auto relative">
-          
+          {isClosed && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/80 rounded-xl">
+              <span className="text-4xl font-black text-rose-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.6)] transform -rotate-12 border-4 border-rose-500 p-4 rounded-xl">예매가 마감되었습니다</span>
+            </div>
+          )}
+
           <div className={`w-[70%] h-8 md:h-10 rounded-t-3xl flex items-center justify-center mb-8 md:mb-12 border-t border-white/40 ${isGroupMode ? 'bg-emerald-400/90 shadow-[0_-10px_30px_rgba(16,185,129,0.3)]' : 'bg-slate-200/90 shadow-[0_-10px_30px_rgba(255,255,255,0.15)]'}`}>
             <span className={`font-black text-xs md:text-base ml-2 ${isGroupMode ? 'text-emerald-900 tracking-[0.3em] animate-pulse' : 'text-slate-800 tracking-[1em]'}`}>
               {isGroupMode ? '단체 예매 중' : 'SCREEN'}
@@ -893,7 +893,7 @@ export default function Home() {
           </div>
 
           <div className="md:hidden absolute top-0 left-6 animate-bounce text-amber-400 font-bold text-xs flex items-center gap-1 z-10 pointer-events-none drop-shadow-md">
-            옆으로 밀어서 확인 <span className="text-lg">👉</span>
+            옆으로 밀어서 확인 <ArrowRight className="w-4 h-4" />
           </div>
 
           {rows.map((rowChar, rowIndex) => (
@@ -965,8 +965,8 @@ export default function Home() {
 
       <div className="mt-4 flex flex-wrap justify-center gap-6 text-sm text-slate-400">
         <div className="flex items-center gap-2"><div className="w-4 h-4 bg-white/10 border border-white/5 rounded-sm"></div>예매 가능</div>
-        <div className="flex items-center gap-2"><div className="w-4 h-4 border border-indigo-500/50 bg-indigo-900/60 rounded-sm"></div>동아리 전용</div>
-        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-800/80 border border-white/5 rounded-sm"></div>예매 완료</div>
+        <div className="flex items-center gap-2"><div className="w-4 h-4 border border-indigo-500/50 bg-indigo-900/60 rounded-sm flex items-center justify-center"><Crown className="w-2.5 h-2.5 text-indigo-300" /></div>동아리 전용</div>
+        <div className="flex items-center gap-2"><div className="w-4 h-4 bg-slate-800/80 border border-white/5 rounded-sm flex items-center justify-center"><Check className="w-2.5 h-2.5 text-slate-500" /></div>예매 완료</div>
         {(isGroupMode || Object.values(seatStatuses).some(s => s.status === 'group_pending')) && (
           <div className="flex items-center gap-2"><div className="w-4 h-4 bg-teal-900/40 border border-teal-500/50 rounded-sm"></div>단체 대기 중</div>
         )}
@@ -985,7 +985,7 @@ export default function Home() {
         {isGroupMode ? (
           <div className="space-y-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-emerald-400 font-bold">👑 리더: {groupLeader?.name} ({groupLeader?.seat})</span>
+              <span className="text-emerald-400 font-bold flex items-center gap-1"><Crown className="w-4 h-4" /> 리더: {groupLeader?.name} ({groupLeader?.seat})</span>
               <span className="text-slate-400">멤버: {groupMembers.length}명 / 9명</span>
             </div>
             {groupMembers.length > 0 && (
@@ -1008,23 +1008,23 @@ export default function Home() {
            <div className="py-4 px-8 rounded-xl w-full bg-rose-900/40 border border-rose-800 text-rose-400 font-bold text-lg cursor-not-allowed">예매가 모두 마감되었습니다</div>
         ) : myReservation && !isMovingSeat ? (
           <div className="space-y-4">
-            <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full border ${myReservation.status === 'pending' ? 'bg-yellow-600/20 text-yellow-400 border-yellow-600 animate-pulse' : 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40'}`}>
-              {myReservation.status === 'pending' ? '⏳ 결제 대기 중' : '✅ 예매 확정'}
+            <span className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full border ${myReservation.status === 'pending' ? 'bg-yellow-600/20 text-yellow-400 border-yellow-600 animate-pulse' : 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40'}`}>
+              {myReservation.status === 'pending' ? <><Hourglass className="w-3.5 h-3.5" /> 결제 대기 중</> : <><CircleCheck className="w-3.5 h-3.5" /> 예매 확정</>}
             </span>
             <p className="text-lg text-slate-200">내 좌석: <span className="text-amber-400 font-bold text-3xl md:text-4xl ml-2 tracking-tighter drop-shadow-md">{myReservation.seat}</span></p>
             {myReservation.popcorn && myReservation.popcorn !== 'none' && (
-              <p className="text-slate-400 text-sm">🍿 팝콘 {myReservation.popcorn.split(',').length}개 주문됨</p>
+              <p className="text-slate-400 text-sm flex items-center justify-center gap-1"><Popcorn className="w-4 h-4" /> 팝콘 {myReservation.popcorn.split(',').length}개 주문됨</p>
             )}
             {myReservation.status === 'confirmed' && (!myReservation.popcorn || myReservation.popcorn === 'none') && (
               <button onClick={() => {
                 setPopcornList(['none']);
                 setIsAddPopcornMode(true);
                 setIsModalOpen(true);
-              }} className="w-full py-2.5 bg-amber-600/90 hover:bg-amber-500 border border-amber-500 rounded-lg text-white font-bold transition-all text-sm">🍿 팝콘 추가 (결제 필요)</button>
+              }} className="w-full py-2.5 bg-amber-600/90 hover:bg-amber-500 border border-amber-500 rounded-lg text-white font-bold transition-all text-sm flex items-center justify-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 추가 (결제 필요)</button>
             )}
             {myReservation.status === 'pending' && (
               <div className="bg-slate-900/60 border border-amber-500/30 rounded-xl p-4 text-left space-y-3">
-                <p className="text-amber-300 text-sm font-bold text-center">⏳ 아래 QR코드 또는 계좌로 입금을 완료해주세요.</p>
+                <p className="text-amber-300 text-sm font-bold text-center flex items-center justify-center gap-1.5"><Hourglass className="w-4 h-4" /> 아래 QR코드 또는 계좌로 입금을 완료해주세요.</p>
                 <div className="flex flex-col items-center gap-3">
                   <div className="bg-white p-3 rounded-xl inline-block"><img src="/qr.jpeg" alt="QR" loading="lazy" decoding="async" className="w-32 h-32 object-contain" /></div>
                   <div className="w-full"><AccountInfo /></div>
@@ -1038,7 +1038,7 @@ export default function Home() {
                   setPopcornList([...existing, 'none']);
                   setIsAddPopcornMode(true);
                   setIsModalOpen(true);
-                }} className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 border border-amber-500 rounded-lg text-white font-bold transition-all text-sm">🍿 팝콘 추가</button>
+                }} className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 border border-amber-500 rounded-lg text-white font-bold transition-all text-sm flex items-center justify-center gap-1.5"><Popcorn className="w-4 h-4" /> 팝콘 추가</button>
               </div>
             )}
             <div className="flex gap-3">
@@ -1047,11 +1047,11 @@ export default function Home() {
                 setPopcornList([...existing, 'none']);
                 setIsMovingSeat(true);
                 setSelectedSeat(null);
-              }} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)]">🔄 자리 이동</button>
+              }} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-white font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] flex items-center justify-center gap-1.5"><RefreshCw className="w-4 h-4" /> 자리 이동</button>
               {myReservation.status === 'confirmed' && myReservation.popcorn && myReservation.popcorn !== 'none' ? (
-                <button disabled title="팝콘 결제가 완료된 예매는 취소할 수 없습니다." className="flex-1 py-3 bg-slate-700/40 border border-slate-600 rounded-lg text-slate-500 font-bold cursor-not-allowed">🚨 예매 취소 불가</button>
+                <button disabled title="팝콘 결제가 완료된 예매는 취소할 수 없습니다." className="flex-1 py-3 bg-slate-700/40 border border-slate-600 rounded-lg text-slate-500 font-bold cursor-not-allowed flex items-center justify-center gap-1.5"><Ban className="w-4 h-4" /> 예매 취소 불가</button>
               ) : (
-                <button onClick={handleCancelMyReservation} className="flex-1 py-3 bg-rose-600/90 hover:bg-rose-500 border border-rose-500 rounded-lg text-white font-bold transition-all">🚨 예매 취소</button>
+                <button onClick={handleCancelMyReservation} className="flex-1 py-3 bg-rose-600/90 hover:bg-rose-500 border border-rose-500 rounded-lg text-white font-bold transition-all flex items-center justify-center gap-1.5"><Ban className="w-4 h-4" /> 예매 취소</button>
               )}
             </div>
           </div>
@@ -1083,7 +1083,7 @@ export default function Home() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-50 overflow-y-auto duration-300">
           <div className="bg-slate-900/90 backdrop-blur-xl p-6 rounded-2xl w-full max-w-md border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] my-8">
-            <h2 className="text-2xl font-bold text-white mb-6">{isAddPopcornMode ? '🍿 팝콘 추가' : '예매 정보 입력'}</h2>
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">{isAddPopcornMode ? <><Popcorn className="w-5 h-5" /> 팝콘 추가</> : '예매 정보 입력'}</h2>
             <div className="space-y-4 text-left">
               {!isAddPopcornMode && (
                 <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
@@ -1094,7 +1094,7 @@ export default function Home() {
               )}
 
               <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
-                <label className="block text-slate-300 mb-3 text-sm font-bold">🍿 팝콘 선택 (개당 2,500원)</label>
+                <label className="flex items-center gap-1.5 text-slate-300 mb-3 text-sm font-bold"><Popcorn className="w-4 h-4" /> 팝콘 선택 (개당 2,500원)</label>
                 
                 {popcornList.map((pop, idx) => (
                   <div key={idx} className="mb-3 flex items-center gap-2">
@@ -1245,11 +1245,11 @@ export default function Home() {
                     <span className="text-slate-400">예매 가능</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs bg-indigo-900/40 p-2 rounded-lg border border-indigo-500/30">
-                    <div className="w-5 h-6 bg-indigo-900/60 border border-indigo-500/50 rounded-t-md rounded-b-sm flex-shrink-0"></div>
+                    <div className="w-5 h-6 bg-indigo-900/60 border border-indigo-500/50 rounded-t-md rounded-b-sm flex-shrink-0 flex items-center justify-center"><Crown className="w-3 h-3 text-indigo-300" /></div>
                     <span className="text-indigo-300">동아리 전용</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs bg-slate-800 p-2 rounded-lg border border-slate-700">
-                    <div className="w-5 h-6 bg-slate-800/80 rounded-t-md rounded-b-sm flex-shrink-0"></div>
+                    <div className="w-5 h-6 bg-slate-800/80 rounded-t-md rounded-b-sm flex-shrink-0 flex items-center justify-center"><Check className="w-3 h-3 text-slate-500" /></div>
                     <span className="text-slate-500">예매 완료</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs bg-yellow-600/10 p-2 rounded-lg border border-yellow-600/40">
