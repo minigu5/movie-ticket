@@ -137,24 +137,24 @@ export default function KioskPrintPage() {
   if (!isAdminAuth) {
     // ... (기존 로그인 UI 화면 동일하므로 생략하지 않고 그대로 포함합니다.)
     return (
-      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
-        <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-yellow-600 shadow-2xl">
-          <h1 className="text-2xl font-bold text-yellow-500 mb-6 flex items-center justify-center gap-1.5">
+      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-4">
+        <div className="bg-neutral-900 p-8 rounded-xl max-w-sm w-full text-center border border-orange-600 shadow-2xl">
+          <h1 className="text-2xl font-bold text-orange-500 mb-6 flex items-center justify-center gap-1.5">
             <Printer className="w-6 h-6" />
             KIOSK 발권기 접속
           </h1>
-          <p className="text-gray-400 text-sm mb-6">원활한 현장 발권 준비를 위해<br />관리자 비밀번호를 입력해주세요.</p>
+          <p className="text-neutral-400 text-sm mb-6">원활한 현장 발권 준비를 위해<br />관리자 비밀번호를 입력해주세요.</p>
           <input
             type="password"
             value={adminPasswordInput}
             onChange={(e) => setAdminPasswordInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-            className="w-full p-4 rounded-lg bg-gray-700 text-white border border-gray-600 mb-6 text-center outline-none focus:border-yellow-500"
+            className="w-full p-4 rounded-lg bg-neutral-800 text-white border border-neutral-600 mb-6 text-center outline-none focus:border-orange-500"
             placeholder="비밀번호 입력"
           />
           <button
             onClick={handleAdminLogin}
-            className="w-full py-4 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-black font-bold text-lg"
+            className="w-full py-4 bg-orange-600 hover:bg-orange-500 rounded-lg text-black font-bold text-lg"
           >
             발권기 열기
           </button>
@@ -174,28 +174,28 @@ export default function KioskPrintPage() {
         }
       `}} />
 
-      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4 print:bg-white print:text-black print:min-h-0 print:p-0 print:block select-none">
+      <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center p-4 print:bg-white print:text-black print:min-h-0 print:p-0 print:block select-none">
 
         {!ticketData ? (
           <>
-            <div className="w-full max-w-md bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-600 print:hidden">
+            <div className="w-full max-w-md bg-neutral-900 p-8 rounded-2xl shadow-2xl border border-neutral-600 print:hidden">
               <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold text-yellow-500 tracking-wider mb-2">현장 발권기</h1>
-                <p className="text-gray-400 text-sm">현장에서 예매 티켓을 스티커/영수증으로 출력합니다.</p>
+                <h1 className="text-3xl font-bold text-orange-500 tracking-wider mb-2">현장 발권기</h1>
+                <p className="text-neutral-400 text-sm">현장에서 예매 티켓을 스티커/영수증으로 출력합니다.</p>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-gray-300 mb-1 text-sm font-bold">학번</label>
-                  <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-lg" placeholder="예: 2703" />
+                  <label className="block text-neutral-300 mb-1 text-sm font-bold">학번</label>
+                  <input type="text" name="studentId" value={formData.studentId} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-neutral-800 text-white border border-neutral-600 outline-none focus:border-orange-500 text-lg" placeholder="예: 2703" />
                 </div>
                 <div>
-                  <label className="block text-gray-300 mb-1 text-sm font-bold">이름</label>
-                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-gray-700 text-white border border-gray-600 outline-none focus:border-yellow-500 text-lg" placeholder="본명 입력" />
+                  <label className="block text-neutral-300 mb-1 text-sm font-bold">이름</label>
+                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-4 rounded-xl bg-neutral-800 text-white border border-neutral-600 outline-none focus:border-orange-500 text-lg" placeholder="본명 입력" />
                 </div>
               </div>
 
-              <button onClick={handlePrintSubmit} disabled={isPrinting} className="w-full mt-8 py-4 bg-yellow-600 hover:bg-yellow-500 text-black font-black text-xl rounded-xl shadow-[0_0_20px_rgba(202,138,4,0.4)] transition-all">
+              <button onClick={handlePrintSubmit} disabled={isPrinting} className="w-full mt-8 py-4 bg-orange-600 hover:bg-orange-500 text-black font-black text-xl rounded-xl shadow-[0_0_20px_rgba(234,88,12,0.4)] transition-all">
                 {isPrinting ? '티켓 정보 확인 중...' : (
                   <span className="flex items-center justify-center gap-1.5">
                     <Printer className="w-4 h-4" />

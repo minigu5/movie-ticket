@@ -68,7 +68,7 @@ export default function ReservationsTab({ reservations, popcornStats, onApprove,
       </div>
 
       {/* 팝콘 / 매출 요약 */}
-      <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+      <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700">
         <h2 className="text-lg font-bold text-yellow-500 mb-4 flex items-center gap-1.5"><BarChart3 className="w-5 h-5" /> 팝콘 현황 요약 (확정 기준)</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-yellow-900/30 p-4 rounded-lg border border-yellow-700"><span className="flex items-center gap-1.5 text-yellow-400 text-sm font-bold mb-1"><Popcorn className="w-4 h-4" /> 오리지널</span><span className="text-2xl font-black text-yellow-400">{popcornStats.original}개</span></div>
@@ -79,9 +79,9 @@ export default function ReservationsTab({ reservations, popcornStats, onApprove,
       </div>
 
       {/* 예매 내역 테이블 */}
-      <div className="bg-gray-800 rounded-xl overflow-x-auto border border-gray-700">
+      <div className="bg-neutral-800 rounded-xl overflow-x-auto border border-neutral-700">
         <table className="w-full text-left text-sm whitespace-nowrap">
-          <thead className="bg-gray-700 text-gray-300 select-none">
+          <thead className="bg-neutral-700 text-neutral-300 select-none">
             <tr>
               <th className="p-4 cursor-pointer hover:text-white" onClick={() => toggleSort('status')}>상태{arrow('status')}</th>
               <th className="p-4 cursor-pointer hover:text-white" onClick={() => toggleSort('seat')}>좌석{arrow('seat')}</th>
@@ -92,11 +92,11 @@ export default function ReservationsTab({ reservations, popcornStats, onApprove,
             </tr>
           </thead>
           <tbody>
-            {sorted.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-gray-500">예매 내역이 없습니다.</td></tr>}
+            {sorted.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-neutral-500">예매 내역이 없습니다.</td></tr>}
             {sorted.map((ticket) => {
               const { arr, totalPrice, summary } = analyzePopcorn(ticket.popcorn_order);
               return (
-                <tr key={ticket.id} className="border-b border-gray-700 hover:bg-gray-750">
+                <tr key={ticket.id} className="border-b border-neutral-700 hover:bg-neutral-750">
                   <td className="p-4">
                     {ticket.payment_status === 'group_pending' ? (
                       <span className="bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded border border-yellow-600 font-bold text-xs inline-flex items-center gap-1"><Hourglass className="w-3.5 h-3.5" /> 단체 대기</span>
@@ -113,17 +113,17 @@ export default function ReservationsTab({ reservations, popcornStats, onApprove,
                     {arr.length > 0 ? (
                       <div className="flex flex-col">
                         <span className="text-yellow-400 font-bold text-sm tracking-widest">{totalPrice.toLocaleString()}원</span>
-                        <span className="flex items-center gap-1.5 text-gray-400 text-xs mt-1"><Popcorn className="w-3.5 h-3.5" /> {summary}</span>
+                        <span className="flex items-center gap-1.5 text-neutral-400 text-xs mt-1"><Popcorn className="w-3.5 h-3.5" /> {summary}</span>
                       </div>
                     ) : (
-                      <span className="text-gray-500 text-sm">무료 관람 (0원)</span>
+                      <span className="text-neutral-500 text-sm">무료 관람 (0원)</span>
                     )}
                   </td>
                   <td className="p-4 text-center">
                     {ticket.is_printed ? (
                       <span className="inline-flex items-center gap-1.5 text-orange-400 font-bold border border-orange-600 bg-orange-900/30 px-3 py-1 rounded-lg text-xs tracking-wider"><Printer className="w-3.5 h-3.5" /> 발권 완료</span>
                     ) : (
-                      <span className="text-gray-500 font-bold text-sm">미발권</span>
+                      <span className="text-neutral-500 font-bold text-sm">미발권</span>
                     )}
                   </td>
                   <td className="p-4 text-right flex justify-end gap-2">
@@ -153,8 +153,8 @@ function Counter({ label, value, tone }: { label: string; value: number; tone: '
     slate: 'border-neutral-600 text-neutral-300',
   }[tone];
   return (
-    <div className={`bg-gray-800 p-4 rounded-xl border ${toneClass}`}>
-      <span className="block text-gray-400 text-xs font-bold mb-1">{label}</span>
+    <div className={`bg-neutral-800 p-4 rounded-xl border ${toneClass}`}>
+      <span className="block text-neutral-400 text-xs font-bold mb-1">{label}</span>
       <span className="text-2xl font-black">{value}</span>
     </div>
   );

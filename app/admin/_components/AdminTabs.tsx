@@ -19,7 +19,7 @@ interface Props {
 
 export default function AdminTabs({ active, onChange, pendingCount = 0 }: Props) {
   return (
-    <div className="flex gap-1 border-b border-gray-700 mb-6 overflow-x-auto">
+    <div className="flex gap-1 border-b border-neutral-700 mb-6 overflow-x-auto">
       {TABS.map((t) => (
         <button
           key={t.key}
@@ -27,7 +27,7 @@ export default function AdminTabs({ active, onChange, pendingCount = 0 }: Props)
           className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 -mb-px ${
             active === t.key
               ? 'border-orange-400 text-orange-400'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
+              : 'border-transparent text-neutral-400 hover:text-neutral-200'
           }`}
         >
           <t.Icon size={16} aria-hidden="true" />

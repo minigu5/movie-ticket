@@ -60,23 +60,23 @@ export default function VipZonePicker({ hall, onHallChange, zone, onZoneChange, 
   const ringClass = accent === 'pink' ? 'ring-pink-300' : 'ring-amber-300';
 
   return (
-    <div className="bg-gray-900/60 rounded-lg border border-gray-700 p-4">
+    <div className="bg-neutral-900/60 rounded-lg border border-neutral-700 p-4">
       <div className="flex items-center gap-2 mb-3">
         <button
           type="button"
           onClick={() => onHallChange('mid')}
-          className={`px-3 py-1.5 rounded text-xs font-bold ${hall === 'mid' ? 'bg-amber-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+          className={`px-3 py-1.5 rounded text-xs font-bold ${hall === 'mid' ? 'bg-amber-600 text-white' : 'bg-neutral-700 text-neutral-300'}`}
         >
           중강당 (14×9)
         </button>
         <button
           type="button"
           onClick={() => onHallChange('grand')}
-          className={`px-3 py-1.5 rounded text-xs font-bold ${hall === 'grand' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+          className={`px-3 py-1.5 rounded text-xs font-bold ${hall === 'grand' ? 'bg-pink-600 text-white' : 'bg-neutral-700 text-neutral-300'}`}
         >
           대강당 (27×18)
         </button>
-        <span className="text-xs text-gray-500 ml-auto">
+        <span className="text-xs text-neutral-500 ml-auto">
           {pending ? '반대쪽 모서리를 클릭하세요' : '두 모서리 셀을 클릭해 영역 지정'}
         </span>
       </div>
@@ -87,12 +87,12 @@ export default function VipZonePicker({ hall, onHallChange, zone, onZoneChange, 
           <div className="flex">
             <div className="w-5 shrink-0" />
             {cols.map((c) => (
-              <div key={c} className="w-[22px] shrink-0 text-center text-[9px] text-gray-500 leading-4">{c}</div>
+              <div key={c} className="w-[22px] shrink-0 text-center text-[9px] text-neutral-500 leading-4">{c}</div>
             ))}
           </div>
           {rows.map((rowChar, ri) => (
             <div key={rowChar} className="flex">
-              <div className="w-5 shrink-0 text-center text-[10px] text-gray-500 leading-[22px]">{rowChar}</div>
+              <div className="w-5 shrink-0 text-center text-[10px] text-neutral-500 leading-[22px]">{rowChar}</div>
               {cols.map((colNum, ci) => {
                 const has = computeSeatId(isGrand, ri, ci);
                 const selected = inZone(rowChar, colNum);
@@ -104,8 +104,8 @@ export default function VipZonePicker({ hall, onHallChange, zone, onZoneChange, 
                     disabled={!has}
                     onClick={() => handleCellClick(rowChar, colNum)}
                     className={[
-                      'relative w-[22px] h-[22px] shrink-0 border border-gray-800 text-[0px]',
-                      !has ? 'bg-transparent cursor-default' : selected ? fillClass : 'bg-gray-700 hover:bg-gray-600',
+                      'relative w-[22px] h-[22px] shrink-0 border border-neutral-800 text-[0px]',
+                      !has ? 'bg-transparent cursor-default' : selected ? fillClass : 'bg-neutral-700 hover:bg-neutral-600',
                       isPending ? `ring-2 ${ringClass} z-10` : '',
                     ].join(' ')}
                     aria-label={`${rowChar}${colNum}`}
@@ -121,31 +121,31 @@ export default function VipZonePicker({ hall, onHallChange, zone, onZoneChange, 
         <span className="font-bold text-white">
           {z.startRow}{z.startCol} ~ {z.endRow}{z.endCol}
         </span>
-        <span className="text-gray-400">· {seatCount}석</span>
+        <span className="text-neutral-400">· {seatCount}석</span>
       </div>
 
       <details className="mt-2">
-        <summary className="text-xs text-gray-500 cursor-pointer">직접 입력 (정밀 조정)</summary>
+        <summary className="text-xs text-neutral-500 cursor-pointer">직접 입력 (정밀 조정)</summary>
         <div className="flex gap-2 mt-2">
-          <label className="flex-1 text-xs text-gray-400">시작 행
+          <label className="flex-1 text-xs text-neutral-400">시작 행
             <input type="text" maxLength={1} value={z.startRow}
               onChange={(e) => onZoneChange({ ...z, startRow: e.target.value.toUpperCase() || 'A' })}
-              className="w-full p-1.5 bg-gray-700 rounded border border-gray-600 text-center text-white mt-1" />
+              className="w-full p-1.5 bg-neutral-700 rounded border border-neutral-600 text-center text-white mt-1" />
           </label>
-          <label className="flex-1 text-xs text-gray-400">끝 행
+          <label className="flex-1 text-xs text-neutral-400">끝 행
             <input type="text" maxLength={1} value={z.endRow}
               onChange={(e) => onZoneChange({ ...z, endRow: e.target.value.toUpperCase() || 'A' })}
-              className="w-full p-1.5 bg-gray-700 rounded border border-gray-600 text-center text-white mt-1" />
+              className="w-full p-1.5 bg-neutral-700 rounded border border-neutral-600 text-center text-white mt-1" />
           </label>
-          <label className="flex-1 text-xs text-gray-400">시작 열
+          <label className="flex-1 text-xs text-neutral-400">시작 열
             <input type="number" value={z.startCol}
               onChange={(e) => onZoneChange({ ...z, startCol: parseInt(e.target.value) || 1 })}
-              className="w-full p-1.5 bg-gray-700 rounded border border-gray-600 text-center text-white mt-1" />
+              className="w-full p-1.5 bg-neutral-700 rounded border border-neutral-600 text-center text-white mt-1" />
           </label>
-          <label className="flex-1 text-xs text-gray-400">끝 열
+          <label className="flex-1 text-xs text-neutral-400">끝 열
             <input type="number" value={z.endCol}
               onChange={(e) => onZoneChange({ ...z, endCol: parseInt(e.target.value) || 1 })}
-              className="w-full p-1.5 bg-gray-700 rounded border border-gray-600 text-center text-white mt-1" />
+              className="w-full p-1.5 bg-neutral-700 rounded border border-neutral-600 text-center text-white mt-1" />
           </label>
         </div>
       </details>

@@ -532,19 +532,19 @@ export default function AdminPage() {
   };
 
   if (authLoading) return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-4">
       <p className="text-white font-bold animate-pulse">로그인 확인 중...</p>
     </div>
   );
 
   if (!profile) return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-gray-700 shadow-2xl">
+    <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-4">
+      <div className="bg-neutral-800 p-8 rounded-xl max-w-sm w-full text-center border border-neutral-700 shadow-2xl">
         <h1 className="text-2xl font-bold text-white mb-6 flex items-center justify-center gap-1.5"><Lock className="w-5 h-5" /> 관리자 로그인</h1>
-        <p className="text-gray-400 text-sm mb-6">학교(@ts.hs.kr) 구글 계정으로 로그인해주세요.</p>
+        <p className="text-neutral-400 text-sm mb-6">학교(@ts.hs.kr) 구글 계정으로 로그인해주세요.</p>
         <button
           onClick={() => signInWithGoogle().catch(() => alert('로그인에 실패했습니다.'))}
-          className="w-full py-3 bg-white hover:bg-gray-100 text-gray-900 rounded-lg font-bold transition-colors"
+          className="w-full py-3 bg-white hover:bg-neutral-100 text-neutral-900 rounded-lg font-bold transition-colors"
         >
           구글 계정으로 로그인
         </button>
@@ -553,39 +553,39 @@ export default function AdminPage() {
   );
 
   if (checkingAdmin) return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-4">
       <p className="text-white font-bold animate-pulse">권한 확인 중...</p>
     </div>
   );
 
   if (!isAdmin) return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-red-700 shadow-2xl">
+    <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-4">
+      <div className="bg-neutral-800 p-8 rounded-xl max-w-sm w-full text-center border border-red-700 shadow-2xl">
         <h1 className="text-2xl font-bold text-red-400 mb-4 flex items-center justify-center gap-1.5"><Ban className="w-5 h-5" /> 권한 없음</h1>
-        <p className="text-gray-400 text-sm">{profile.email} 계정은 관리자로 등록되어 있지 않습니다.</p>
+        <p className="text-neutral-400 text-sm">{profile.email} 계정은 관리자로 등록되어 있지 않습니다.</p>
       </div>
     </div>
   );
 
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
+    <div className="min-h-screen bg-neutral-900 text-white p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="w-full flex flex-wrap justify-end items-center gap-3 mb-6">
-          <span className="text-xs md:text-sm text-gray-500">{profile.email}</span>
+          <span className="text-xs md:text-sm text-neutral-500">{profile.email}</span>
           <button onClick={() => signOutAndClear().then(() => window.location.reload())} className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 rounded-lg text-xs md:text-sm text-neutral-400 font-bold transition-colors flex items-center gap-1.5">
             <LogOut className="w-4 h-4" /> 로그아웃
           </button>
-          <Link href="/" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors flex items-center gap-1.5"><Home className="w-4 h-4" /> 메인 홈</Link>
-          <Link href="/print" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors flex items-center gap-1.5"><Printer className="w-4 h-4" /> 현장 발권기</Link>
+          <Link href="/" className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 rounded-lg text-xs md:text-sm text-neutral-300 font-bold transition-colors flex items-center gap-1.5"><Home className="w-4 h-4" /> 메인 홈</Link>
+          <Link href="/print" className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 rounded-lg text-xs md:text-sm text-neutral-300 font-bold transition-colors flex items-center gap-1.5"><Printer className="w-4 h-4" /> 현장 발권기</Link>
         </div>
 
         {isLoadingUI && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-            <div className="flex flex-col items-center bg-gray-900/80 p-8 rounded-2xl shadow-2xl border border-gray-700 w-80">
+            <div className="flex flex-col items-center bg-neutral-900/80 p-8 rounded-2xl shadow-2xl border border-neutral-700 w-80">
               <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-orange-500 mb-6 shadow-[0_0_15px_rgba(249,115,22,0.6)]"></div>
               <p className="text-white font-bold text-xl tracking-wider mb-2">서버 동기화 중...</p>
-              <p className="text-gray-400 text-sm">최신 데이터를 로드 중입니다.</p>
+              <p className="text-neutral-400 text-sm">최신 데이터를 로드 중입니다.</p>
             </div>
           </div>
         )}
