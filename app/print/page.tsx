@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import { CircleX, Printer, Popcorn } from 'lucide-react';
 
 
 export default function KioskPrintPage() {
@@ -89,7 +90,7 @@ export default function KioskPrintPage() {
       if (!ticket) return alert("예매 내역이 존재하지 않습니다. 학번/이름을 다시 확인해주세요.");
 
       if (ticket.is_printed) {
-        return alert("⚠️ 이미 현장에서 발권이 완료된 티켓입니다! (1인 1매 원칙)\n오류인 경우 관리자에게 문의하세요.");
+        return alert("이미 현장에서 발권이 완료된 티켓입니다! (1인 1매 원칙)\n오류인 경우 관리자에게 문의하세요.");
       }
 
       const apiRes = await fetch('/api/kiosk', {
@@ -103,7 +104,7 @@ export default function KioskPrintPage() {
       const apiData = await apiRes.json();
 
       if (!apiData.success) {
-        alert("⚠️ 서버 오류로 발권 기록 업데이트에 실패했습니다. 관리자에게 문의하세요.");
+        alert("서버 오류로 발권 기록 업데이트에 실패했습니다. 관리자에게 문의하세요.");
         return;
       }
 
@@ -117,9 +118,14 @@ export default function KioskPrintPage() {
     }
   };
 
-  const getPopcornReceiptText = (popcornString: string) => {
-    if (!popcornString || popcornString === 'none') return "❌ 팝콘 배부 대상이 아님\n(무료 관람권 예매자)";
-    
+  const getPopcornReceiptText = (popcornString: string): React.ReactNode => {
+    if (!popcornString || popcornString === 'none') return (
+      <span className="flex items-center gap-1.5">
+        <CircleX className="w-4 h-4" />
+        {"팝콘 배부 대상이 아님\n(무료 관람권 예매자)"}
+      </span>
+    );
+
     const popcornArray = popcornString.split(',');
     const POPCORN_NAMES: Record<string, string> = { original: '오리지널 버터 팝콘', consomme: '콘소메맛 팝콘', caramel: '카라멜맛 팝콘' };
     const counts: Record<string, number> = {};
@@ -133,7 +139,10 @@ export default function KioskPrintPage() {
     return (
       <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
         <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-yellow-600 shadow-2xl">
-          <h1 className="text-2xl font-bold text-yellow-500 mb-6">🖨️ KIOSK 발권기 접속</h1>
+          <h1 className="text-2xl font-bold text-yellow-500 mb-6 flex items-center justify-center gap-1.5">
+            <Printer className="w-6 h-6" />
+            KIOSK 발권기 접속
+          </h1>
           <p className="text-gray-400 text-sm mb-6">원활한 현장 발권 준비를 위해<br />관리자 비밀번호를 입력해주세요.</p>
           <input
             type="password"
@@ -187,7 +196,12 @@ export default function KioskPrintPage() {
               </div>
 
               <button onClick={handlePrintSubmit} disabled={isPrinting} className="w-full mt-8 py-4 bg-yellow-600 hover:bg-yellow-500 text-black font-black text-xl rounded-xl shadow-[0_0_20px_rgba(202,138,4,0.4)] transition-all">
-                {isPrinting ? '티켓 정보 확인 중...' : '🖨️ 영수증 티켓 출력하기'}
+                {isPrinting ? '티켓 정보 확인 중...' : (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <Printer className="w-4 h-4" />
+                    영수증 티켓 출력하기
+                  </span>
+                )}
               </button>
             </div>
           </>
@@ -219,7 +233,10 @@ export default function KioskPrintPage() {
 
             <div className="border-b-2 border-dashed border-black my-3"></div>
 
-            <div className="text-lg font-black mb-1">🍿 팝콘 수령 정보</div>
+            <div className="text-lg font-black mb-1 flex items-center gap-1.5">
+              <Popcorn className="w-4 h-4" />
+              팝콘 수령 정보
+            </div>
             <div className="text-sm font-bold whitespace-pre-wrap leading-relaxed">
               {getPopcornReceiptText(ticketData.popcorn_order)}
             </div>

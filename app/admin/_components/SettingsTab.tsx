@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type Dispatch, type SetStateAction } from 'react';
+import { Mail, Send, Settings, Ticket, Save, Clapperboard } from 'lucide-react';
 import VipZonePicker, { type Zone } from './VipZonePicker';
 import { activeAdmissionYears } from '../../../lib/schoolEmails';
 
@@ -97,7 +98,7 @@ function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle
 
   return (
     <section className="bg-gray-800 p-6 rounded-xl border border-blue-600">
-      <h2 className="text-xl font-bold text-blue-400 mb-1">📧 상영작 홍보 메일 발송</h2>
+      <h2 className="text-xl font-bold text-blue-400 mb-1 flex items-center gap-1.5"><Mail className="w-5 h-5" /> 상영작 홍보 메일 발송</h2>
       <p className="text-gray-400 text-sm mb-4">
         현재 상영작(<span className="text-gray-200">{movieTitle || '미설정'}</span>) 기준으로 (광고) 초청 메일을 보냅니다.
         블랙리스트는 자동 제외됩니다.
@@ -152,16 +153,16 @@ function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle
         <button
           onClick={p.onResolveClick}
           disabled={p.isResolving}
-          className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-lg shadow-lg transition-colors"
+          className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-lg shadow-lg transition-colors flex items-center justify-center gap-1.5"
         >
-          {p.isResolving ? '명단 계산 중...' : '🚀 체크한 대상에게 홍보 메일 발송하기'}
+          {p.isResolving ? '명단 계산 중...' : (<><Send className="w-4 h-4" /> 체크한 대상에게 홍보 메일 발송하기</>)}
         </button>
       )}
 
       {p.showConfirm && (
         <div className="fixed inset-0 bg-blue-900/90 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
           <div className="bg-gray-900 p-8 rounded-2xl max-w-md w-full border-4 border-blue-500 shadow-[0_0_50px_rgba(59,130,246,0.5)] text-center">
-            <h3 className="text-2xl font-black text-white mb-4">📧 대량 메일 발송 확인</h3>
+            <h3 className="text-2xl font-black text-white mb-4 flex items-center justify-center gap-1.5"><Mail className="w-6 h-6" /> 대량 메일 발송 확인</h3>
             <div className="bg-blue-950 p-5 rounded-xl text-white border border-blue-800 mb-4">
               <p className="text-sm text-blue-300 mb-1">발송 예정 총 인원 (블랙리스트/중복 제외)</p>
               <p className="text-5xl text-yellow-400 font-black">{p.recipientCount}<span className="text-xl text-white ml-2">명</span></p>
@@ -169,7 +170,7 @@ function PromoMailSection({ promo, movieTitle }: { promo: PromoProps; movieTitle
             <p className="text-gray-400 text-sm mb-6">발송 중에는 창을 닫거나 새로고침하지 마세요. 진행 바가 다 찰 때까지 기다려 주세요.</p>
             <div className="flex gap-3">
               <button onClick={p.onCancelConfirm} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl text-white font-bold">돌아가기</button>
-              <button onClick={p.onConfirmSend} className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold">발송 시작 🚀</button>
+              <button onClick={p.onConfirmSend} className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-bold flex items-center justify-center gap-1.5"><Send className="w-4 h-4" /> 발송 시작</button>
             </div>
           </div>
         </div>
@@ -193,7 +194,7 @@ export default function SettingsTab(props: Props) {
 
       {movieInfo && (
         <section className="bg-gray-800 p-6 rounded-xl border border-purple-700">
-          <h2 className="text-xl font-bold text-purple-400 mb-4">⚙️ 현재 상영 설정 — {movieInfo.title}</h2>
+          <h2 className="text-xl font-bold text-purple-400 mb-4 flex items-center gap-1.5"><Settings className="w-5 h-5" /> 현재 상영 설정 — {movieInfo.title}</h2>
           <MovieFormFields form={editForm} setForm={setEditForm} />
 
           <div className="flex items-center gap-3 mt-4">
@@ -210,7 +211,7 @@ export default function SettingsTab(props: Props) {
           </div>
 
           <div className="mt-6">
-            <h3 className="text-indigo-400 font-bold border-b border-gray-700 pb-2 mb-3">🎟️ 동아리 전용(VIP) 좌석 영역</h3>
+            <h3 className="text-indigo-400 font-bold border-b border-gray-700 pb-2 mb-3 flex items-center gap-1.5"><Ticket className="w-4 h-4" /> 동아리 전용(VIP) 좌석 영역</h3>
             <VipZonePicker
               hall={editHall}
               onHallChange={setEditHall}
@@ -221,7 +222,7 @@ export default function SettingsTab(props: Props) {
           </div>
 
           <div className="mt-6 text-right">
-            <button onClick={onSaveSettings} className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg">💾 변경사항 저장</button>
+            <button onClick={onSaveSettings} className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg flex items-center justify-center gap-1.5"><Save className="w-4 h-4" /> 변경사항 저장</button>
           </div>
         </section>
       )}
@@ -230,17 +231,17 @@ export default function SettingsTab(props: Props) {
         {!isStartingNewMovie ? (
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-orange-400">🎬 새 회차 시작</h2>
+              <h2 className="text-xl font-bold text-orange-400 flex items-center gap-1.5"><Clapperboard className="w-5 h-5" /> 새 회차 시작</h2>
               <p className="text-gray-400 text-sm mt-1">현재 회차를 이력으로 보존하고 새 영화 예매를 시작합니다.</p>
             </div>
             <button onClick={onStartNewMovieClick} className="bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-lg font-bold">새 영화 정보 입력</button>
           </div>
         ) : (
           <>
-            <h2 className="text-xl font-bold text-orange-400 mb-4">🎬 새 회차 시작 — 새 영화 정보 입력</h2>
+            <h2 className="text-xl font-bold text-orange-400 mb-4 flex items-center gap-1.5"><Clapperboard className="w-5 h-5" /> 새 회차 시작 — 새 영화 정보 입력</h2>
             <MovieFormFields form={newMovieForm} setForm={setNewMovieForm} />
             <div className="mt-6">
-              <h3 className="text-indigo-400 font-bold border-b border-gray-700 pb-2 mb-3">🎟️ 동아리 전용(VIP) 좌석 영역</h3>
+              <h3 className="text-indigo-400 font-bold border-b border-gray-700 pb-2 mb-3 flex items-center gap-1.5"><Ticket className="w-4 h-4" /> 동아리 전용(VIP) 좌석 영역</h3>
               <VipZonePicker
                 hall={newHall}
                 onHallChange={setNewHall}
@@ -251,7 +252,7 @@ export default function SettingsTab(props: Props) {
             </div>
             <div className="mt-6 text-right flex justify-end gap-2">
               <button onClick={onCancelNewMovie} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg">취소</button>
-              <button onClick={onSubmitNewMovie} className="bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg">🎬 새 회차 시작</button>
+              <button onClick={onSubmitNewMovie} className="bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg flex items-center justify-center gap-1.5"><Clapperboard className="w-4 h-4" /> 새 회차 시작</button>
             </div>
           </>
         )}

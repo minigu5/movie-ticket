@@ -1,5 +1,7 @@
 "use client";
 
+import { Crown, Ticket, Printer, Wrench, Ban } from 'lucide-react';
+
 interface ProfileRow { id: string; email: string; student_id: string | null; name: string; role: string }
 interface EditingProfile { id: string; email: string; student_id: string; name: string; role: string }
 
@@ -44,7 +46,7 @@ export default function MembersTab(props: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 items-start">
         {/* 관리자 목록 */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 flex flex-col min-w-0">
-          <h2 className="text-lg font-bold text-emerald-400 mb-3">👑 관리자 목록</h2>
+          <h2 className="text-lg font-bold text-emerald-400 mb-3 flex items-center gap-1.5"><Crown className="w-5 h-5" /> 관리자 목록</h2>
           <div className="flex gap-2 mb-3">
             <input type="text" value={p.newAdminEmail} onChange={e => p.setNewAdminEmail(e.target.value)} placeholder="xxxx@ts.hs.kr" className="flex-1 min-w-0 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
             <button onClick={p.onAddAdmin} className="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded font-bold text-sm">추가</button>
@@ -61,7 +63,7 @@ export default function MembersTab(props: Props) {
 
         {/* 동아리원(VIP) 목록 */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 flex flex-col min-w-0">
-          <h2 className="text-lg font-bold text-indigo-400 mb-3">🎟️ 동아리원(VIP) 목록</h2>
+          <h2 className="text-lg font-bold text-indigo-400 mb-3 flex items-center gap-1.5"><Ticket className="w-5 h-5" /> 동아리원(VIP) 목록</h2>
           <textarea
             value={p.newClubMembersText}
             onChange={e => p.setNewClubMembersText(e.target.value)}
@@ -85,7 +87,7 @@ export default function MembersTab(props: Props) {
 
         {/* 키오스크 잠금 비밀번호 */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 flex flex-col min-w-0">
-          <h2 className="text-lg font-bold text-yellow-400 mb-3">🖨️ 키오스크 잠금 비밀번호</h2>
+          <h2 className="text-lg font-bold text-yellow-400 mb-3 flex items-center gap-1.5"><Printer className="w-5 h-5" /> 키오스크 잠금 비밀번호</h2>
           <div className="flex gap-2">
             <input type="text" value={p.kioskPasswordInput} onChange={e => p.setKioskPasswordInput(e.target.value)} className="flex-1 min-w-0 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
             <button onClick={p.onUpdateKioskPassword} className="bg-yellow-600 hover:bg-yellow-500 px-3 py-2 rounded font-bold text-sm text-black">변경</button>
@@ -95,7 +97,7 @@ export default function MembersTab(props: Props) {
 
         {/* 사용자 프로필 수정 */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 flex flex-col min-w-0">
-          <h2 className="text-lg font-bold text-pink-400 mb-3">🛠️ 사용자 프로필 수정</h2>
+          <h2 className="text-lg font-bold text-pink-400 mb-3 flex items-center gap-1.5"><Wrench className="w-5 h-5" /> 사용자 프로필 수정</h2>
           <p className="text-gray-500 text-xs mb-2">구글 이름이 잘못 인식된 경우 여기서 고칩니다.</p>
           <div className="flex gap-2 mb-3">
             <input type="text" value={p.profileSearchQuery} onChange={e => p.setProfileSearchQuery(e.target.value)} placeholder="이메일/이름/학번" className="flex-1 min-w-0 p-2 bg-gray-700 rounded border border-gray-600 outline-none text-white text-sm" />
@@ -134,7 +136,7 @@ export default function MembersTab(props: Props) {
 
       {/* 블랙리스트 관리 */}
       <div className="bg-gray-800 p-6 rounded-xl border border-red-700">
-        <h2 className="text-xl font-bold text-red-400 mb-4">🚫 블랙리스트 관리</h2>
+        <h2 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-1.5"><Ban className="w-5 h-5" /> 블랙리스트 관리</h2>
         <div className="flex flex-col md:flex-row gap-2 mb-6">
           <textarea
             value={p.newBlacklistText}

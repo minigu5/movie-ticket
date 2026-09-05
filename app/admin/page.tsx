@@ -10,6 +10,7 @@ import ReservationsTab from './_components/ReservationsTab';
 import SettingsTab from './_components/SettingsTab';
 import MembersTab from './_components/MembersTab';
 import HistoryTab from './_components/HistoryTab';
+import { Ban, Lock, LogOut, Home, Printer, Crown, RefreshCw } from 'lucide-react';
 
 export default function AdminPage() {
   const [profile, setProfile] = useState<AppProfile | null>(null);
@@ -85,7 +86,7 @@ export default function AdminPage() {
         const p = await ensureProfile();
         if (active) setProfile(p);
       } catch (err) {
-        if (err instanceof DomainNotAllowedError) alert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
+        if (err instanceof DomainNotAllowedError) alert('학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
       } finally {
         if (active) setAuthLoading(false);
       }
@@ -212,7 +213,7 @@ export default function AdminPage() {
     if (!data.success) {
       alert("설정 저장 실패: " + data.error);
     } else {
-      alert("✅ 설정이 성공적으로 저장되었습니다!");
+      alert("설정이 성공적으로 저장되었습니다!");
       fetchAdminData();
     }
   };
@@ -242,7 +243,7 @@ export default function AdminPage() {
     if (!data.success) {
       alert("새 회차 시작 실패: " + data.error);
     } else {
-      alert("✅ 새 회차가 시작되었습니다!");
+      alert("새 회차가 시작되었습니다!");
       setIsStartingNewMovie(false);
       fetchAdminData();
     }
@@ -336,13 +337,13 @@ export default function AdminPage() {
 
     setReservations(prev => prev.map(r => r.id === ticket.id ? { ...r, is_printed: false } : r));
     fetchAdminData();
-    alert("✅ 발권 상태가 초기화되었습니다.");
+    alert("발권 상태가 초기화되었습니다.");
   };
 
   const handleAddBlacklistBulk = async () => {
     const emails = extractSchoolEmails(newBlacklistText);
     if (emails.length === 0) return alert("추가할 @ts.hs.kr 이메일이 없습니다.");
-    if (!confirm(`${emails.length}명을 블랙리스트에 추가하시겠습니까?\n(⚠️ 주의: 현재 진행 중이거나 완료된 예매 내역이 있다면 자동으로 취소됩니다.)`)) return;
+    if (!confirm(`${emails.length}명을 블랙리스트에 추가하시겠습니까?\n(주의: 현재 진행 중이거나 완료된 예매 내역이 있다면 자동으로 취소됩니다.)`)) return;
 
     const res = await authFetch('/api/admin/action', { action: 'ADD_BLACKLIST_BULK', payload: { emails, movieDate: movieInfo.db_date } });
     const data = await res.json();
@@ -362,7 +363,7 @@ export default function AdminPage() {
 
     setNewBlacklistText('');
     fetchAdminData();
-    alert(`✅ ${emails.length}명 블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!`);
+    alert(`${emails.length}명 블랙리스트 추가 및 예매 자동 취소 처리가 완료되었습니다!`);
   };
 
   const handleRemoveBlacklist = async (email: string) => {
@@ -372,7 +373,7 @@ export default function AdminPage() {
     if (!data.success) return alert("해제 실패");
     fetch('/api/blacklist', { method: 'POST', body: JSON.stringify({ email, name: data.name, action: 'removed' }) });
     fetchAdminData();
-    alert("✅ 해제 완료 및 안내 메일 발송!");
+    alert("해제 완료 및 안내 메일 발송!");
   };
 
   const handleAddAdmin = async () => {
@@ -402,7 +403,7 @@ export default function AdminPage() {
     if (!data.success) return alert("추가 실패: " + data.error);
     setNewClubMembersText('');
     fetchAdminData();
-    alert(`✅ ${emails.length}명 동아리원(VIP)으로 추가되었습니다.`);
+    alert(`${emails.length}명 동아리원(VIP)으로 추가되었습니다.`);
   };
 
   const handleRemoveClubMember = async (email: string) => {
@@ -418,7 +419,7 @@ export default function AdminPage() {
     const res = await authFetch('/api/admin/action', { action: 'UPDATE_KIOSK_PASSWORD', payload: { password: kioskPasswordInput.trim() } });
     const data = await res.json();
     if (!data.success) return alert("변경 실패: " + data.error);
-    alert("✅ 키오스크 잠금 비밀번호가 변경되었습니다.");
+    alert("키오스크 잠금 비밀번호가 변경되었습니다.");
   };
 
   const handleSearchProfile = async () => {
@@ -438,7 +439,7 @@ export default function AdminPage() {
     });
     const data = await res.json();
     if (!data.success) return alert("저장 실패: " + data.error);
-    alert("✅ 저장되었습니다.");
+    alert("저장되었습니다.");
     setEditingProfile(null);
     setProfileSearchResults([]);
     setProfileSearchQuery('');
@@ -522,7 +523,7 @@ export default function AdminPage() {
     }
 
     setIsSendingPromo(false);
-    alert(`✅ 홍보 메일 발송 완료!\n성공 ${sent}명 / 실패 ${failed}명`);
+    alert(`홍보 메일 발송 완료!\n성공 ${sent}명 / 실패 ${failed}명`);
     fetchAdminData();
   };
 
@@ -535,7 +536,7 @@ export default function AdminPage() {
   if (!profile) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-gray-700 shadow-2xl">
-        <h1 className="text-2xl font-bold text-white mb-6">🔒 관리자 로그인</h1>
+        <h1 className="text-2xl font-bold text-white mb-6 flex items-center justify-center gap-1.5"><Lock className="w-5 h-5" /> 관리자 로그인</h1>
         <p className="text-gray-400 text-sm mb-6">학교(@ts.hs.kr) 구글 계정으로 로그인해주세요.</p>
         <button
           onClick={() => signInWithGoogle().catch(() => alert('로그인에 실패했습니다.'))}
@@ -556,7 +557,7 @@ export default function AdminPage() {
   if (!isAdmin) return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="bg-gray-800 p-8 rounded-xl max-w-sm w-full text-center border border-red-700 shadow-2xl">
-        <h1 className="text-2xl font-bold text-red-400 mb-4">🚫 권한 없음</h1>
+        <h1 className="text-2xl font-bold text-red-400 mb-4 flex items-center justify-center gap-1.5"><Ban className="w-5 h-5" /> 권한 없음</h1>
         <p className="text-gray-400 text-sm">{profile.email} 계정은 관리자로 등록되어 있지 않습니다.</p>
       </div>
     </div>
@@ -568,11 +569,11 @@ export default function AdminPage() {
       <div className="max-w-6xl mx-auto">
         <div className="w-full flex flex-wrap justify-end items-center gap-3 mb-6">
           <span className="text-xs md:text-sm text-gray-500">{profile.email}</span>
-          <button onClick={() => signOutAndClear().then(() => window.location.reload())} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-xs md:text-sm text-slate-400 font-bold transition-colors">
-            🚪 로그아웃
+          <button onClick={() => signOutAndClear().then(() => window.location.reload())} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-xs md:text-sm text-slate-400 font-bold transition-colors flex items-center gap-1.5">
+            <LogOut className="w-4 h-4" /> 로그아웃
           </button>
-          <Link href="/" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors">🏠 메인 홈</Link>
-          <Link href="/print" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors">🖨️ 현장 발권기</Link>
+          <Link href="/" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors flex items-center gap-1.5"><Home className="w-4 h-4" /> 메인 홈</Link>
+          <Link href="/print" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors flex items-center gap-1.5"><Printer className="w-4 h-4" /> 현장 발권기</Link>
         </div>
 
         {isLoadingUI && (
@@ -586,9 +587,9 @@ export default function AdminPage() {
         )}
 
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-blue-400">👑 영화대교 관리자 대시보드</h1>
-          <button onClick={() => { fetchAdminData(); alert("데이터가 새로고침 되었습니다."); }} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold transition-colors whitespace-nowrap">
-            🔄 새로고침
+          <h1 className="text-2xl md:text-3xl font-bold text-blue-400 flex items-center gap-1.5"><Crown className="w-6 h-6" /> 영화대교 관리자 대시보드</h1>
+          <button onClick={() => { fetchAdminData(); alert("데이터가 새로고침 되었습니다."); }} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold transition-colors whitespace-nowrap flex items-center gap-1.5">
+            <RefreshCw className="w-4 h-4" /> 새로고침
           </button>
         </div>
 

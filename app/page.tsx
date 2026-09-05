@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, authFetchGet, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
-import { Crown, Check, Ban, TriangleAlert, Siren, Popcorn, CircleCheck, CircleX, Sparkles, PartyPopper, Mail, BookOpen, Settings, Printer, LogOut, History, MapPin, Lock, ArrowRight, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket } from 'lucide-react';
+import { Crown, Check, Ban, Siren, Popcorn, CircleCheck, Sparkles, PartyPopper, Mail, BookOpen, Settings, Printer, LogOut, History, MapPin, Lock, ArrowRight, Hourglass, RefreshCw, User, Users, Lightbulb, ClipboardList, CircleHelp, Ticket } from 'lucide-react';
 
 import AccountInfo from '@/components/AccountInfo';
 import MovieReviews from '@/components/MovieReviews';
@@ -516,7 +516,7 @@ export default function Home() {
 
     if (blacklistedUsers.includes(profile.email)) return showAlert("블랙리스트에 등록되어 예매가 제한되었습니다.");
     if (selectedSeat && vipSeats.has(selectedSeat) && !clubMemberIds.includes(profile.email)) {
-      return showAlert("👑 선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
+      return showAlert("선택하신 좌석은 '영화대교' 동아리 전용석입니다.\n일반 학생은 다른 좌석을 선택해주세요.");
     }
 
     const { data: existingTickets } = await supabase.from('reservations')
@@ -1161,7 +1161,7 @@ export default function Home() {
         <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 border border-slate-700 p-8 rounded-2xl w-full max-w-sm shadow-[0_0_40px_rgba(0,0,0,0.8)] text-center">
             <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">🤔</span>
+              <CircleHelp className="w-8 h-8 text-amber-400" />
             </div>
             <h2 className="text-xl font-bold text-white mb-2">어떻게 하시겠습니까?</h2>
             <p className="text-slate-400 text-sm mb-6">
@@ -1180,15 +1180,15 @@ export default function Home() {
                   setGroupMembers([]);
                   setIsModalOpen(true);
                 }}
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)]"
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)] flex items-center justify-center gap-2"
               >
-                👤 혼자 예매하기
+                <User className="w-5 h-5" /> 혼자 예매하기
               </button>
               <button
                 onClick={() => setIsGroupSoloConfirmOpen(false)}
-                className="w-full py-4 bg-emerald-700 hover:bg-emerald-600 rounded-xl text-white font-bold transition-all"
+                className="w-full py-4 bg-emerald-700 hover:bg-emerald-600 rounded-xl text-white font-bold transition-all flex items-center justify-center gap-2"
               >
-                👥 계속 단체 추가하기
+                <Users className="w-5 h-5" /> 계속 단체 추가하기
               </button>
               <button
                 onClick={() => { setIsGroupSoloConfirmOpen(false); setIsGroupMode(false); setGroupLeader(null); setGroupMembers([]); setSelectedSeat(null); }}
@@ -1204,7 +1204,7 @@ export default function Home() {
       {isManualOpen && (
         <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center p-4 z-50 animate-in fade-in zoom-in duration-200">
           <div className="bg-slate-900 border border-slate-700 p-6 md:p-8 rounded-2xl w-full max-w-lg shadow-[0_0_40px_rgba(0,0,0,0.8)] max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold text-indigo-400 mb-6 flex items-center gap-2">📖 영화대교 예매 가이드</h2>
+            <h2 className="text-2xl font-bold text-indigo-400 mb-6 flex items-center gap-2"><BookOpen className="w-6 h-6" /> 영화대교 예매 가이드</h2>
             
             <div className="space-y-6 text-slate-300 text-sm md:text-base">
               <div>
@@ -1212,7 +1212,7 @@ export default function Home() {
                 <p>배치도에서 원하는 좌석을 누른 후, 화면 하단의 <span className="text-indigo-400 font-bold">예매하기</span> 버튼을 클릭하면, 로그인된 구글 계정 정보로 바로 예약이 확정됩니다.</p>
                 <div className="mt-3 bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-xl text-sm">
                   <div className="flex items-start gap-3">
-                    <span className="text-xl">💡</span>
+                    <Lightbulb className="w-5 h-5 text-indigo-300 shrink-0" />
                     <p className="text-indigo-200 leading-relaxed">
                       <span className="font-bold text-indigo-300">학번/이름은 구글 계정 이름에서 자동으로 인식됩니다.</span><br/>
                       정보가 잘못 표시되면 동아리 관리자에게 문의해주세요.
@@ -1223,7 +1223,7 @@ export default function Home() {
                 {/* 🌟 [디자인 개선] 좌석 변경 안내 섹션 */}
                 <div className="mt-3 bg-slate-800/50 border border-slate-700 p-4 rounded-xl text-sm group transition-all hover:border-indigo-500/50">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 rounded-full bg-indigo-600/20 flex items-center justify-center text-indigo-400 font-bold">🔄</div>
+                    <div className="w-8 h-8 rounded-full bg-indigo-600/20 flex items-center justify-center text-indigo-400 font-bold"><RefreshCw className="w-4 h-4" /></div>
                     <span className="font-bold text-indigo-300 text-base">좌석 변경 방법</span>
                   </div>
                   <p className="text-slate-400 leading-relaxed ml-11">
@@ -1261,7 +1261,7 @@ export default function Home() {
 
               {/* 🌟 [신규 추가] 팝콘 선택 안내 */}
               <div>
-                <h3 className="font-bold text-amber-400 text-lg mb-1">4. 팝콘 선택 안내 🍿</h3>
+                <h3 className="font-bold text-amber-400 text-lg mb-1 flex items-center gap-1.5">4. 팝콘 선택 안내 <Popcorn className="w-4 h-4" /></h3>
                 <p className="text-slate-300">예매 시 팝콘을 선택하면 현장에서 수령할 수 있습니다.</p>
                 <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-slate-400 ml-2 leading-relaxed">
                   <li>팝콘 1개당 <span className="text-amber-400 font-bold">2,500원</span> (현장 결제)</li>
@@ -1339,10 +1339,10 @@ export default function Home() {
       {isGroupSummaryOpen && groupLeader && (
         <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-slate-900 border border-emerald-500/30 p-6 md:p-8 rounded-2xl w-full max-w-lg shadow-[0_0_40px_rgba(16,185,129,0.2)] my-8">
-            <h2 className="text-2xl font-bold text-emerald-400 mb-6">📋 단체 예매 최종 확인</h2>
+            <h2 className="text-2xl font-bold text-emerald-400 mb-6 flex items-center gap-2"><ClipboardList className="w-6 h-6" /> 단체 예매 최종 확인</h2>
             <div className="space-y-3 mb-6">
               <div className="bg-emerald-900/30 border border-emerald-500/30 p-4 rounded-xl flex items-center gap-3">
-                <span className="text-emerald-400 font-bold text-lg">👑</span>
+                <Crown className="w-5 h-5 text-emerald-400 shrink-0" />
                 <div>
                   <p className="text-emerald-300 font-bold">{groupLeader.name} <span className="text-emerald-500 text-xs">(리더)</span></p>
                   <p className="text-slate-400 text-sm">좌석: {groupLeader.seat} · {groupLeader.studentId}</p>
@@ -1364,7 +1364,7 @@ export default function Home() {
               ))}
             </div>
             <div className="bg-amber-900/20 border border-amber-500/30 p-4 rounded-xl mb-6">
-              <p className="text-amber-300 text-sm font-bold">⏰ 1시간 안에 초대 이메일에 응답한 사람만 예매가 확정됩니다.</p>
+              <p className="text-amber-300 text-sm font-bold flex items-center gap-1.5"><Hourglass className="w-4 h-4" /> 1시간 안에 초대 이메일에 응답한 사람만 예매가 확정됩니다.</p>
               <p className="text-slate-400 text-xs mt-1">미응답 시 해당 좌석은 자동으로 해제됩니다.</p>
             </div>
             <p className="text-slate-300 text-sm text-center mb-6">단체의 모든 사람에게 초대 이메일을 발송하시겠습니까?</p>
@@ -1379,7 +1379,7 @@ export default function Home() {
       {groupSendingProgress.sending && (
         <div className="fixed inset-0 bg-slate-950/95 flex items-center justify-center p-4 z-[100]">
           <div className="bg-slate-900 border border-emerald-500/30 p-8 rounded-2xl w-full max-w-md text-center shadow-2xl">
-            <div className="text-4xl mb-4 animate-bounce">📧</div>
+            <div className="mb-4 flex justify-center text-emerald-400 animate-bounce"><Mail className="w-12 h-12" /></div>
             <h3 className="text-xl font-bold text-white mb-4">초대 이메일 발송 중...</h3>
             <div className="w-full bg-slate-800 rounded-full h-4 mb-4 overflow-hidden">
               <div className="bg-emerald-500 h-4 rounded-full transition-all duration-500" style={{ width: `${(groupSendingProgress.current / groupSendingProgress.total) * 100}%` }}></div>
@@ -1395,8 +1395,8 @@ export default function Home() {
       {alertInfo && (
         <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-[80]">
           <div className="bg-slate-900 border border-white/10 p-6 rounded-2xl w-full max-w-sm text-center shadow-2xl">
-            <div className={`text-4xl mb-4 text-center mx-auto flex justify-center ${alertInfo.isError ? 'text-rose-500' : 'text-indigo-400'}`}>
-               {alertInfo.isError ? '🚨' : '✨'}
+            <div className={`mb-4 flex justify-center ${alertInfo.isError ? 'text-rose-500' : 'text-indigo-400'}`}>
+               {alertInfo.isError ? <Siren className="w-10 h-10" /> : <Sparkles className="w-10 h-10" />}
             </div>
             <p className="text-white text-lg font-bold mb-6 whitespace-pre-line leading-relaxed">{alertInfo.message}</p>
             <button onClick={() => setAlertInfo(null)} className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-lg text-white font-bold transition-all border border-white/10">확인</button>
@@ -1407,7 +1407,7 @@ export default function Home() {
       {confirmInfo && (
         <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-4 z-[90]">
           <div className="bg-slate-900 border border-indigo-500/30 p-6 rounded-2xl w-full max-w-sm text-center shadow-[0_0_30px_rgba(79,70,229,0.2)]">
-            <div className="text-4xl mb-4 text-center mx-auto flex justify-center">🤔</div>
+            <div className="mb-4 flex justify-center text-indigo-400"><CircleHelp className="w-10 h-10" /></div>
             <p className="text-white text-lg font-bold mb-6 whitespace-pre-line leading-relaxed">{confirmInfo.message}</p>
             <div className="flex gap-3">
               <button 
@@ -1427,14 +1427,14 @@ export default function Home() {
       {successInfo && (
         <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center p-4 z-[100] animate-in fade-in zoom-in duration-300">
           <div className="bg-slate-900 border border-emerald-500/50 p-8 rounded-2xl w-full max-w-md w-[90%] md:w-full text-center shadow-[0_0_50px_rgba(16,185,129,0.3)]">
-            <div className="text-6xl mb-4 text-center mx-auto flex justify-center animate-bounce">🎉</div>
+            <div className="mb-4 flex justify-center text-emerald-400 animate-bounce"><PartyPopper className="w-14 h-14" /></div>
             <h3 className="text-2xl font-black text-white mb-2">{successInfo.title}</h3>
             <p className="text-slate-300 text-base mb-8 whitespace-pre-line leading-relaxed">{successInfo.message}</p>
             <div className="flex flex-col gap-3">
               <a href="https://mail.google.com/" target="_blank" rel="noopener noreferrer" 
                  onClick={() => setSuccessInfo(null)}
                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white font-black text-lg transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)] border border-emerald-400 flex items-center justify-center gap-2">
-                <span>💌</span> 티켓 확인하러 가기
+<Ticket className="w-5 h-5" /> 티켓 확인하러 가기
               </a>
               <button onClick={() => setSuccessInfo(null)} className="w-full py-3 bg-transparent text-slate-400 hover:text-white font-bold transition-all mt-2">그냥 닫기</button>
             </div>

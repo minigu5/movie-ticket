@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { analyzePopcorn } from './reservationView';
+import { Archive, Crown, Hourglass, Popcorn, Printer, ScrollText, Star } from 'lucide-react';
 
 interface Props {
   onLoad: () => void;
@@ -22,7 +23,7 @@ export default function HistoryTab(props: Props) {
   return (
     <div className="space-y-8">
       <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-        <h2 className="text-xl font-bold text-gray-300 mb-4">🗂️ 회차 이력 (지난 상영 목록)</h2>
+        <h2 className="text-xl font-bold text-gray-300 mb-4 flex items-center gap-1.5"><Archive className="w-5 h-5" /> 회차 이력 (지난 상영 목록)</h2>
         <div className="space-y-2 mb-6">
           {movieHistory.length === 0 && <p className="text-gray-500 text-sm">지난 회차 이력이 없습니다.</p>}
           {movieHistory.map((movie) => (
@@ -60,11 +61,11 @@ export default function HistoryTab(props: Props) {
                     <tr key={ticket.id} className="border-b border-gray-800 hover:bg-gray-800">
                       <td className="p-4">
                         {ticket.payment_status === 'group_pending' ? (
-                          <span className="bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded border border-yellow-600 font-bold text-xs">⏳ 단체 대기</span>
+                          <span className="bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded border border-yellow-600 font-bold text-xs inline-flex items-center gap-1"><Hourglass className="w-3.5 h-3.5" /> 단체 대기</span>
                         ) : (
                           <span className="bg-green-600/20 text-green-500 px-2 py-1 rounded border border-green-600 font-bold">확정됨</span>
                         )}
-                        {ticket.is_group_leader && <span className="ml-1 text-emerald-400 text-xs font-bold">👑</span>}
+                        {ticket.is_group_leader && <span className="ml-1 text-emerald-400 text-xs font-bold inline-flex items-center"><Crown className="w-3.5 h-3.5" /></span>}
                       </td>
                       <td className="p-4 font-bold text-lg">{ticket.seat_number}</td>
                       <td className="p-4">{ticket.student_id} <span className="text-blue-300 font-bold">{ticket.student_name}</span></td>
@@ -72,7 +73,7 @@ export default function HistoryTab(props: Props) {
                         {arr.length > 0 ? (
                           <div className="flex flex-col">
                             <span className="text-yellow-400 font-bold text-sm tracking-widest">{totalPrice.toLocaleString()}원</span>
-                            <span className="text-gray-400 text-xs mt-1">🍿 {summary}</span>
+                            <span className="text-gray-400 text-xs mt-1 flex items-center gap-1.5"><Popcorn className="w-3.5 h-3.5" /> {summary}</span>
                           </div>
                         ) : (
                           <span className="text-gray-500 text-sm">무료 관람 (0원)</span>
@@ -80,7 +81,7 @@ export default function HistoryTab(props: Props) {
                       </td>
                       <td className="p-4 text-center">
                         {ticket.is_printed ? (
-                          <span className="text-blue-400 font-bold border border-blue-600 bg-blue-900/30 px-3 py-1 rounded-lg text-xs tracking-wider">🖨️ 발권 완료</span>
+                          <span className="text-blue-400 font-bold border border-blue-600 bg-blue-900/30 px-3 py-1 rounded-lg text-xs tracking-wider inline-flex items-center gap-1.5"><Printer className="w-3.5 h-3.5" /> 발권 완료</span>
                         ) : (
                           <span className="text-gray-500 font-bold text-sm">미발권</span>
                         )}
@@ -107,7 +108,7 @@ export default function HistoryTab(props: Props) {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-white font-bold text-sm">{review.user_name ?? review.profiles?.email ?? '알 수 없음'}</span>
-                        <span className="text-amber-400 font-bold text-sm">★ {review.rating}</span>
+                        <span className="text-amber-400 font-bold text-sm flex items-center gap-1"><Star className="w-4 h-4" fill="currentColor" /> {review.rating}</span>
                       </div>
                       <p className="text-gray-300 text-sm whitespace-pre-wrap">{review.content}</p>
                     </div>
@@ -121,8 +122,8 @@ export default function HistoryTab(props: Props) {
       </div>
 
       <div className="bg-gray-900 border border-gray-700 p-6 rounded-xl max-h-[500px] overflow-y-auto">
-        <h2 className="text-xl font-bold text-blue-400 mb-4 sticky top-0 bg-gray-900 py-2 border-b border-gray-800">
-          📜 시스템 활동 로그 <span className="text-sm text-gray-500 font-normal ml-2">(최근 100건)</span>
+        <h2 className="text-xl font-bold text-blue-400 mb-4 sticky top-0 bg-gray-900 py-2 border-b border-gray-800 flex items-center gap-1.5">
+          <ScrollText className="w-5 h-5" /> 시스템 활동 로그 <span className="text-sm text-gray-500 font-normal ml-2">(최근 100건)</span>
         </h2>
         <div className="space-y-1 font-mono text-[13px] md:text-sm">
           {logs.length === 0 && <p className="text-gray-500">기록된 로그가 없습니다.</p>}

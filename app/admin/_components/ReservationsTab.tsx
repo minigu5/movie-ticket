@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from 'react';
+import { BarChart3, Popcorn, Banknote, Crown, Printer, CircleCheck, RefreshCw, CircleX, Hourglass } from 'lucide-react';
 import { analyzePopcorn, parseSeat, STATUS_WEIGHT } from './reservationView';
 
 type SortKey = 'seat' | 'name' | 'status' | 'printed';
@@ -68,12 +69,12 @@ export default function ReservationsTab({ reservations, popcornStats, onApprove,
 
       {/* 팝콘 / 매출 요약 */}
       <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-        <h2 className="text-lg font-bold text-yellow-500 mb-4">📊 팝콘 현황 요약 (확정 기준)</h2>
+        <h2 className="text-lg font-bold text-yellow-500 mb-4 flex items-center gap-1.5"><BarChart3 className="w-5 h-5" /> 팝콘 현황 요약 (확정 기준)</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-yellow-900/30 p-4 rounded-lg border border-yellow-700"><span className="block text-yellow-400 text-sm font-bold mb-1">🍿 오리지널</span><span className="text-2xl font-black text-yellow-400">{popcornStats.original}개</span></div>
-          <div className="bg-orange-900/30 p-4 rounded-lg border border-orange-700"><span className="block text-orange-400 text-sm font-bold mb-1">🧀 콘소메</span><span className="text-2xl font-black text-orange-400">{popcornStats.consomme}개</span></div>
-          <div className="bg-amber-900/30 p-4 rounded-lg border border-amber-700"><span className="block text-amber-500 text-sm font-bold mb-1">🍯 카라멜</span><span className="text-2xl font-black text-amber-500">{popcornStats.caramel}개</span></div>
-          <div className="bg-green-900/30 p-4 rounded-lg border border-green-700"><span className="block text-green-400 text-sm font-bold mb-1">💸 현금 매출</span><span className="text-xl font-black text-green-400">{popcornStats.cash.toLocaleString()}원</span></div>
+          <div className="bg-yellow-900/30 p-4 rounded-lg border border-yellow-700"><span className="flex items-center gap-1.5 text-yellow-400 text-sm font-bold mb-1"><Popcorn className="w-4 h-4" /> 오리지널</span><span className="text-2xl font-black text-yellow-400">{popcornStats.original}개</span></div>
+          <div className="bg-orange-900/30 p-4 rounded-lg border border-orange-700"><span className="flex items-center gap-1.5 text-orange-400 text-sm font-bold mb-1"><Popcorn className="w-4 h-4" /> 콘소메</span><span className="text-2xl font-black text-orange-400">{popcornStats.consomme}개</span></div>
+          <div className="bg-amber-900/30 p-4 rounded-lg border border-amber-700"><span className="flex items-center gap-1.5 text-amber-500 text-sm font-bold mb-1"><Popcorn className="w-4 h-4" /> 카라멜</span><span className="text-2xl font-black text-amber-500">{popcornStats.caramel}개</span></div>
+          <div className="bg-green-900/30 p-4 rounded-lg border border-green-700"><span className="flex items-center gap-1.5 text-green-400 text-sm font-bold mb-1"><Banknote className="w-4 h-4" /> 현금 매출</span><span className="text-xl font-black text-green-400">{popcornStats.cash.toLocaleString()}원</span></div>
         </div>
       </div>
 
@@ -98,13 +99,13 @@ export default function ReservationsTab({ reservations, popcornStats, onApprove,
                 <tr key={ticket.id} className="border-b border-gray-700 hover:bg-gray-750">
                   <td className="p-4">
                     {ticket.payment_status === 'group_pending' ? (
-                      <span className="bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded border border-yellow-600 font-bold text-xs">⏳ 단체 대기</span>
+                      <span className="bg-yellow-600/20 text-yellow-400 px-2 py-1 rounded border border-yellow-600 font-bold text-xs inline-flex items-center gap-1"><Hourglass className="w-3.5 h-3.5" /> 단체 대기</span>
                     ) : ticket.payment_status === 'pending' ? (
                       <span className="bg-amber-600/20 text-amber-400 px-2 py-1 rounded border border-amber-600 font-bold text-xs">승인 대기</span>
                     ) : (
                       <span className="bg-green-600/20 text-green-500 px-2 py-1 rounded border border-green-600 font-bold">확정됨</span>
                     )}
-                    {ticket.is_group_leader && <span className="ml-1 text-emerald-400 text-xs font-bold">👑</span>}
+                    {ticket.is_group_leader && <span className="ml-1 inline-flex items-center text-emerald-400 text-xs font-bold"><Crown className="w-3.5 h-3.5" /></span>}
                   </td>
                   <td className="p-4 font-bold text-lg">{ticket.seat_number}</td>
                   <td className="p-4">{ticket.student_id} <span className="text-blue-300 font-bold">{ticket.student_name}</span></td>
@@ -112,7 +113,7 @@ export default function ReservationsTab({ reservations, popcornStats, onApprove,
                     {arr.length > 0 ? (
                       <div className="flex flex-col">
                         <span className="text-yellow-400 font-bold text-sm tracking-widest">{totalPrice.toLocaleString()}원</span>
-                        <span className="text-gray-400 text-xs mt-1">🍿 {summary}</span>
+                        <span className="flex items-center gap-1.5 text-gray-400 text-xs mt-1"><Popcorn className="w-3.5 h-3.5" /> {summary}</span>
                       </div>
                     ) : (
                       <span className="text-gray-500 text-sm">무료 관람 (0원)</span>
@@ -120,19 +121,19 @@ export default function ReservationsTab({ reservations, popcornStats, onApprove,
                   </td>
                   <td className="p-4 text-center">
                     {ticket.is_printed ? (
-                      <span className="text-blue-400 font-bold border border-blue-600 bg-blue-900/30 px-3 py-1 rounded-lg text-xs tracking-wider">🖨️ 발권 완료</span>
+                      <span className="inline-flex items-center gap-1.5 text-blue-400 font-bold border border-blue-600 bg-blue-900/30 px-3 py-1 rounded-lg text-xs tracking-wider"><Printer className="w-3.5 h-3.5" /> 발권 완료</span>
                     ) : (
                       <span className="text-gray-500 font-bold text-sm">미발권</span>
                     )}
                   </td>
                   <td className="p-4 text-right flex justify-end gap-2">
                     {ticket.payment_status === 'pending' && (
-                      <button onClick={() => onApprove(ticket)} className="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded font-bold shadow-md transition-colors">✅ 승인</button>
+                      <button onClick={() => onApprove(ticket)} className="flex items-center gap-1.5 bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded font-bold shadow-md transition-colors"><CircleCheck className="w-4 h-4" /> 승인</button>
                     )}
                     {ticket.is_printed && (
-                      <button onClick={() => onResetPrint(ticket)} className="bg-yellow-600 hover:bg-yellow-500 text-black px-3 py-1 rounded font-bold shadow-md transition-colors">🔄 발권 초기화</button>
+                      <button onClick={() => onResetPrint(ticket)} className="flex items-center gap-1.5 bg-yellow-600 hover:bg-yellow-500 text-black px-3 py-1 rounded font-bold shadow-md transition-colors"><RefreshCw className="w-4 h-4" /> 발권 초기화</button>
                     )}
-                    <button onClick={() => onCancel(ticket)} className="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded font-bold shadow-md transition-colors">❌ 강제 취소</button>
+                    <button onClick={() => onCancel(ticket)} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded font-bold shadow-md transition-colors"><CircleX className="w-4 h-4" /> 강제 취소</button>
                   </td>
                 </tr>
               );

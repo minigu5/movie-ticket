@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { ensureProfile, signInWithGoogle, authFetch, DomainNotAllowedError, type AppProfile } from '@/lib/supabase-auth';
 import AccountInfo from '@/components/AccountInfo';
+import { Ban, CircleCheck, Hourglass, Popcorn, Clapperboard, ClipboardList, Crown, Ticket, Home } from 'lucide-react';
 
 function GroupConfirmForm() {
   const searchParams = useSearchParams();
@@ -41,7 +42,7 @@ function GroupConfirmForm() {
           const p = await ensureProfile();
           if (active) setProfile(p);
         } catch (err) {
-          if (err instanceof DomainNotAllowedError) alert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
+          if (err instanceof DomainNotAllowedError) alert('학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
           if (active) setProfile(null);
         } finally {
           if (active) setAuthLoading(false);
@@ -116,7 +117,7 @@ function GroupConfirmForm() {
         payload: { reservationId: memberId, popcornOrder }
       });
       const data = await res.json();
-      if (!data.success) { alert(`❌ ${data.error || '확정 중 오류가 발생했습니다.'}`); return; }
+      if (!data.success) { alert(`${data.error || '확정 중 오류가 발생했습니다.'}`); return; }
 
       const ticket = data.ticket;
 
@@ -138,7 +139,7 @@ function GroupConfirmForm() {
       if (showQR) {
         setShowPaymentQR(true);
       } else {
-        alert("✅ 예매가 확정되었습니다! 학교 이메일로 티켓이 발송되었습니다.");
+        alert("예매가 확정되었습니다! 학교 이메일로 티켓이 발송되었습니다.");
         router.push('/');
       }
     } finally {
@@ -151,7 +152,7 @@ function GroupConfirmForm() {
 
     const res = await authFetch('/api/reservations', { action: 'LEAVE_GROUP', payload: { reservationId: memberId } });
     const data = await res.json();
-    if (!data.success) { alert(`❌ ${data.error || '처리 중 오류가 발생했습니다.'}`); return; }
+    if (!data.success) { alert(`${data.error || '처리 중 오류가 발생했습니다.'}`); return; }
 
     alert("단체에서 나갔습니다. 좌석이 해제되었습니다.");
     router.push('/');
@@ -173,7 +174,10 @@ function GroupConfirmForm() {
   if (myReservation.user_id !== profile.id) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <p className="text-white font-bold text-center">🚫 본인 초대가 아닙니다.<br/>이 링크는 {myReservation.student_name}님을 위한 초대 링크입니다.</p>
+        <p className="text-white font-bold text-center">
+          <span className="inline-flex items-center justify-center gap-1.5"><Ban className="w-4 h-4" /> 본인 초대가 아닙니다.</span>
+          <br/>이 링크는 {myReservation.student_name}님을 위한 초대 링크입니다.
+        </p>
       </div>
     );
   }
@@ -205,14 +209,14 @@ function GroupConfirmForm() {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 flex flex-col items-center select-none">
         <div className="w-full max-w-lg">
-          <h1 className="text-3xl font-bold text-center mb-2 text-amber-400">🍿 팝콘 선택</h1>
+          <h1 className="text-3xl font-bold text-center mb-2 text-amber-400 flex items-center justify-center gap-1.5"><Popcorn className="w-6 h-6" /> 팝콘 선택</h1>
           <p className="text-center text-slate-400 mb-8 text-sm">
             단체 확정 전, 팝콘을 선택할 수 있습니다.<br/>
             <span className="text-white font-bold">{myReservation.student_name}</span>님 · 좌석 <span className="text-emerald-400 font-bold">{myReservation.seat_number}</span>
           </p>
 
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 mb-6">
-            <label className="block text-slate-300 mb-3 text-sm font-bold">🍿 팝콘 선택 (개당 2,500원)</label>
+            <label className="flex items-center gap-1.5 text-slate-300 mb-3 text-sm font-bold"><Popcorn className="w-4 h-4" /> 팝콘 선택 (개당 2,500원)</label>
 
             {popcornList.map((pop, idx) => (
               <div key={idx} className="mb-3 flex items-center gap-2">
@@ -259,39 +263,39 @@ function GroupConfirmForm() {
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 flex flex-col items-center select-none">
       <div className="w-full max-w-lg">
 
-        <h1 className="text-3xl font-bold text-center mb-2 text-emerald-400">🎬 단체 관람 초대</h1>
+        <h1 className="text-3xl font-bold text-center mb-2 text-emerald-400 flex items-center justify-center gap-1.5"><Clapperboard className="w-6 h-6" /> 단체 관람 초대</h1>
         <p className="text-center text-slate-400 mb-8 text-sm">예매를 확정하여 단체에 합류하세요</p>
 
         {isExpired && (
           <div className="bg-rose-900/30 border border-rose-500/50 p-4 rounded-xl mb-6 text-center">
-            <p className="text-rose-400 font-bold">⏰ 초대 시간이 만료되었습니다.</p>
+            <p className="text-rose-400 font-bold flex items-center justify-center gap-1.5"><Hourglass className="w-4 h-4" /> 초대 시간이 만료되었습니다.</p>
             <p className="text-slate-400 text-sm mt-1">1시간이 경과하여 이 초대는 더 이상 유효하지 않습니다.</p>
           </div>
         )}
 
         {isAlreadyConfirmed && (
           <div className="bg-emerald-900/30 border border-emerald-500/50 p-4 rounded-xl mb-6 text-center">
-            <p className="text-emerald-400 font-bold">✅ 이미 예매가 확정된 상태입니다.</p>
+            <p className="text-emerald-400 font-bold flex items-center justify-center gap-1.5"><CircleCheck className="w-4 h-4" /> 이미 예매가 확정된 상태입니다.</p>
             <button onClick={() => router.push('/')} className="mt-3 text-sm text-indigo-400 underline">메인 페이지로 돌아가기</button>
           </div>
         )}
 
         {/* 그룹 현황 */}
         <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 mb-6">
-          <h2 className="text-lg font-bold text-white mb-4">📋 단체 현황</h2>
+          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-1.5"><ClipboardList className="w-4 h-4" /> 단체 현황</h2>
           {leader && (
             <div className="bg-emerald-900/30 border border-emerald-500/30 p-3 rounded-xl mb-3 flex items-center gap-3">
-              <span className="text-emerald-400 font-bold">👑</span>
+              <span className="text-emerald-400 font-bold"><Crown className="w-4 h-4" /></span>
               <div>
                 <p className="text-emerald-300 font-bold text-sm">{leader.student_name} <span className="text-emerald-500 text-xs">(리더)</span></p>
-                <p className="text-slate-400 text-xs">좌석: {leader.seat_number} · ✅ 확정됨</p>
+                <p className="text-slate-400 text-xs">좌석: {leader.seat_number} · <span className="inline-flex items-center gap-1"><CircleCheck className="w-3.5 h-3.5" /> 확정됨</span></p>
               </div>
             </div>
           )}
           {groupMembers.map((m) => (
             <div key={m.id} className={`p-3 rounded-xl mb-2 flex items-center gap-3 ${m.id === memberId ? 'bg-sky-900/30 border border-sky-500/30' : 'bg-slate-800/50 border border-slate-700'}`}>
               <span className={`font-bold text-sm ${m.id === memberId ? 'text-sky-400' : 'text-slate-500'}`}>
-                {m.payment_status === 'confirmed' ? '✅' : '⏳'}
+                {m.payment_status === 'confirmed' ? <CircleCheck className="w-4 h-4" /> : <Hourglass className="w-4 h-4" />}
               </span>
               <div>
                 <p className={`font-bold text-sm ${m.id === memberId ? 'text-sky-300' : 'text-slate-300'}`}>
@@ -308,7 +312,7 @@ function GroupConfirmForm() {
         {/* 본인 정보 */}
         {!isExpired && !isAlreadyConfirmed && (
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 mb-6">
-            <h2 className="text-lg font-bold text-white mb-4">🎫 내 예매 정보</h2>
+            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-1.5"><Ticket className="w-4 h-4" /> 내 예매 정보</h2>
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="bg-slate-800 p-3 rounded-lg">
                 <p className="text-slate-500 text-xs mb-1">학번</p>
@@ -335,8 +339,8 @@ function GroupConfirmForm() {
           </div>
         )}
 
-        <button onClick={() => router.push('/')} className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all border border-slate-600 text-sm">
-          🏠 메인 페이지로 돌아가기
+        <button onClick={() => router.push('/')} className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all border border-slate-600 text-sm flex items-center justify-center gap-1.5">
+          <Home className="w-4 h-4" /> 메인 페이지로 돌아가기
         </button>
       </div>
     </div>

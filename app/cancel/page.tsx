@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { ensureProfile, signInWithGoogle, authFetch, DomainNotAllowedError, type AppProfile } from '@/lib/supabase-auth';
+import { Ban, Siren } from 'lucide-react';
 
 function CancelForm() {
   const searchParams = useSearchParams();
@@ -30,7 +31,7 @@ function CancelForm() {
           const p = await ensureProfile();
           if (active) setProfile(p);
         } catch (err) {
-          if (err instanceof DomainNotAllowedError) alert('🚫 학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
+          if (err instanceof DomainNotAllowedError) alert('학교(@ts.hs.kr) 구글 계정으로만 로그인할 수 있습니다.');
           if (active) setProfile(null);
         } finally {
           if (active) setAuthLoading(false);
@@ -57,7 +58,7 @@ function CancelForm() {
     try {
       const res = await authFetch('/api/reservations', { action: 'CANCEL_OWN', payload: { reservationId: ticketId } });
       const data = await res.json();
-      if (!data.success) { alert(`❌ ${data.error || '취소 중 오류가 발생했습니다.'}`); return; }
+      if (!data.success) { alert(`${data.error || '취소 중 오류가 발생했습니다.'}`); return; }
 
       const canceledTicket = data.ticket;
 
@@ -75,7 +76,7 @@ function CancelForm() {
         });
       }
 
-      alert("✅ 예매가 정상적으로 취소되었습니다.");
+      alert("예매가 정상적으로 취소되었습니다.");
       router.push('/');
     } finally {
       setIsCanceling(false);
@@ -98,7 +99,7 @@ function CancelForm() {
   if (ticket.user_id !== profile.id) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <p className="text-white font-bold text-center">🚫 본인 예약이 아닙니다.<br/>이 링크는 {ticket.student_name}님의 예매 취소 링크입니다.</p>
+        <p className="text-white font-bold text-center"><span className="inline-flex items-center gap-1.5"><Ban className="w-4 h-4" /> 본인 예약이 아닙니다.</span><br/>이 링크는 {ticket.student_name}님의 예매 취소 링크입니다.</p>
       </div>
     );
   }
@@ -116,7 +117,7 @@ function CancelForm() {
 
         {isPaidPopcorn && (
           <div className="mb-6 bg-yellow-900/30 border border-yellow-600 p-4 rounded-xl text-yellow-500 text-sm font-bold">
-            🚨 결제가 확정된 팝콘 예매가 포함되어 있습니다.<br/>
+            <span className="inline-flex items-center gap-1.5"><Siren className="w-4 h-4" /> 결제가 확정된 팝콘 예매가 포함되어 있습니다.</span><br/>
             온라인상으로는 예매 내역이 즉시 취소되지만,<br/>
             <span className="text-yellow-400">환불 금액은 영화 상영 당일 현장에서<br/>학생회 스태프를 찾아와 직접 수령하셔야 합니다.</span>
           </div>
