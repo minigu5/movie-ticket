@@ -108,7 +108,7 @@ export default function ReservationsTab({ reservations, popcornStats, onApprove,
                     {ticket.is_group_leader && <span className="ml-1 inline-flex items-center text-emerald-400 text-xs font-bold"><Crown className="w-3.5 h-3.5" /></span>}
                   </td>
                   <td className="p-4 font-bold text-lg">{ticket.seat_number}</td>
-                  <td className="p-4">{ticket.student_id} <span className="text-blue-300 font-bold">{ticket.student_name}</span></td>
+                  <td className="p-4">{ticket.student_id} <span className="text-orange-300 font-bold">{ticket.student_name}</span></td>
                   <td className="p-4">
                     {arr.length > 0 ? (
                       <div className="flex flex-col">
@@ -121,7 +121,7 @@ export default function ReservationsTab({ reservations, popcornStats, onApprove,
                   </td>
                   <td className="p-4 text-center">
                     {ticket.is_printed ? (
-                      <span className="inline-flex items-center gap-1.5 text-blue-400 font-bold border border-blue-600 bg-blue-900/30 px-3 py-1 rounded-lg text-xs tracking-wider"><Printer className="w-3.5 h-3.5" /> 발권 완료</span>
+                      <span className="inline-flex items-center gap-1.5 text-orange-400 font-bold border border-orange-600 bg-orange-900/30 px-3 py-1 rounded-lg text-xs tracking-wider"><Printer className="w-3.5 h-3.5" /> 발권 완료</span>
                     ) : (
                       <span className="text-gray-500 font-bold text-sm">미발권</span>
                     )}
@@ -150,7 +150,7 @@ function Counter({ label, value, tone }: { label: string; value: number; tone: '
     amber: 'border-amber-700 text-amber-400',
     green: 'border-green-700 text-green-400',
     yellow: 'border-yellow-700 text-yellow-400',
-    slate: 'border-slate-600 text-slate-300',
+    slate: 'border-neutral-600 text-neutral-300',
   }[tone];
   return (
     <div className={`bg-gray-800 p-4 rounded-xl border ${toneClass}`}>

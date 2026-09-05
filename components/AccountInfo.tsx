@@ -19,9 +19,9 @@ export default function AccountInfo() {
   }
 
   return (
-    <div className="bg-slate-800/60 rounded-xl border border-slate-700 px-3 py-2.5 flex items-center justify-between gap-2 text-left">
+    <div className="bg-neutral-800/60 rounded-xl border border-neutral-700 px-3 py-2.5 flex items-center justify-between gap-2 text-left">
       <div className="min-w-0">
-        <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-0.5">계좌번호</p>
+        <p className="text-[10px] text-neutral-400 font-bold tracking-widest uppercase mb-0.5">계좌번호</p>
         <p className="text-[12px] md:text-[13px] font-mono text-white truncate">{ACCOUNT_LABEL}</p>
       </div>
       <button
@@ -31,7 +31,7 @@ export default function AccountInfo() {
         className={`shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-colors ${
           copied
             ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-300"
-            : "bg-slate-900/80 border-slate-600 text-slate-200 hover:bg-slate-700"
+            : "bg-neutral-900/80 border-neutral-600 text-neutral-200 hover:bg-neutral-700"
         }`}
       >
         {copied ? "복사됨" : "복사"}

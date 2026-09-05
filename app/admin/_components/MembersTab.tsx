@@ -63,7 +63,7 @@ export default function MembersTab(props: Props) {
 
         {/* 동아리원(VIP) 목록 */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 flex flex-col min-w-0">
-          <h2 className="text-lg font-bold text-indigo-400 mb-3 flex items-center gap-1.5"><Ticket className="w-5 h-5" /> 동아리원(VIP) 목록</h2>
+          <h2 className="text-lg font-bold text-amber-400 mb-3 flex items-center gap-1.5"><Ticket className="w-5 h-5" /> 동아리원(VIP) 목록</h2>
           <textarea
             value={p.newClubMembersText}
             onChange={e => p.setNewClubMembersText(e.target.value)}
@@ -73,7 +73,7 @@ export default function MembersTab(props: Props) {
           />
           <div className="flex items-center justify-between mb-3">
             <span className="text-gray-500 text-xs">{p.clubEmailPreviewCount}개 이메일 인식됨</span>
-            <button onClick={p.onAddClubMembers} className="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded font-bold text-sm">일괄 추가</button>
+            <button onClick={p.onAddClubMembers} className="bg-amber-600 hover:bg-amber-500 px-3 py-2 rounded font-bold text-sm">일괄 추가</button>
           </div>
           <div className="space-y-1 max-h-40 overflow-y-auto">
             {p.clubMembers.map(c => (

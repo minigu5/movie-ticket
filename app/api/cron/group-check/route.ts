@@ -121,19 +121,19 @@ function buildCancelEmail(name: string, seat: string, leaderName: string): strin
       </style>
     </head>
     <body style="margin:0;padding:0; -webkit-font-smoothing: antialiased;">
-      <div style="background-color:#0b1120;padding:40px 12px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;text-align:center;">
+      <div style="background-color:#0a0a0a;padding:40px 12px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;text-align:center;">
 
         <div style="margin-bottom: 26px;">
-          <div style="font-family: 'Song Myung', serif; color: #f1f5f9; font-size: 28px; line-height: 1.15; letter-spacing: 0.1em; text-shadow: 0 0 18px rgba(255,255,255,0.25);">
+          <div style="font-family: 'Song Myung', serif; color: #f5f5f5; font-size: 28px; line-height: 1.15; letter-spacing: 0.1em; text-shadow: 0 0 18px rgba(255,255,255,0.25);">
             영화<br/>대교
           </div>
         </div>
 
-        <div style="max-width:380px;margin:0 auto;background-color:#161b26;border:1px solid #26303f;border-radius:20px;overflow:hidden;box-shadow:0 20px 45px rgba(0,0,0,0.55);text-align:left;">
+        <div style="max-width:380px;margin:0 auto;background-color:#161616;border:1px solid #2a2a2a;border-radius:20px;overflow:hidden;box-shadow:0 20px 45px rgba(0,0,0,0.55);text-align:left;">
           <div style="padding:26px 24px;color:white;">
             <p style="color:#f87171;font-weight:700;font-size:12px;letter-spacing:1px;margin:0 0 8px 0;">${emailIconImg('hourglassRed', 12, 'margin-right:3px;')} 시간 초과</p>
             <h1 style="margin:0 0 14px 0;font-size:20px;font-weight:800;line-height:1.4;">${safeName}님의 단체 예매가<br/>시간 초과로 취소되었습니다</h1>
-            <p style="color:#94a3b8;font-size:14px;font-weight:600;line-height:1.5;">리더 ${safeLeaderName}님의 단체 관람 초대에<br/>1시간 이내에 응답하지 않아 좌석(${safeSeat})이 해제되었습니다.</p>
+            <p style="color:#a3a3a3;font-size:14px;font-weight:600;line-height:1.5;">리더 ${safeLeaderName}님의 단체 관람 초대에<br/>1시간 이내에 응답하지 않아 좌석(${safeSeat})이 해제되었습니다.</p>
           </div>
           <div style="background-color:#eef0f4;padding:24px;text-align:center;">
             <div style="font-size:44px;font-weight:800;color:#ef4444;text-decoration:line-through; font-variant-numeric: tabular-nums;">${safeSeat}</div>
@@ -174,15 +174,15 @@ function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]):
       </style>
     </head>
     <body style="margin:0;padding:0; -webkit-font-smoothing: antialiased;">
-      <div style="background-color:#0b1120;padding:40px 12px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;text-align:center;">
+      <div style="background-color:#0a0a0a;padding:40px 12px;font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;text-align:center;">
 
         <div style="margin-bottom: 26px;">
-          <div style="font-family: 'Song Myung', serif; color: #f1f5f9; font-size: 28px; line-height: 1.15; letter-spacing: 0.1em; text-shadow: 0 0 18px rgba(255,255,255,0.25);">
+          <div style="font-family: 'Song Myung', serif; color: #f5f5f5; font-size: 28px; line-height: 1.15; letter-spacing: 0.1em; text-shadow: 0 0 18px rgba(255,255,255,0.25);">
             영화<br/>대교
           </div>
         </div>
 
-        <div style="max-width:440px;margin:0 auto;background-color:#161b26;border:1px solid #26303f;border-radius:20px;overflow:hidden;box-shadow:0 20px 45px rgba(0,0,0,0.55);text-align:left;">
+        <div style="max-width:440px;margin:0 auto;background-color:#161616;border:1px solid #2a2a2a;border-radius:20px;overflow:hidden;box-shadow:0 20px 45px rgba(0,0,0,0.55);text-align:left;">
           <div style="padding:28px 25px;color:white;">
             <div style="text-align:center;margin-bottom:18px;">
               ${isFullSuccess ? emailIconImg('partyPopperWhite', 40) : emailIconImg('clipboardListWhite', 40)}
@@ -193,7 +193,7 @@ function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]):
             <h1 style="margin:0 0 10px 0;font-size:22px;font-weight:800;text-align:center;line-height:1.4;">
               ${escapeHtml(leaderName)}님의 단체 예매<br/>최종 결과 안내
             </h1>
-            <p style="color:#94a3b8;font-size:14px;font-weight:600;text-align:center;margin-bottom:28px;">
+            <p style="color:#a3a3a3;font-size:14px;font-weight:600;text-align:center;margin-bottom:28px;">
               주어진 1시간의 유효 시간이 만료되었습니다.<br/>최종 확정된 멤버 명단을 확인해 주세요.
             </p>
 
@@ -212,13 +212,13 @@ function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]):
                   ${emailIconImg('hourglassRed', 14, 'margin-right:3px;')} 시간 초과 (${expired.length}명)
                 </p>
                 <ul style="padding:0;margin:0;">${expiredList}</ul>
-                <p style="color:#64748b;font-size:11px;font-weight:600;margin-top:10px;">* 위 좌석은 시간 초과로 인해 자동으로 예매가 취소 및 해제되었습니다.</p>
+                <p style="color:#737373;font-size:11px;font-weight:600;margin-top:10px;">* 위 좌석은 시간 초과로 인해 자동으로 예매가 취소 및 해제되었습니다.</p>
               </div>
             ` : ''}
           </div>
 
           <div style="background-color:rgba(0,0,0,0.25);padding:18px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);">
-            <p style="color:#64748b;font-size:12px;margin:0;">본 메일은 시스템에 의해 자동으로 발송되었습니다.</p>
+            <p style="color:#737373;font-size:12px;margin:0;">본 메일은 시스템에 의해 자동으로 발송되었습니다.</p>
             <p style="color:#ef4444;font-weight:700;font-size:13px;margin:5px 0 0 0;">${emailIconImg('clapperboardRed', 13, 'margin-right:3px;')} 영화대교 Ticketing System</p>
           </div>
         </div>

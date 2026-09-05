@@ -30,7 +30,7 @@ function formatDeadlineKst(deadline: string): string | null {
 }
 
 // 예매 완료(app/api/ticket) 메일과 동일한 디자인 언어:
-//   body #0b1120 / 카드 #161b26 / 강조 #ef4444 / 흐린 텍스트 #94a3b8 / 경계 #26303f
+//   body #0a0a0a / 카드 #161616 / 강조 #ff5a1f / 흐린 텍스트 #a3a3a3 / 경계 #2a2a2a
 function buildHtml(params: {
   name?: string | null;
   movieInfo: MovieInfo;
@@ -62,40 +62,40 @@ function buildHtml(params: {
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
       </style>
     </head>
-    <body style="margin:0; padding:0; -webkit-font-smoothing: antialiased; background-color:#0b1120;">
+    <body style="margin:0; padding:0; -webkit-font-smoothing: antialiased; background-color:#0a0a0a;">
       <div style="padding: 40px 12px; font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; text-align: center;">
 
         <div style="margin-bottom: 22px;">
-          <div style="color:#64748b; font-size:12px; font-weight:600; letter-spacing:0.32em;">영화대교</div>
+          <div style="color:#737373; font-size:12px; font-weight:600; letter-spacing:0.32em;">영화대교</div>
         </div>
 
-        <div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161b26;">
+        <div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161616;">
 
           <div style="padding: 24px 22px 24px 22px;">
-            ${hasPoster ? `<div style="text-align:center; margin-bottom:18px;"><img src="cid:posterImage" alt="${safeTitle}" width="240" height="336" style="width:240px; height:336px; object-fit:cover; border-radius:14px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 8px 24px rgba(0,0,0,0.5); background-color:#0b1120;" /></div>` : ''}
+            ${hasPoster ? `<div style="text-align:center; margin-bottom:18px;"><img src="cid:posterImage" alt="${safeTitle}" width="240" height="336" style="width:240px; height:336px; object-fit:cover; border-radius:14px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 8px 24px rgba(0,0,0,0.5); background-color:#0a0a0a;" /></div>` : ''}
 
             <div style="background-color:rgba(0,0,0,0.42); padding:15px 16px; border-radius:11px; margin-bottom:18px;">
               <div style="color:#ffffff; font-size:20px; font-weight:800; line-height:1.35; margin-bottom:8px;">${safeTitle || '상영작 미정'}</div>
-              <div style="color:#94a3b8; font-size:13px; font-weight:600;">2D · ${safeAgeRating}</div>
-              ${safeDate ? `<div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px; font-variant-numeric: tabular-nums;">${safeDate}</div>` : ''}
-              ${safeVenue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px;">${emailIconImg('mapPinGray', 12, 'margin-right:3px;')} ${safeVenue}</div>` : ''}
+              <div style="color:#a3a3a3; font-size:13px; font-weight:600;">2D · ${safeAgeRating}</div>
+              ${safeDate ? `<div style="color:#a3a3a3; font-size:13px; font-weight:600; margin-top:4px; font-variant-numeric: tabular-nums;">${safeDate}</div>` : ''}
+              ${safeVenue ? `<div style="color:#a3a3a3; font-size:13px; font-weight:600; margin-top:4px;">${emailIconImg('mapPinGray', 12, 'margin-right:3px;')} ${safeVenue}</div>` : ''}
               ${deadlineText ? `<div style="color:#fbbf24; font-size:13px; font-weight:700; margin-top:10px;">${emailIconImg('hourglassAmber', 13, 'margin-right:3px;')} 예매 기한 ${escapeHtml(deadlineText)}</div>` : ''}
             </div>
 
-            <p style="color:#94a3b8; font-size:14px; line-height:1.7; margin:0; word-break:keep-all;">
+            <p style="color:#a3a3a3; font-size:14px; line-height:1.7; margin:0; word-break:keep-all;">
               ${heading} 좌석은 선착순이니 아래 버튼에서 미리 예매해 주세요.
             </p>
           </div>
 
-          <div style="height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: #161b26;"></div>
+          <div style="height:16px; background: radial-gradient(circle at 8px 8px, #0a0a0a 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: #161616;"></div>
         </div>
 
         <div style="margin-top: 26px;">
-          <a href="${safeBaseUrl}" style="display: inline-block; background-color: #ef4444; color: #ffffff; padding: 13px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700;">${emailIconImg('ticketWhite', 14, 'margin-right:4px;')} 좌석 예매하러 가기</a>
+          <a href="${safeBaseUrl}" style="display: inline-block; background-color: #ff5a1f; color: #ffffff; padding: 13px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700;">${emailIconImg('ticketWhite', 14, 'margin-right:4px;')} 좌석 예매하러 가기</a>
         </div>
 
-        <div style="max-width: 380px; margin: 26px auto 0 auto; border-top: 1px dashed #26303f; padding-top: 16px;">
-          <p style="color:#64748b; font-size:11px; line-height:1.6; margin:0;">
+        <div style="max-width: 380px; margin: 26px auto 0 auto; border-top: 1px dashed #2a2a2a; padding-top: 16px;">
+          <p style="color:#737373; font-size:11px; line-height:1.6; margin:0;">
             본 메일은 영화대교 상영작 안내를 위한 <strong>광고성 정보</strong>입니다.<br/>
             발신: ${escapeHtml(SENDER_ORG)}<br/>
             수신을 원치 않으시면 관리자에게 알려주시면 발송 대상에서 제외해 드립니다.

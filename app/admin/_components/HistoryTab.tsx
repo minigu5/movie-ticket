@@ -68,7 +68,7 @@ export default function HistoryTab(props: Props) {
                         {ticket.is_group_leader && <span className="ml-1 text-emerald-400 text-xs font-bold inline-flex items-center"><Crown className="w-3.5 h-3.5" /></span>}
                       </td>
                       <td className="p-4 font-bold text-lg">{ticket.seat_number}</td>
-                      <td className="p-4">{ticket.student_id} <span className="text-blue-300 font-bold">{ticket.student_name}</span></td>
+                      <td className="p-4">{ticket.student_id} <span className="text-orange-300 font-bold">{ticket.student_name}</span></td>
                       <td className="p-4">
                         {arr.length > 0 ? (
                           <div className="flex flex-col">
@@ -81,7 +81,7 @@ export default function HistoryTab(props: Props) {
                       </td>
                       <td className="p-4 text-center">
                         {ticket.is_printed ? (
-                          <span className="text-blue-400 font-bold border border-blue-600 bg-blue-900/30 px-3 py-1 rounded-lg text-xs tracking-wider inline-flex items-center gap-1.5"><Printer className="w-3.5 h-3.5" /> 발권 완료</span>
+                          <span className="text-orange-400 font-bold border border-orange-600 bg-orange-900/30 px-3 py-1 rounded-lg text-xs tracking-wider inline-flex items-center gap-1.5"><Printer className="w-3.5 h-3.5" /> 발권 완료</span>
                         ) : (
                           <span className="text-gray-500 font-bold text-sm">미발권</span>
                         )}
@@ -122,7 +122,7 @@ export default function HistoryTab(props: Props) {
       </div>
 
       <div className="bg-gray-900 border border-gray-700 p-6 rounded-xl max-h-[500px] overflow-y-auto">
-        <h2 className="text-xl font-bold text-blue-400 mb-4 sticky top-0 bg-gray-900 py-2 border-b border-gray-800 flex items-center gap-1.5">
+        <h2 className="text-xl font-bold text-orange-400 mb-4 sticky top-0 bg-gray-900 py-2 border-b border-gray-800 flex items-center gap-1.5">
           <ScrollText className="w-5 h-5" /> 시스템 활동 로그 <span className="text-sm text-gray-500 font-normal ml-2">(최근 100건)</span>
         </h2>
         <div className="space-y-1 font-mono text-[13px] md:text-sm">
@@ -134,7 +134,7 @@ export default function HistoryTab(props: Props) {
               <div key={log.id} className="text-gray-300 border-b border-gray-800 py-2 hover:bg-gray-800 flex flex-wrap gap-2">
                 <span className="text-gray-500 min-w-[150px]">{dateStr}</span>
                 <span className="text-yellow-400 w-[45px] font-bold">{log.student_id}</span>
-                <span className="text-blue-300 w-[60px]">{log.student_name}</span>
+                <span className="text-orange-300 w-[60px]">{log.student_name}</span>
                 <span className="text-white font-bold">{log.description}</span>
               </div>
             );

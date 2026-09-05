@@ -26,7 +26,7 @@ export default function AdminTabs({ active, onChange, pendingCount = 0 }: Props)
           onClick={() => onChange(t.key)}
           className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-bold whitespace-nowrap transition-colors border-b-2 -mb-px ${
             active === t.key
-              ? 'border-blue-400 text-blue-400'
+              ? 'border-orange-400 text-orange-400'
               : 'border-transparent text-gray-400 hover:text-gray-200'
           }`}
         >
