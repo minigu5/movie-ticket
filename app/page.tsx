@@ -244,19 +244,30 @@ export default function Home() {
       }
       if (bgData) setBlacklistedUsers(bgData.map(b => b.email));
 
-      const { data: resData } = await supabase.from('reservations')
-        .select('id, seat_number, payment_status, student_name, student_id, group_expires_at, popcorn_order, user_id')
-        .eq('movie_date', currentDbDate);
+      // 🌟 [비로그인 열람] reservations는 RLS로 anon select가 막혀있어(개인정보 보호),
+      // 로그인 전에는 이름/학번 없이 좌석 점유 현황만 주는 /api/current-seats로 대신 조회한다.
+      type ResRow = { id?: string; seat_number: string; payment_status: string; student_name?: string; group_expires_at?: string | null; popcorn_order?: string; user_id?: string };
+      let resData: ResRow[] | null = null;
+      if (profile) {
+        const { data } = await supabase.from('reservations')
+          .select('id, seat_number, payment_status, student_name, student_id, group_expires_at, popcorn_order, user_id')
+          .eq('movie_date', currentDbDate);
+        resData = data;
+      } else {
+        const res = await fetch('/api/current-seats');
+        const { success, data } = await res.json();
+        resData = success ? data : [];
+      }
 
       if (resData) {
         const newStatuses: Record<string, SeatData> = {};
         const now = new Date();
         resData.forEach((res) => {
           if (res.payment_status === 'pending' || res.payment_status === 'confirmed') {
-            newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id, popcorn: res.popcorn_order };
+            newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name || '', ticketId: res.id || '', popcorn: res.popcorn_order };
           } else if (res.payment_status === 'group_pending') {
             if (res.group_expires_at && new Date(res.group_expires_at) > now) {
-              newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name, ticketId: res.id, popcorn: res.popcorn_order };
+              newStatuses[res.seat_number] = { status: res.payment_status, name: res.student_name || '', ticketId: res.id || '', popcorn: res.popcorn_order };
             }
           }
         });
@@ -264,7 +275,7 @@ export default function Home() {
 
         // 🌟 [예매 후 UI] 내 예매(확정/결제대기) 찾기 — group_pending(단체 초대 미확정)은 제외
         const mine = resData.find(r => r.user_id === profile?.id && (r.payment_status === 'confirmed' || r.payment_status === 'pending'));
-        setMyReservation(mine ? { id: mine.id, seat: mine.seat_number, status: mine.payment_status, popcorn: mine.popcorn_order } : null);
+        setMyReservation(mine ? { id: mine.id!, seat: mine.seat_number, status: mine.payment_status, popcorn: mine.popcorn_order } : null);
       }
 
       // 🌟 [단체 예매] 만료된 단체 예매 정리 — 세션당 최대 10분에 1회만 트리거
@@ -929,7 +940,7 @@ export default function Home() {
 
                   const displayText = isGroupLeaderSeat ? groupLeader!.name
                     : isGroupMemberSeat ? groupMembers.find(m => m.seat === seatId)!.name
-                    : isReserved ? seatData.name : seatId;
+                    : isReserved ? (seatData.name || seatId) : seatId;
 
                   const textSize = (isReserved || isGroupLeaderSeat || isGroupMemberSeat)
                     ? (isGrandHall ? 'text-[10px] md:text-[11px] tracking-tighter whitespace-nowrap' : 'text-[12px] md:text-[14px] tracking-tighter whitespace-nowrap') 
