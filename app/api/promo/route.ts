@@ -47,8 +47,8 @@ function buildHtml(params: {
   const deadlineText = movieInfo.deadline_date ? formatDeadlineKst(movieInfo.deadline_date) : null;
 
   const heading = safeName
-    ? `${safeName}님, 이번 달 상영작에<br/>초대합니다`
-    : `이번 달 상영작에<br/>초대합니다`;
+    ? `${safeName}님, 이번 달 상영작에 초대합니다.`
+    : `이번 달 상영작에 초대합니다.`;
 
   return `
     <!DOCTYPE html>
@@ -72,28 +72,19 @@ function buildHtml(params: {
         <div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161b26;">
 
           <div style="padding: 24px 22px 24px 22px;">
-            ${hasPoster ? `<div style="text-align:center; margin-bottom:20px;"><img src="cid:posterImage" alt="${safeTitle}" width="200" height="280" style="width:200px; height:280px; object-fit:cover; border-radius:12px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 8px 24px rgba(0,0,0,0.5); background-color:#0b1120;" /></div>` : ''}
+            ${hasPoster ? `<div style="text-align:center; margin-bottom:18px;"><img src="cid:posterImage" alt="${safeTitle}" width="240" height="336" style="width:240px; height:336px; object-fit:cover; border-radius:14px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 8px 24px rgba(0,0,0,0.5); background-color:#0b1120;" /></div>` : ''}
 
-            <span style="display:inline-block; background-color:rgba(255,255,255,0.08); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.4px;">(광고) 상영작 안내</span>
-
-            <div style="color:#ffffff; font-size:20px; font-weight:800; line-height:1.4; margin-top:16px; margin-bottom:14px;">${heading}</div>
-
-            <p style="color:#94a3b8; font-size:14px; line-height:1.7; margin:0 0 18px 0; word-break:keep-all;">
-              이번 달에도 좋은 영화 한 편을 준비했습니다. 좌석은 선착순이니 아래 버튼에서 미리 예매해 주세요.
-            </p>
-
-            <div style="background-color:rgba(0,0,0,0.42); padding:13px 15px; border-radius:11px; margin-bottom:16px;">
-              <div style="color:#f1f5f9; font-size:15px; font-weight:700; margin-bottom:6px;">${safeTitle || '상영작 미정'}</div>
+            <div style="background-color:rgba(0,0,0,0.42); padding:15px 16px; border-radius:11px; margin-bottom:18px;">
+              <div style="color:#ffffff; font-size:20px; font-weight:800; line-height:1.35; margin-bottom:8px;">${safeTitle || '상영작 미정'}</div>
               <div style="color:#94a3b8; font-size:13px; font-weight:600;">2D · ${safeAgeRating}</div>
               ${safeDate ? `<div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px; font-variant-numeric: tabular-nums;">${safeDate}</div>` : ''}
               ${safeVenue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px;">${emailIconImg('mapPinGray', 12, 'margin-right:3px;')} ${safeVenue}</div>` : ''}
-              ${deadlineText ? `<div style="color:#fbbf24; font-size:13px; font-weight:700; margin-top:8px;">${emailIconImg('hourglassAmber', 13, 'margin-right:3px;')} 예매 기한 ${escapeHtml(deadlineText)}</div>` : ''}
+              ${deadlineText ? `<div style="color:#fbbf24; font-size:13px; font-weight:700; margin-top:10px;">${emailIconImg('hourglassAmber', 13, 'margin-right:3px;')} 예매 기한 ${escapeHtml(deadlineText)}</div>` : ''}
             </div>
 
-            <div style="background-color:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.3); padding:12px 14px; border-radius:10px;">
-              <div style="color:#fcd34d; font-size:13px; font-weight:700; margin-bottom:4px;">${emailIconImg('popcornAmber', 13, 'margin-right:3px;')} 팝콘 예약도 함께 받아요</div>
-              <div style="color:#e5c07b; font-size:12px; font-weight:600; line-height:1.6;">오리지널 버터 · 콘소메 · 카라멜. 예매할 때 같이 골라 주세요.</div>
-            </div>
+            <p style="color:#94a3b8; font-size:14px; line-height:1.7; margin:0; word-break:keep-all;">
+              ${heading} 좌석은 선착순이니 아래 버튼에서 미리 예매해 주세요.
+            </p>
           </div>
 
           <div style="height:16px; background: radial-gradient(circle at 8px 8px, #0b1120 8px, transparent 8.5px) 0 0 / 16px 16px repeat-x; background-color: #161b26;"></div>
@@ -145,7 +136,6 @@ export async function POST(req: Request) {
     const iconAttachments = [
       ...(movieInfo?.venue ? [emailIconAttachment('mapPinGray', 'mapPinGray')] : []),
       ...(movieInfo?.deadline_date ? [emailIconAttachment('hourglassAmber', 'hourglassAmber')] : []),
-      emailIconAttachment('popcornAmber', 'popcornAmber'),
       emailIconAttachment('ticketWhite', 'ticketWhite'),
     ];
     const attachments = [...(posterAttachment ? [posterAttachment] : []), ...iconAttachments];
