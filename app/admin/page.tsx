@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, DomainNotAllowedError, type AppProfile } from '../../lib/supabase-auth';
 import Link from 'next/link';
 import { extractSchoolEmails } from '../../lib/parseEmails';
-import { renderTicketBackground, blobToDataUri, fetchPosterDataUri } from '../../lib/ticketBackgroundCanvas';
+import { renderTicketBackground, renderTicketBackgroundFromFile, blobToDataUri, fetchPosterDataUri } from '../../lib/ticketBackgroundCanvas';
 import AdminTabs, { type TabKey } from './_components/AdminTabs';
 import ReservationsTab from './_components/ReservationsTab';
 import SettingsTab from './_components/SettingsTab';
@@ -150,14 +150,16 @@ export default function AdminPage() {
     }
   };
 
-  const handleGenerateTicketBackground = async () => {
-    if (!editForm.poster_url) { alert('포스터 주소를 먼저 입력하세요.'); return; }
+  const handleGenerateTicketBackground = async (posterFile?: File) => {
+    if (!posterFile && !editForm.poster_url) { alert('포스터 주소를 먼저 입력하세요.'); return; }
     if (!editForm.id) { alert('영화 정보를 먼저 불러와야 합니다.'); return; }
 
     setBgGenerating(true);
     setBgStatus(null);
     try {
-      const blob = await renderTicketBackground(editForm.poster_url);
+      const blob = posterFile
+        ? await renderTicketBackgroundFromFile(posterFile)
+        : await renderTicketBackground(editForm.poster_url);
       const dataUri = await blobToDataUri(blob);
       const res = await authFetch('/api/admin/action', {
         action: 'UPLOAD_TICKET_BACKGROUND',
@@ -172,9 +174,11 @@ export default function AdminPage() {
       setMovieInfo((prev: any) => ({ ...prev, background_template_url: data.url }));
 
       // 원본 포스터도 Cloudinary에 복사해 둔다 (원본 호스트가 프로덕션에서
-      // 간헐적으로 fetch 실패하므로, 메일은 이 CDN URL을 우선 사용한다).
+      // 서버발 요청을 막는 경우가 있어, 메일은 이 CDN URL을 우선 사용한다).
+      // 파일을 직접 올린 경우 이미 로컬에 있는 바이트를 그대로 쓰고, 다시
+      // 원본 호스트로 프록시 fetch를 시도하지 않는다.
       try {
-        const posterDataUri = await fetchPosterDataUri(editForm.poster_url);
+        const posterDataUri = posterFile ? await blobToDataUri(posterFile) : await fetchPosterDataUri(editForm.poster_url);
         const posterRes = await authFetch('/api/admin/action', {
           action: 'UPLOAD_POSTER_CDN',
           payload: { movieId: editForm.id, imageBase64: posterDataUri },
@@ -569,7 +573,7 @@ export default function AdminPage() {
       <div className="max-w-6xl mx-auto">
         <div className="w-full flex flex-wrap justify-end items-center gap-3 mb-6">
           <span className="text-xs md:text-sm text-gray-500">{profile.email}</span>
-          <button onClick={() => signOutAndClear().then(() => window.location.reload())} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-xs md:text-sm text-slate-400 font-bold transition-colors flex items-center gap-1.5">
+          <button onClick={() => signOutAndClear().then(() => window.location.reload())} className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 rounded-lg text-xs md:text-sm text-neutral-400 font-bold transition-colors flex items-center gap-1.5">
             <LogOut className="w-4 h-4" /> 로그아웃
           </button>
           <Link href="/" className="px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-xs md:text-sm text-gray-300 font-bold transition-colors flex items-center gap-1.5"><Home className="w-4 h-4" /> 메인 홈</Link>
@@ -579,7 +583,7 @@ export default function AdminPage() {
         {isLoadingUI && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
             <div className="flex flex-col items-center bg-gray-900/80 p-8 rounded-2xl shadow-2xl border border-gray-700 w-80">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-6 shadow-[0_0_15px_rgba(59,130,246,0.6)]"></div>
+              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-orange-500 mb-6 shadow-[0_0_15px_rgba(249,115,22,0.6)]"></div>
               <p className="text-white font-bold text-xl tracking-wider mb-2">서버 동기화 중...</p>
               <p className="text-gray-400 text-sm">최신 데이터를 로드 중입니다.</p>
             </div>
@@ -587,8 +591,8 @@ export default function AdminPage() {
         )}
 
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-blue-400 flex items-center gap-1.5"><Crown className="w-6 h-6" /> 영화대교 관리자 대시보드</h1>
-          <button onClick={() => { fetchAdminData(); alert("데이터가 새로고침 되었습니다."); }} className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold transition-colors whitespace-nowrap flex items-center gap-1.5">
+          <h1 className="text-2xl md:text-3xl font-bold text-orange-400 flex items-center gap-1.5"><Crown className="w-6 h-6" /> 영화대교 관리자 대시보드</h1>
+          <button onClick={() => { fetchAdminData(); alert("데이터가 새로고침 되었습니다."); }} className="bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-lg font-bold transition-colors whitespace-nowrap flex items-center gap-1.5">
             <RefreshCw className="w-4 h-4" /> 새로고침
           </button>
         </div>

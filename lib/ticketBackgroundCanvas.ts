@@ -70,7 +70,7 @@ function drawImageCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x:
 function drawEdgeGradients(ctx: CanvasRenderingContext2D): void {
   const topH = TOP_MARGIN + LOGO_BLOCK_HEIGHT * 0.6;
   const top = ctx.createLinearGradient(0, 0, 0, topH);
-  top.addColorStop(0, '#0b1120');
+  top.addColorStop(0, '#0a0a0a');
   top.addColorStop(1, 'rgba(11,17,32,0)');
   ctx.fillStyle = top;
   ctx.fillRect(0, 0, OUTER_WIDTH, topH);
@@ -78,20 +78,20 @@ function drawEdgeGradients(ctx: CanvasRenderingContext2D): void {
   const bottomH = BOTTOM_MARGIN + 60;
   const bottom = ctx.createLinearGradient(0, OUTER_HEIGHT - bottomH, 0, OUTER_HEIGHT);
   bottom.addColorStop(0, 'rgba(11,17,32,0)');
-  bottom.addColorStop(1, '#0b1120');
+  bottom.addColorStop(1, '#0a0a0a');
   ctx.fillStyle = bottom;
   ctx.fillRect(0, OUTER_HEIGHT - bottomH, OUTER_WIDTH, bottomH);
 
   const sideW = SIDE_MARGIN + 60;
   const left = ctx.createLinearGradient(0, 0, sideW, 0);
-  left.addColorStop(0, '#0b1120');
+  left.addColorStop(0, '#0a0a0a');
   left.addColorStop(1, 'rgba(11,17,32,0)');
   ctx.fillStyle = left;
   ctx.fillRect(0, 0, sideW, OUTER_HEIGHT);
 
   const right = ctx.createLinearGradient(OUTER_WIDTH - sideW, 0, OUTER_WIDTH, 0);
   right.addColorStop(0, 'rgba(11,17,32,0)');
-  right.addColorStop(1, '#0b1120');
+  right.addColorStop(1, '#0a0a0a');
   ctx.fillStyle = right;
   ctx.fillRect(OUTER_WIDTH - sideW, 0, sideW, OUTER_HEIGHT);
 }
@@ -101,7 +101,7 @@ function drawLogo(ctx: CanvasRenderingContext2D): void {
   ctx.font = '700 34px "Song Myung"';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#f1f5f9';
+  ctx.fillStyle = '#f5f5f5';
   ctx.shadowColor = 'rgba(255,255,255,0.25)';
   ctx.shadowBlur = 18;
   const cx = OUTER_WIDTH / 2;
@@ -117,7 +117,7 @@ function drawCardFrame(ctx: CanvasRenderingContext2D, poster: HTMLImageElement, 
   ctx.shadowColor = 'rgba(0,0,0,0.55)';
   ctx.shadowBlur = 60;
   ctx.shadowOffsetY = 30;
-  ctx.fillStyle = '#161b26';
+  ctx.fillStyle = '#161616';
   drawRoundedRectPath(ctx, cardLeft, cardTop, CARD_WIDTH, CARD_HEIGHT, CARD_RADIUS);
   ctx.fill();
   ctx.restore();
@@ -126,7 +126,7 @@ function drawCardFrame(ctx: CanvasRenderingContext2D, poster: HTMLImageElement, 
   drawRoundedRectPath(ctx, cardLeft, cardTop, CARD_WIDTH, CARD_HEIGHT, CARD_RADIUS);
   ctx.clip();
 
-  ctx.fillStyle = '#161b26';
+  ctx.fillStyle = '#161616';
   ctx.fillRect(cardLeft, cardTop, CARD_WIDTH, CARD_HEIGHT);
   drawImageCover(ctx, poster, cardLeft, cardTop, CARD_WIDTH, CARD_HEIGHT);
 
@@ -195,8 +195,28 @@ function drawScallops(
  * CORS로 canvas가 오염되지 않는다.
  */
 export async function renderTicketBackground(posterUrl: string): Promise<Blob> {
-  await ensureSongMyungFont();
   const poster = await loadImage(`/api/poster-image?src=${encodeURIComponent(posterUrl)}`);
+  return renderTicketBackgroundFromImage(poster);
+}
+
+/**
+ * 포스터 원본 호스트가 서버(Cloudflare Workers) 발신 요청을 막아 프록시 fetch가
+ * 안 되는 경우(예: img.movist.com), 관리자가 로컬에 내려받은 포스터 파일을 직접
+ * 올려 같은 결과물을 만들 수 있게 한다. File은 브라우저에서 바로 디코딩하므로
+ * 프록시/네트워크를 거치지 않는다.
+ */
+export async function renderTicketBackgroundFromFile(file: File): Promise<Blob> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const poster = await loadImage(objectUrl);
+    return await renderTicketBackgroundFromImage(poster);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function renderTicketBackgroundFromImage(poster: HTMLImageElement): Promise<Blob> {
+  await ensureSongMyungFont();
 
   const canvas = document.createElement('canvas');
   canvas.width = OUTER_WIDTH * SCALE;
@@ -205,7 +225,7 @@ export async function renderTicketBackground(posterUrl: string): Promise<Blob> {
   if (!ctx) throw new Error('Canvas 2D context를 가져올 수 없습니다.');
   ctx.scale(SCALE, SCALE);
 
-  ctx.fillStyle = '#0b1120';
+  ctx.fillStyle = '#0a0a0a';
   ctx.fillRect(0, 0, OUTER_WIDTH, OUTER_HEIGHT);
 
   ctx.save();

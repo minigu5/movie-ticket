@@ -10,13 +10,13 @@ interface Props {
   onHallChange: (h: 'mid' | 'grand') => void;
   zone: Zone;
   onZoneChange: (z: Zone) => void;
-  accent?: string; // tailwind color name, default 'indigo'
+  accent?: string; // tailwind color name, default 'amber'
 }
 
 const clampRow = (r: string | undefined) => (r && /^[A-Z]$/.test(r) ? r : 'A');
 const clampCol = (c: number | undefined) => (Number.isFinite(c) && (c as number) > 0 ? (c as number) : 1);
 
-export default function VipZonePicker({ hall, onHallChange, zone, onZoneChange, accent = 'indigo' }: Props) {
+export default function VipZonePicker({ hall, onHallChange, zone, onZoneChange, accent = 'amber' }: Props) {
   const isGrand = hall === 'grand';
   const rows = useMemo(() => getGridRows(isGrand), [isGrand]);
   const cols = useMemo(() => getGridCols(isGrand), [isGrand]);
@@ -56,8 +56,8 @@ export default function VipZonePicker({ hall, onHallChange, zone, onZoneChange, 
     setPending(null);
   };
 
-  const fillClass = accent === 'pink' ? 'bg-pink-500/70' : 'bg-indigo-500/70';
-  const ringClass = accent === 'pink' ? 'ring-pink-300' : 'ring-indigo-300';
+  const fillClass = accent === 'pink' ? 'bg-pink-500/70' : 'bg-amber-500/70';
+  const ringClass = accent === 'pink' ? 'ring-pink-300' : 'ring-amber-300';
 
   return (
     <div className="bg-gray-900/60 rounded-lg border border-gray-700 p-4">
@@ -65,7 +65,7 @@ export default function VipZonePicker({ hall, onHallChange, zone, onZoneChange, 
         <button
           type="button"
           onClick={() => onHallChange('mid')}
-          className={`px-3 py-1.5 rounded text-xs font-bold ${hall === 'mid' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300'}`}
+          className={`px-3 py-1.5 rounded text-xs font-bold ${hall === 'mid' ? 'bg-amber-600 text-white' : 'bg-gray-700 text-gray-300'}`}
         >
           중강당 (14×9)
         </button>

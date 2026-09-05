@@ -186,7 +186,8 @@ async function fetchSafeImageOnce(src: string): Promise<SafeImageFetchResult> {
     }
 
     return { ok: true, body: buf, contentType };
-  } catch {
+  } catch (err) {
+    console.error('[fetchSafeImageOnce]', src, err);
     return { ok: false, status: 502, message: 'Fetch failed' };
   }
 }
