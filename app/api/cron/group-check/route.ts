@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { sendMail } from '@/lib/mailer';
 import { escapeHtml } from '@/lib/escapeHtml';
+import { emailIconImg, emailIconAttachment } from '@/lib/emailIcons';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,6 +47,12 @@ export async function GET() {
       // 4. 리더 및 확정된 멤버 전원에게 결과 리포트 발송
       const recipients = confirmedMembers; // 리더도 confirmed 상태이므로 포함됨
       const reportHtml = buildResultEmail(leader.student_name, confirmedMembers, expiredMembers);
+      const reportAttachments = [
+        emailIconAttachment(expiredMembers.length === 0 ? 'partyPopperWhite' : 'clipboardListWhite', expiredMembers.length === 0 ? 'partyPopperWhite' : 'clipboardListWhite'),
+        ...(confirmedMembers.length > 0 ? [emailIconAttachment('sparklesGreen', 'sparklesGreen')] : []),
+        ...(expiredMembers.length > 0 ? [emailIconAttachment('hourglassRed', 'hourglassRed')] : []),
+        emailIconAttachment('clapperboardRed', 'clapperboardRed'),
+      ];
 
       for (const member of recipients) {
         const email = getEmail(member);
@@ -54,7 +61,8 @@ export async function GET() {
             await sendMail({
               to: email,
               subject: `[영화대교] 단체 예매 최종 결과 안내 (${confirmedMembers.length}명 확정)`,
-              html: reportHtml
+              html: reportHtml,
+              attachments: reportAttachments
             });
           } catch (e) { console.error('Report email error:', e); }
         }
@@ -68,7 +76,8 @@ export async function GET() {
             await sendMail({
               to: email,
               subject: `[영화대교] ${expired.student_name}님의 단체 예매가 시간 초과로 취소되었습니다`,
-              html: buildCancelEmail(expired.student_name, expired.seat_number, leader.student_name)
+              html: buildCancelEmail(expired.student_name, expired.seat_number, leader.student_name),
+              attachments: [emailIconAttachment('hourglassRed', 'hourglassRed')]
             });
           } catch (e) { console.error('Cancel email error:', e); }
         }
@@ -122,7 +131,7 @@ function buildCancelEmail(name: string, seat: string, leaderName: string): strin
 
         <div style="max-width:380px;margin:0 auto;background-color:#161b26;border:1px solid #26303f;border-radius:20px;overflow:hidden;box-shadow:0 20px 45px rgba(0,0,0,0.55);text-align:left;">
           <div style="padding:26px 24px;color:white;">
-            <p style="color:#f87171;font-weight:700;font-size:12px;letter-spacing:1px;margin:0 0 8px 0;">⏰ 시간 초과</p>
+            <p style="color:#f87171;font-weight:700;font-size:12px;letter-spacing:1px;margin:0 0 8px 0;">${emailIconImg('hourglassRed', 12, 'margin-right:3px;')} 시간 초과</p>
             <h1 style="margin:0 0 14px 0;font-size:20px;font-weight:800;line-height:1.4;">${safeName}님의 단체 예매가<br/>시간 초과로 취소되었습니다</h1>
             <p style="color:#94a3b8;font-size:14px;font-weight:600;line-height:1.5;">리더 ${safeLeaderName}님의 단체 관람 초대에<br/>1시간 이내에 응답하지 않아 좌석(${safeSeat})이 해제되었습니다.</p>
           </div>
@@ -176,7 +185,7 @@ function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]):
         <div style="max-width:440px;margin:0 auto;background-color:#161b26;border:1px solid #26303f;border-radius:20px;overflow:hidden;box-shadow:0 20px 45px rgba(0,0,0,0.55);text-align:left;">
           <div style="padding:28px 25px;color:white;">
             <div style="text-align:center;margin-bottom:18px;">
-              <span style="font-size:40px;">${isFullSuccess ? '🎉' : '📋'}</span>
+              ${isFullSuccess ? emailIconImg('partyPopperWhite', 40) : emailIconImg('clipboardListWhite', 40)}
             </div>
             <p style="color:${isFullSuccess ? '#34d399' : '#fbbf24'};font-weight:700;font-size:12px;letter-spacing:2px;margin:0 0 10px 0;text-align:center;text-transform:uppercase;">
               ${isFullSuccess ? 'Mission Accomplished' : 'Group Status Report'}
@@ -191,7 +200,7 @@ function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]):
             ${confirmed.length > 0 ? `
               <div style="margin-bottom:22px;">
                 <p style="color:#34d399;font-weight:700;font-size:14px;margin-bottom:10px;">
-                  ✨ 확정된 멤버 (${confirmed.length}명)
+                  ${emailIconImg('sparklesGreen', 14, 'margin-right:3px;')} 확정된 멤버 (${confirmed.length}명)
                 </p>
                 <ul style="padding:0;margin:0;">${confirmedList}</ul>
               </div>
@@ -200,7 +209,7 @@ function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]):
             ${expired.length > 0 ? `
               <div style="margin-bottom:10px;">
                 <p style="color:#f87171;font-weight:700;font-size:14px;margin-bottom:10px;">
-                  ⏰ 시간 초과 (${expired.length}명)
+                  ${emailIconImg('hourglassRed', 14, 'margin-right:3px;')} 시간 초과 (${expired.length}명)
                 </p>
                 <ul style="padding:0;margin:0;">${expiredList}</ul>
                 <p style="color:#64748b;font-size:11px;font-weight:600;margin-top:10px;">* 위 좌석은 시간 초과로 인해 자동으로 예매가 취소 및 해제되었습니다.</p>
@@ -210,7 +219,7 @@ function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]):
 
           <div style="background-color:rgba(0,0,0,0.25);padding:18px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);">
             <p style="color:#64748b;font-size:12px;margin:0;">본 메일은 시스템에 의해 자동으로 발송되었습니다.</p>
-            <p style="color:#ef4444;font-weight:700;font-size:13px;margin:5px 0 0 0;">🎬 영화대교 Ticketing System</p>
+            <p style="color:#ef4444;font-weight:700;font-size:13px;margin:5px 0 0 0;">${emailIconImg('clapperboardRed', 13, 'margin-right:3px;')} 영화대교 Ticketing System</p>
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { sendMail } from '@/lib/mailer';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { escapeHtml } from '@/lib/escapeHtml';
 import { fetchSafeImage } from '@/lib/safeImageFetch';
+import { emailIconImg, emailIconAttachment } from '@/lib/emailIcons';
 
 export async function POST(req: Request) {
   try {
@@ -54,17 +55,17 @@ export async function POST(req: Request) {
                 <img src="${posterSrc}" alt="${safeMovieTitle}" width="380" style="display:block; width:100%; height:210px; object-fit:cover; object-position:top; background-color:#0b1120;" />
 
                 <div style="padding: 18px 22px 26px 22px;">
-                  <span style="display:inline-block; background-color:rgba(255,255,255,0.08); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.5px;">🎬 단체 관람 초대장</span>
+                  <span style="display:inline-block; background-color:rgba(255,255,255,0.08); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.5px;">${emailIconImg('clapperboardWhite', 11, 'margin-right:3px;')} 단체 관람 초대장</span>
 
                   <div style="color:#ffffff; font-size:20px; font-weight:800; line-height:1.4; margin-top: 16px; margin-bottom: 20px;">${safeMemberName}님, 단체 관람에<br/>초대되었습니다</div>
 
                   <div style="color:#f1f5f9; font-size:15px; font-weight:700; margin-bottom: 4px;">${safeMovieTitle}</div>
                   <div style="color:#94a3b8; font-size:13px; font-weight:600; margin-bottom: 4px;">${safeMovieDate}</div>
-                  ${venue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600;">📍 ${safeVenue}</div>` : ''}
+                  ${venue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600;">${emailIconImg('mapPinGray', 12, 'margin-right:3px;')} ${safeVenue}</div>` : ''}
                   <div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px;">리더 ${safeLeaderName}님</div>
 
                   <div style="margin: 18px 0; padding: 12px 14px; background-color: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.4); border-radius: 10px;">
-                    <div style="color:#fbbf24; font-size:13px; font-weight:700; margin-bottom: 4px;">⏰ 1시간 내로 예매를 확정해주세요</div>
+                    <div style="color:#fbbf24; font-size:13px; font-weight:700; margin-bottom: 4px;">${emailIconImg('hourglassAmber', 13, 'margin-right:3px;')} 1시간 내로 예매를 확정해주세요</div>
                     <div style="color:#e5c07b; font-size:12px; font-weight:600;">미응답 시 좌석이 자동으로 해제됩니다.</div>
                   </div>
 
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
               </div>
 
               <div style="margin-top: 30px;">
-                <a href="${confirmUrl}" style="display: inline-block; background-color: #ef4444; color: #ffffff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: 800;">✅ 예매 확정하러 가기</a>
+                <a href="${confirmUrl}" style="display: inline-block; background-color: #ef4444; color: #ffffff; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: 800;">${emailIconImg('circleCheckWhite', 15, 'margin-right:4px;')} 예매 확정하러 가기</a>
               </div>
 
               <p style="color: #475569; font-size: 10px; margin-top: 24px; letter-spacing: 2px;">
@@ -89,9 +90,15 @@ export async function POST(req: Request) {
 
       return sendMail({
         to: email,
-        subject: `[영화대교] 🎬 ${member.name}님, 단체 관람에 초대되었습니다 - ${member.seat} 좌석`,
+        subject: `[영화대교] ${member.name}님, 단체 관람에 초대되었습니다 - ${member.seat} 좌석`,
         html: htmlContent,
-        attachments: posterAttachment ? [posterAttachment] : undefined,
+        attachments: [
+          ...(posterAttachment ? [posterAttachment] : []),
+          emailIconAttachment('clapperboardWhite', 'clapperboardWhite'),
+          ...(venue ? [emailIconAttachment('mapPinGray', 'mapPinGray')] : []),
+          emailIconAttachment('hourglassAmber', 'hourglassAmber'),
+          emailIconAttachment('circleCheckWhite', 'circleCheckWhite'),
+        ],
       });
     });
 

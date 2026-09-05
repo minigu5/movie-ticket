@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { sendMail } from '@/lib/mailer';
 import { escapeHtml } from '@/lib/escapeHtml';
 import { fetchSafeImage } from '@/lib/safeImageFetch';
+import { emailIconImg, emailIconAttachment } from '@/lib/emailIcons';
 
 // lib/ticketBackgroundCanvas.ts가 만드는 템플릿의 레이아웃과 반드시 일치해야 한다.
 const DISPLAY_CARD_WIDTH = 380;
@@ -88,7 +89,7 @@ export async function POST(req: Request) {
     if (popcornArray.length > 0) {
       const counts: Record<string, number> = {};
       popcornArray.forEach((p: string) => { counts[p] = (counts[p] || 0) + 1; });
-      popcornText = Object.entries(counts).map(([key, count]) => `🍿 ${popcornNames[key]} ${count}개`).join('<br/>');
+      popcornText = Object.entries(counts).map(([key, count]) => `${emailIconImg('popcornGray', 13)} ${popcornNames[key]} ${count}개`).join('<br/>');
     }
 
     const displayId = ticketId ? ticketId.split('-')[0].toUpperCase() : 'UNKNOWN';
@@ -178,7 +179,7 @@ export async function POST(req: Request) {
           ${cardMarkup}
 
           ${statusType === 'pending' ? `
-            <p style="margin-top: 25px; color: #fbbf24; font-weight: bold; font-size: 14px;">⚠️ 30분 내로 아래 QR코드로 입금해주세요. (총액: ${formattedPrice}원)</p>
+            <p style="margin-top: 25px; color: #fbbf24; font-weight: bold; font-size: 14px;">${emailIconImg('triangleAlertAmber', 14, 'margin-right:4px;')} 30분 내로 아래 QR코드로 입금해주세요. (총액: ${formattedPrice}원)</p>
             <div style="margin-top: 15px; text-align: center;">
               <img src="${safeBaseUrl}/qr.jpeg" alt="송금 QR" width="150" height="150" style="border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);" />
             </div>
@@ -190,17 +191,17 @@ export async function POST(req: Request) {
               </tr></table>
             </div>
           ` : statusType === 'changed' ? `
-            <p style="margin-top: 25px; color: #60a5fa; font-weight: bold; font-size: 14px;">🔄 좌석 변경이 완료되었습니다.</p>
+            <p style="margin-top: 25px; color: #60a5fa; font-weight: bold; font-size: 14px;">${emailIconImg('refreshCwBlue', 14, 'margin-right:4px;')} 좌석 변경이 완료되었습니다.</p>
           ` : statusType === 'canceled' ? `
-            <p style="margin-top: 25px; color: #f87171; font-weight: bold; font-size: 14px;">❌ 예매가 취소되었습니다.</p>
+            <p style="margin-top: 25px; color: #f87171; font-weight: bold; font-size: 14px;">${emailIconImg('circleXRed', 14, 'margin-right:4px;')} 예매가 취소되었습니다.</p>
           ` : `
-            <p style="margin-top: 25px; color: #34d399; font-weight: bold; font-size: 14px;">✅ 예매가 확정되었습니다. 상영 당일 보여주세요!</p>
+            <p style="margin-top: 25px; color: #34d399; font-weight: bold; font-size: 14px;">${emailIconImg('circleCheckGreen', 14, 'margin-right:4px;')} 예매가 확정되었습니다. 상영 당일 보여주세요!</p>
           `}
 
           ${statusType !== 'canceled' ? `
             <div style="margin-top: 30px; border-top: 1px dashed #26303f; padding-top: 18px; text-align: center;">
               <p style="font-size: 13px; color: #94a3b8; margin-bottom: 12px;">예매 내역 확인이나 변경은 아래에서 하실 수 있어요.</p>
-              <a href="${safeBaseUrl}" style="display: inline-block; background-color: #ef4444; color: #ffffff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700;">🎬 웹사이트에서 확인하기</a>
+              <a href="${safeBaseUrl}" style="display: inline-block; background-color: #ef4444; color: #ffffff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700;">${emailIconImg('clapperboardWhite', 14, 'margin-right:4px;')} 웹사이트에서 확인하기</a>
             </div>
           ` : ''}
           </div>
@@ -213,9 +214,17 @@ export async function POST(req: Request) {
       : cardBackground?.contentType.includes('webp')
       ? 'webp'
       : 'jpg';
-    const attachments = cardBackground
-      ? [{ filename: `card-bg.${attachmentExt}`, content: Buffer.from(cardBackground.body), cid: 'cardBg', contentType: cardBackground.contentType }]
-      : undefined;
+    const statusIconCid = statusType === 'pending' ? 'triangleAlertAmber'
+      : statusType === 'changed' ? 'refreshCwBlue'
+      : statusType === 'canceled' ? 'circleXRed'
+      : 'circleCheckGreen';
+
+    const attachments = [
+      ...(cardBackground ? [{ filename: `card-bg.${attachmentExt}`, content: Buffer.from(cardBackground.body), cid: 'cardBg', contentType: cardBackground.contentType }] : []),
+      ...(popcornArray.length > 0 ? [emailIconAttachment('popcornGray', 'popcornGray')] : []),
+      emailIconAttachment(statusIconCid, statusIconCid),
+      ...(statusType !== 'canceled' ? [emailIconAttachment('clapperboardWhite', 'clapperboardWhite')] : []),
+    ];
 
     await sendMail({ to: email, subject, html: ticketHTML, attachments });
     return NextResponse.json({ success: true });

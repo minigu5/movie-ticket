@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { sendMail } from '@/lib/mailer';
 import { escapeHtml } from '@/lib/escapeHtml';
 import { fetchSafeImage } from '@/lib/safeImageFetch';
+import { emailIconImg, emailIconAttachment } from '@/lib/emailIcons';
 
 type Recipient = { email: string; name?: string | null };
 
@@ -71,7 +72,7 @@ function buildHtml(params: {
         <div style="margin: 0 auto; width: 100%; max-width: 380px; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 45px rgba(0,0,0,0.55); text-align: left; background-color:#161b26;">
 
           <div style="padding: 24px 22px 24px 22px;">
-            ${hasPoster ? `<div style="text-align:center; margin-bottom:20px;"><img src="cid:posterImage" alt="${safeTitle}" width="150" height="210" style="width:150px; height:210px; object-fit:cover; border-radius:12px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 8px 24px rgba(0,0,0,0.5); background-color:#0b1120;" /></div>` : ''}
+            ${hasPoster ? `<div style="text-align:center; margin-bottom:20px;"><img src="cid:posterImage" alt="${safeTitle}" width="200" height="280" style="width:200px; height:280px; object-fit:cover; border-radius:12px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 8px 24px rgba(0,0,0,0.5); background-color:#0b1120;" /></div>` : ''}
 
             <span style="display:inline-block; background-color:rgba(255,255,255,0.08); padding:4px 9px; border-radius:6px; color:#e2e8f0; font-size:11px; font-weight:600; letter-spacing:0.4px;">(광고) 상영작 안내</span>
 
@@ -85,12 +86,12 @@ function buildHtml(params: {
               <div style="color:#f1f5f9; font-size:15px; font-weight:700; margin-bottom:6px;">${safeTitle || '상영작 미정'}</div>
               <div style="color:#94a3b8; font-size:13px; font-weight:600;">2D · ${safeAgeRating}</div>
               ${safeDate ? `<div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px; font-variant-numeric: tabular-nums;">${safeDate}</div>` : ''}
-              ${safeVenue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px;">📍 ${safeVenue}</div>` : ''}
-              ${deadlineText ? `<div style="color:#fbbf24; font-size:13px; font-weight:700; margin-top:8px;">⏰ 예매 기한 ${escapeHtml(deadlineText)}</div>` : ''}
+              ${safeVenue ? `<div style="color:#94a3b8; font-size:13px; font-weight:600; margin-top:4px;">${emailIconImg('mapPinGray', 12, 'margin-right:3px;')} ${safeVenue}</div>` : ''}
+              ${deadlineText ? `<div style="color:#fbbf24; font-size:13px; font-weight:700; margin-top:8px;">${emailIconImg('hourglassAmber', 13, 'margin-right:3px;')} 예매 기한 ${escapeHtml(deadlineText)}</div>` : ''}
             </div>
 
             <div style="background-color:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.3); padding:12px 14px; border-radius:10px;">
-              <div style="color:#fcd34d; font-size:13px; font-weight:700; margin-bottom:4px;">🍿 팝콘 예약도 함께 받아요</div>
+              <div style="color:#fcd34d; font-size:13px; font-weight:700; margin-bottom:4px;">${emailIconImg('popcornAmber', 13, 'margin-right:3px;')} 팝콘 예약도 함께 받아요</div>
               <div style="color:#e5c07b; font-size:12px; font-weight:600; line-height:1.6;">오리지널 버터 · 콘소메 · 카라멜. 예매할 때 같이 골라 주세요.</div>
             </div>
           </div>
@@ -99,7 +100,7 @@ function buildHtml(params: {
         </div>
 
         <div style="margin-top: 26px;">
-          <a href="${safeBaseUrl}" style="display: inline-block; background-color: #ef4444; color: #ffffff; padding: 13px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700;">🎫 좌석 예매하러 가기</a>
+          <a href="${safeBaseUrl}" style="display: inline-block; background-color: #ef4444; color: #ffffff; padding: 13px 24px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700;">${emailIconImg('ticketWhite', 14, 'margin-right:4px;')} 좌석 예매하러 가기</a>
         </div>
 
         <div style="max-width: 380px; margin: 26px auto 0 auto; border-top: 1px dashed #26303f; padding-top: 16px;">
@@ -141,13 +142,21 @@ export async function POST(req: Request) {
     const html = (name?: string | null) =>
       buildHtml({ name, movieInfo, baseUrl, hasPoster: !!posterAttachment });
 
+    const iconAttachments = [
+      ...(movieInfo?.venue ? [emailIconAttachment('mapPinGray', 'mapPinGray')] : []),
+      ...(movieInfo?.deadline_date ? [emailIconAttachment('hourglassAmber', 'hourglassAmber')] : []),
+      emailIconAttachment('popcornAmber', 'popcornAmber'),
+      emailIconAttachment('ticketWhite', 'ticketWhite'),
+    ];
+    const attachments = [...(posterAttachment ? [posterAttachment] : []), ...iconAttachments];
+
     const results = await Promise.allSettled(
       chunk.map((r) =>
         sendMail({
           to: r.email,
           subject: `(광고) [영화대교] 이번 달 상영작에 초대합니다`,
           html: html(r.name),
-          attachments: posterAttachment ? [posterAttachment] : undefined,
+          attachments,
         }),
       ),
     );
