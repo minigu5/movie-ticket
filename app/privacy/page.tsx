@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "개인정보처리방침 - 영화대교 예매 시스템",
+  title: "개인정보처리방침 - 영화대교",
 };
 
 export default function PrivacyPage() {

@@ -1458,7 +1458,7 @@ export default function Home() {
           <div className="py-4 flex items-center justify-center gap-2.5 text-[11px] text-neutral-500 flex-wrap">
             <a href="/privacy" className="hover:text-neutral-400 transition-colors">개인정보처리방침</a>
             <span className="opacity-40">·</span>
-            <span>© 2026 영화대교 예매 시스템. All rights reserved.</span>
+            <span>© 2026 영화대교. All rights reserved.</span>
           </div>
         </div>
       </footer>

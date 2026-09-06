@@ -64,7 +64,7 @@ export async function sendMail({ to, subject, html, attachments }: SendMailParam
       });
 
       await transporter.sendMail({
-        from: `"영화대교 예매시스템" <${account.user}>`,
+        from: `"영화대교" <${account.user}>`,
         to,
         subject,
         html,

@@ -219,7 +219,7 @@ function buildResultEmail(leaderName: string, confirmed: any[], expired: any[]):
 
           <div style="background-color:rgba(0,0,0,0.25);padding:18px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);">
             <p style="color:#737373;font-size:12px;margin:0;">본 메일은 시스템에 의해 자동으로 발송되었습니다.</p>
-            <p style="color:#ef4444;font-weight:700;font-size:13px;margin:5px 0 0 0;">${emailIconImg('clapperboardRed', 13, 'margin-right:3px;')} 영화대교 Ticketing System</p>
+            <p style="color:#ef4444;font-weight:700;font-size:13px;margin:5px 0 0 0;">${emailIconImg('clapperboardRed', 13, 'margin-right:3px;')} 영화대교</p>
           </div>
         </div>
       </div>
