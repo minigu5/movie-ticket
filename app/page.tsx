@@ -756,7 +756,7 @@ export default function Home() {
           key={viewingPast ? `past-${pastIndex}` : 'current'}
           className={`flex flex-col md:flex-row items-center gap-6 bg-white/5 backdrop-blur-xl p-6 rounded-2xl w-full shadow-2xl border border-white/10 transition-colors duration-500 hover:border-white/20 hover:bg-white/10 ${navDirection === 'older' ? 'movie-card-enter-from-left' : 'movie-card-enter-from-right'}`}
         >
-          <img src={displayMovie.poster_url} alt="영화 포스터" loading="lazy" decoding="async" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-neutral-800" />
+          <img src={(displayMovie as any).poster_cdn_url || displayMovie.poster_url} alt="영화 포스터" loading="lazy" decoding="async" className="w-40 h-56 md:w-44 md:h-64 object-cover rounded-xl shadow-[0_0_25px_rgba(0,0,0,0.6)] border border-white/10 bg-neutral-800" />
           <div className="flex flex-col text-center md:text-left w-full">
             {viewingPast ? (
               <span className="text-neutral-400 font-bold mb-1 text-sm tracking-wide bg-neutral-700/40 border border-neutral-600/50 px-2 py-0.5 rounded-sm w-fit mx-auto md:mx-0 flex items-center gap-1"><History className="w-3.5 h-3.5" /> 지난 상영작</span>
