@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { ensureProfile, signInWithGoogle, signOutAndClear, authFetch, authFetchGet, DomainNotAllowedError, type AppProfile } from '../lib/supabase-auth';
 import Link from 'next/link'; // 🌟[추가] Next.js Link 임포트
@@ -51,6 +51,10 @@ export default function Home() {
   });
   
   const [profile, setProfile] = useState<AppProfile | null>(null);
+  // 🌟 [버그 수정] 비로그인(anon) 첫 fetch와 로그인 확인 후 fetch가 겹칠 때, 늦게 끝난
+  // anon 응답(이름 없음)이 나중 setState로 덮어써서 로그인해도 예매자 이름이 안 보이는
+  // race condition을 막기 위한 순번 가드.
+  const fetchSeqRef = useRef(0);
   const [authLoading, setAuthLoading] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -224,6 +228,7 @@ export default function Home() {
   }, [viewingPast, pastMovie]);
 
   const fetchInitialData = async () => {
+    const seq = ++fetchSeqRef.current;
     try {
       const [{ data: settingsData }, { data: bgData }, { data: clubData }, { data: pastData }] = await Promise.all([
         supabase.from('movie_settings').select('*').eq('is_active', true).single(),
@@ -258,6 +263,9 @@ export default function Home() {
         const { success, data } = await res.json();
         resData = success ? data : [];
       }
+
+      // 늦게 끝난 낡은 fetch(예: 로그인 확인 전 anon 요청)는 최신 fetch 결과를 덮어쓰지 못하게 무시
+      if (seq !== fetchSeqRef.current) return;
 
       if (resData) {
         const newStatuses: Record<string, SeatData> = {};
