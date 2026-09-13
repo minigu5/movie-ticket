@@ -151,7 +151,8 @@ export default function AdminPage() {
   };
 
   const handleGenerateTicketBackground = async (posterFile?: File) => {
-    if (!posterFile && !editForm.poster_url) { alert('포스터 주소를 먼저 입력하세요.'); return; }
+    const posterSource = editForm.poster_url || editForm.poster_cdn_url;
+    if (!posterFile && !posterSource) { alert('포스터 주소를 먼저 입력하세요.'); return; }
     if (!editForm.id) { alert('영화 정보를 먼저 불러와야 합니다.'); return; }
 
     setBgGenerating(true);
@@ -159,7 +160,7 @@ export default function AdminPage() {
     try {
       const blob = posterFile
         ? await renderTicketBackgroundFromFile(posterFile)
-        : await renderTicketBackground(editForm.poster_url);
+        : await renderTicketBackground(posterSource);
       const dataUri = await blobToDataUri(blob);
       const res = await authFetch('/api/admin/action', {
         action: 'UPLOAD_TICKET_BACKGROUND',
@@ -178,7 +179,7 @@ export default function AdminPage() {
       // 파일을 직접 올린 경우 이미 로컬에 있는 바이트를 그대로 쓰고, 다시
       // 원본 호스트로 프록시 fetch를 시도하지 않는다.
       try {
-        const posterDataUri = posterFile ? await blobToDataUri(posterFile) : await fetchPosterDataUri(editForm.poster_url);
+        const posterDataUri = posterFile ? await blobToDataUri(posterFile) : await fetchPosterDataUri(posterSource);
         const posterRes = await authFetch('/api/admin/action', {
           action: 'UPLOAD_POSTER_CDN',
           payload: { movieId: editForm.id, imageBase64: posterDataUri },
