@@ -282,7 +282,9 @@ export default function Home() {
         setSeatStatuses(newStatuses);
 
         // 🌟 [예매 후 UI] 내 예매(확정/결제대기) 찾기 — group_pending(단체 초대 미확정)은 제외
-        const mine = resData.find(r => r.user_id === profile?.id && (r.payment_status === 'confirmed' || r.payment_status === 'pending'));
+        // profile 없으면(비로그인) user_id 비교 자체를 하지 않는다: anon 응답엔 user_id 필드가 없어
+        // undefined === undefined로 아무 예약이나 "내 예매"로 오매칭되는 사고를 막기 위함.
+        const mine = profile ? resData.find(r => r.user_id === profile.id && (r.payment_status === 'confirmed' || r.payment_status === 'pending')) : undefined;
         setMyReservation(mine ? { id: mine.id!, seat: mine.seat_number, status: mine.payment_status, popcorn: mine.popcorn_order } : null);
       }
 
